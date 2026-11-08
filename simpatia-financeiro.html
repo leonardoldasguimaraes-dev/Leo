@@ -137,8 +137,8 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 .fiabtn{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:var(--ink);cursor:pointer}
 .fiabtn:hover{background:var(--sunk)}
 .fiaarrow{font-size:26px;color:var(--muted)}
-.extarrow{transition:transform .2s;line-height:1}
-#extBtn[aria-expanded="true"] .extarrow,#prodBtn[aria-expanded="true"] .extarrow{transform:rotate(180deg)}
+.extarrow{flex:none;width:11px;height:11px;margin-right:6px;border-right:2.5px solid var(--muted);border-bottom:2.5px solid var(--muted);transform:translateY(-3px) rotate(45deg);transition:transform .2s}
+[aria-expanded="true"] > .extarrow{transform:translateY(3px) rotate(-135deg)}
 .chk{display:flex;gap:8px;align-items:flex-start;font-size:14px}
 .chk input{margin-top:3px;width:18px;height:18px}
 .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
@@ -314,6 +314,18 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="list" id="eList"></div>
   </section>
 
+  <section class="sec">
+    <button type="button" class="card fiabtn" id="qBtn" aria-expanded="false" aria-controls="qBody">
+      <span><span class="vh">Quebras e perdas</span><br><span class="note" id="qNote">Quebra, estragado, doação, consumo próprio</span></span>
+      <span class="extarrow" aria-hidden="true"></span>
+    </button>
+    <div id="qBody" class="sec" hidden>
+      <div class="inl"><div class="chips" id="qMes"></div><button type="button" class="btn primary" id="qAdd" style="margin-left:auto">+ Registrar perda</button></div>
+      <div class="card" id="qSum"></div>
+      <div class="list" id="qList"></div>
+    </div>
+  </section>
+
   <section class="sec" id="eCompSec">
     <div class="sechead"><h2>Compras para dar entrada</h2><span class="note">Das notas fiscais lançadas nos últimos 60 dias</span></div>
     <div class="list" id="eComp"></div>
@@ -359,7 +371,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
   <section class="sec">
     <button type="button" class="card fiabtn" id="extBtn" aria-expanded="false" aria-controls="extBody">
       <span><span class="vh">Extrato do mês</span><br><span class="note" id="extNote">Lançamentos de entradas e saídas</span></span>
-      <span class="fiaarrow extarrow" aria-hidden="true">⌄</span>
+      <span class="extarrow" aria-hidden="true"></span>
     </button>
     <div id="extBody" class="sec" hidden>
       <div class="tools">
@@ -373,7 +385,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
   <section class="sec">
     <button type="button" class="card fiabtn" id="prodBtn" aria-expanded="false" aria-controls="prodBody">
       <span><span class="vh">Produtos comprados</span><br><span class="note" id="prodNote">Produtos das notas fiscais</span></span>
-      <span class="fiaarrow extarrow" aria-hidden="true">⌄</span>
+      <span class="extarrow" aria-hidden="true"></span>
     </button>
     <div id="prodBody" class="sec" hidden>
       <div class="field"><input id="prodQ" type="search" placeholder="Buscar produto em todos os meses (ex.: heineken, gelo)" aria-label="Buscar produto" autocomplete="off"></div>
@@ -441,7 +453,25 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
   </div>
 </div>
 
-<div class="fabs" id="estFab"><button class="fab" id="eCountBtn">Fazer contagem</button></div>
+<div class="fabs" id="estFab"><button class="fab alt" id="eLossBtn">Quebra / perda</button><button class="fab" id="eCountBtn">Fazer contagem</button></div>
+
+<div class="scrim" id="scrim10" hidden>
+  <form class="sheet" id="qForm" novalidate>
+    <h3>Registrar quebra ou perda</h3>
+    <div class="field"><span class="label">Motivo</span><div class="seg" id="qMot" style="grid-template-columns:repeat(3,1fr)"></div></div>
+    <div class="field"><label for="qProd">Produto</label><select id="qProd"></select></div>
+    <div class="grid2">
+      <div class="field"><label for="qCx">Caixas</label><input id="qCx" type="number" min="0" inputmode="numeric" placeholder="0"></div>
+      <div class="field"><label for="qUn">Unidades</label><input id="qUn" type="number" min="0" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label for="qData">Data</label><input id="qData" type="date"></div>
+      <div class="field"><label for="qObs">Observação</label><input id="qObs" placeholder="Ex.: caiu no depósito" autocomplete="off"></div>
+    </div>
+    <div class="note" id="qFNote"></div>
+    <div class="actions"><div class="r"><button type="button" class="btn" id="qCancel">Cancelar</button><button type="submit" class="btn primary" id="qSave">Registrar</button></div></div>
+  </form>
+</div>
 
 <div class="scrim" id="scrim4" hidden>
   <form class="sheet" id="pForm" novalidate>
@@ -460,7 +490,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="field"><label for="pChave">Palavras para achar nas notas</label><input id="pChave" placeholder="Ex.: heineken 600" autocomplete="off"><span class="note">Separe alternativas com vírgula. Ex.: heineken 600, heinek 600</span></div>
     <div id="pMov" class="sec" hidden>
       <div class="label">Movimentar estoque</div>
-      <div class="inl"><select id="mTipo"><option value="entrada">Entrada</option><option value="saida">Saída / perda</option></select>
+      <div class="inl"><select id="mTipo"><option value="entrada">Entrada</option><option value="saida:quebra">Quebra</option><option value="saida:estragado">Estragado / vencido</option><option value="saida:doacao">Doação</option><option value="saida:consumo">Consumo próprio</option><option value="saida:outro">Outra saída</option></select>
         <input id="mCx" type="number" min="0" inputmode="numeric" placeholder="cx" aria-label="Caixas"><input id="mUn" type="number" min="0" inputmode="numeric" placeholder="unid." aria-label="Unidades">
         <button type="button" class="btn" id="mAdd">Registrar</button></div>
       <div class="label">Histórico</div>
@@ -1004,7 +1034,7 @@ function renderEstoque(){
     return `<button class="row" data-pid="${esc(p.id)}"><span class="stripe" style="background:${a.status==="red"?"var(--neg)":a.status==="amb"?"var(--accent)":a.status==="ok"?"var(--pos)":"var(--line)"}"></span>
       <span class="main"><span class="t">${esc(p.nome)}</span><span class="s"><span>${esc(p.embalagem||"")}</span>${eCat==="todas"&&catOf(p)!=="cerveja"?`<span>· ${esc(catName(catOf(p)))}</span>`:""}${a.perDay?`<span>· vende ~${(a.perDay*7).toLocaleString("pt-BR",{maximumFractionDigits:0})}/sem${a.calc===null?" (informado)":""}</span>`:""}${a.diasRest!==null?`<span>· dura ~${Math.max(0,Math.floor(a.diasRest))} dias</span>`:""}${a.last?`<span>· contado ${ddmm(a.last)}</span>`:""}</span></span>
       <span class="amt"><span class="num">${fmtCx(a.st,p.porCaixa)}</span><br><span class="badge ${"b-"+a.status}">${lbl}</span></span></button>`; }).join("");
-  renderCompras();
+  renderCompras(); renderQuebras();
 }
 function matchProd(nome){
   const k=norm(nome);
@@ -1073,7 +1103,7 @@ function openProd(p){
 function renderHist(){
   if(!pEditing){ $("pHist").innerHTML=""; return; }
   const ms=movs.filter(m=>m.produtoId===pEditing.id).sort(movOrder).reverse().slice(0,20), cx=pEditing.porCaixa;
-  $("pHist").innerHTML=ms.length?ms.map(m=>`<div><span class="num">${ddmm(m.data)}</span><span>${{contagem:"Contagem",entrada:"Entrada",saida:"Saída / perda"}[m.tipo]||m.tipo}${m.obs?` <span class="note">· ${esc(m.obs)}</span>`:""}</span><span class="num">${m.tipo==="saida"?"−":m.tipo==="entrada"?"+":"="} ${fmtCx(m.qtd,cx)}</span><button type="button" data-delm="${esc(m.id)}" aria-label="Apagar movimento">×</button></div>`).join(""):`<div class="note">Sem movimentos ainda.</div>`;
+  $("pHist").innerHTML=ms.length?ms.map(m=>`<div><span class="num">${ddmm(m.data)}</span><span>${(m.tipo==="saida"&&m.motivo?motName(m.motivo):{contagem:"Contagem",entrada:"Entrada",saida:"Saída / perda"}[m.tipo]||m.tipo)}${m.obs?` <span class="note">· ${esc(m.obs)}</span>`:""}</span><span class="num">${m.tipo==="saida"?"−":m.tipo==="entrada"?"+":"="} ${fmtCx(m.qtd,cx)}</span><button type="button" data-delm="${esc(m.id)}" aria-label="Apagar movimento">×</button></div>`).join(""):`<div class="note">Sem movimentos ainda.</div>`;
 }
 $("pCatBtn").onclick=()=>{ $("scrim4").hidden=true; openCatalog(); };
 $("pEmb").addEventListener("change", ()=>{ const m={"Garrafa 600ml":24,"Garrafa 1L":12,"Long neck":24,"Garrafa 355ml":24,"Vidro 290ml (KS)":24,"Lata 269ml":6,"Lata 350ml":12,"Lata 473ml":12,"Pet 200ml":12,"Pet 500ml":12,"Pet 600ml":12,"Pet 1L":6,"Pet 1,5L":6,"Pet 2L":6,"Barril (litros)":1}; if(m[$("pEmb").value]&&!pEditing) $("pCx").value=m[$("pEmb").value]; });
@@ -1089,7 +1119,7 @@ $("pForm").addEventListener("submit", async e=>{
 $("mAdd").onclick=async ()=>{
   if(!pEditing) return; const q=Math.round((Number($("mCx").value)||0)*(pEditing.porCaixa||1)+(Number($("mUn").value)||0));
   if(!(q>0)){ $("pNote").textContent="Informe caixas e/ou unidades."; return; }
-  try{ await db.collection("movimentos").doc().set({produtoId:pEditing.id,tipo:$("mTipo").value,qtd:q,data:today(),obs:"",criadoEm:Date.now()}); $("mCx").value=""; $("mUn").value=""; $("pNote").textContent="Registrado."; }
+  try{ await db.collection("movimentos").doc().set({produtoId:pEditing.id,tipo:$("mTipo").value.split(":")[0],...($("mTipo").value.includes(":")?{motivo:$("mTipo").value.split(":")[1],custoUnit:pEditing.custoUnit||0}:{}),qtd:q,data:today(),obs:"",criadoEm:Date.now()}); $("mCx").value=""; $("mUn").value=""; $("pNote").textContent="Registrado."; }
   catch(err){ $("pNote").textContent="Não foi possível registrar: "+(err?.message||err?.code); }
 };
 $("pHist").addEventListener("click", async e=>{ const b=e.target.closest("[data-delm]"); if(!b) return;
@@ -1174,6 +1204,58 @@ $("cRows").addEventListener("input", ()=>{ const filled=[...$("cRows").querySele
 $("cCancel").onclick=()=>{ $("scrim5").hidden=true; };
 $("scrim5").addEventListener("click", e=>{ if(e.target===$("scrim5")) $("scrim5").hidden=true; });
 $("eCountBtn").onclick=openCount;
+
+// quebras e perdas
+const MOTIVOS=[["quebra","Quebra"],["estragado","Estragado / vencido"],["doacao","Doação"],["consumo","Consumo próprio"],["outro","Outro"]];
+const motName=k=>(MOTIVOS.find(m=>m[0]===k)||["","Saída / perda"])[1];
+let qMesSel="atual", qMotSel="quebra";
+function renderQuebras(){
+  const ym = qMesSel==="atual"?thisMonth():shiftYm(thisMonth(),-1);
+  $("qMes").innerHTML=[["atual",ymLabel(thisMonth(),true)],["ant",ymLabel(shiftYm(thisMonth(),-1),true)]].map(([k,l])=>`<button type="button" class="chip" data-qm="${k}" aria-pressed="${qMesSel===k}">${l}</button>`).join("");
+  const L=movs.filter(m=>m.tipo==="saida" && ymOf(m.data)===ym).sort((a,b)=>b.data.localeCompare(a.data)||(b.criadoEm||0)-(a.criadoEm||0));
+  const prodOf=id=>produtos.find(p=>p.id===id);
+  const val=m=>m.qtd*(m.custoUnit ?? prodOf(m.produtoId)?.custoUnit ?? 0);
+  const tot=L.reduce((t,m)=>t+val(m),0), un=L.reduce((t,m)=>t+m.qtd,0);
+  const mesL=L.filter(()=>true), atual=movs.filter(m=>m.tipo==="saida"&&ymOf(m.data)===thisMonth());
+  const vAtual=atual.reduce((t,m)=>t+val(m),0);
+  $("qNote").textContent = atual.length ? `${atual.length} registro(s) em ${ymLabel(thisMonth())} · ${brl.format(vAtual)} · toque para ${$("qBody").hidden?"ver":"esconder"}` : `Nenhuma perda em ${ymLabel(thisMonth())} · toque para ${$("qBody").hidden?"registrar":"esconder"}`;
+  const by={}; for(const m of L){ const k=m.motivo||"outro"; (by[k] ||= {un:0,v:0}); by[k].un+=m.qtd; by[k].v+=val(m); }
+  $("qSum").innerHTML = L.length ? `<div class="fiahead"><span><span class="label">Total perdido em ${ymLabel(ym)}</span><br><span class="num" style="font-size:22px;color:var(--neg)">${brl.format(tot)}</span></span><span class="note">${un} unidade(s)</span></div>
+    <div class="detl" style="margin-top:8px">${MOTIVOS.filter(([k])=>by[k]).map(([k,l])=>`<div><span>${l}</span><span class="num">${by[k].un} un · ${brl.format(by[k].v)}</span></div>`).join("")}</div>`
+    : `<div class="note">Nenhuma quebra ou perda registrada em ${ymLabel(ym)}.</div>`;
+  $("qList").innerHTML=L.map(m=>{ const p=prodOf(m.produtoId);
+    return `<div class="row" style="cursor:default"><span class="stripe" style="background:var(--neg)"></span><span class="main"><span class="t">${esc(p?.nome||"Produto removido")}</span>
+      <span class="s"><span class="num">${ddmm(m.data)}</span><span class="badge b-red">${esc(motName(m.motivo))}</span>${m.obs?`<span>· ${esc(m.obs)}</span>`:""}</span></span>
+      <span class="amt"><span class="num">${fmtCx(m.qtd,p?.porCaixa)}</span><br><span class="note num">${brl.format(val(m))}</span>${canWrite&&db?`<br><button type="button" class="btn" data-qdel="${esc(m.id)}" style="padding:4px 8px;font-size:12px;margin-top:4px">Apagar</button>`:""}</span></div>`; }).join("");
+  $("qAdd").hidden=!(canWrite&&db);
+}
+function openLoss(){
+  if(!db){ showStatus("Entre na sua conta do claude.ai para usar o estoque.",true); return; }
+  if(!canWrite){ showStatus("Seu acesso é só de leitura.",true); return; }
+  if(!produtos.length){ showStatus("Cadastre os produtos do estoque antes de registrar perdas.",true); return; }
+  qMotSel="quebra"; $("qMot").innerHTML=MOTIVOS.map(([k,l])=>`<button type="button" data-qmot="${k}" aria-pressed="${k===qMotSel}">${l}</button>`).join("");
+  const fs=[...new Set(produtos.map(fornOf))].sort();
+  $("qProd").innerHTML=`<option value="">Escolha o produto…</option>`+fs.map(f=>`<optgroup label="${esc(f)}">${produtos.filter(p=>fornOf(p)===f).sort((a,b)=>a.nome.localeCompare(b.nome)).map(p=>`<option value="${esc(p.id)}">${esc(p.nome)}</option>`).join("")}</optgroup>`).join("");
+  $("qCx").value=""; $("qUn").value=""; $("qData").value=today(); $("qObs").value=""; $("qFNote").textContent=""; $("scrim10").hidden=false;
+}
+$("qMot").addEventListener("click", e=>{ const b=e.target.closest("[data-qmot]"); if(!b) return; qMotSel=b.dataset.qmot; [...$("qMot").children].forEach(x=>x.setAttribute("aria-pressed", x.dataset.qmot===qMotSel)); });
+$("qProd").addEventListener("change", ()=>{ const p=produtos.find(x=>x.id===$("qProd").value); $("qCx").disabled=!(p&&p.porCaixa>1); });
+$("qForm").addEventListener("submit", async e=>{ e.preventDefault();
+  const p=produtos.find(x=>x.id===$("qProd").value); if(!p){ $("qFNote").textContent="Escolha o produto."; return; }
+  const q=Math.round((Number($("qCx").value)||0)*(p.porCaixa||1)+(Number($("qUn").value)||0)); if(!(q>0)){ $("qFNote").textContent="Informe a quantidade."; return; }
+  const data=$("qData").value; if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){ $("qFNote").textContent="Informe a data."; return; }
+  const b=$("qSave"); b.disabled=true;
+  try{ await db.collection("movimentos").doc().set({produtoId:p.id,tipo:"saida",motivo:qMotSel,qtd:q,data,obs:$("qObs").value.trim().slice(0,120),custoUnit:p.custoUnit||0,criadoEm:Date.now()});
+    $("scrim10").hidden=true; showStatus(`${motName(qMotSel)}: ${fmtCx(q,p.porCaixa)} de ${p.nome} registrado.`); setTimeout(()=>showStatus(""),4000); }
+  catch(err){ $("qFNote").textContent="Não foi possível registrar: "+(err?.message||err?.code); } finally{ b.disabled=false; } });
+$("qCancel").onclick=()=>{ $("scrim10").hidden=true; };
+$("scrim10").addEventListener("click", e=>{ if(e.target===$("scrim10")) $("scrim10").hidden=true; });
+$("qAdd").onclick=openLoss; $("eLossBtn").onclick=openLoss;
+$("qMes").addEventListener("click", e=>{ const b=e.target.closest("[data-qm]"); if(!b) return; qMesSel=b.dataset.qm; renderQuebras(); });
+$("qList").addEventListener("click", async e=>{ const b=e.target.closest("[data-qdel]"); if(!b) return;
+  if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Apagar"; },3000); return; }
+  try{ await db.collection("movimentos").doc(b.dataset.qdel).delete(); }catch(err){ showStatus("Não foi possível apagar: "+(err?.message||err?.code),true); } });
+$("qBtn").onclick=()=>{ const open=$("qBody").hidden; $("qBody").hidden=!open; $("qBtn").setAttribute("aria-expanded",open); renderQuebras(); };
 
 /* ---------- fiados ---------- */
 let fiados=[], fMode="compra", fShowAll=false, fOpenKey=null;
@@ -1521,7 +1603,7 @@ Use ponto como separador decimal nos números.`,
 $("typeSeg").addEventListener("click", e=>{ const b=e.target.closest("button[data-t]"); if(b) setTipo(b.dataset.t); });
 $("cancelBtn").onclick=closeForm;
 $("scrim").addEventListener("click", e=>{ if(e.target===$("scrim")) closeForm(); });
-document.addEventListener("keydown", e=>{ if(e.key!=="Escape") return; if(!$("scrim").hidden) closeForm(); if(!$("scrim2").hidden) closeSaldo(); if(!$("scrim3").hidden) closeVendas(); $("scrim4").hidden=true; $("scrim5").hidden=true; $("scrim6").hidden=true; $("scrim7").hidden=true; $("scrim8").hidden=true; $("scrim9").hidden=true; });
+document.addEventListener("keydown", e=>{ if(e.key!=="Escape") return; if(!$("scrim").hidden) closeForm(); if(!$("scrim2").hidden) closeSaldo(); if(!$("scrim3").hidden) closeVendas(); $("scrim4").hidden=true; $("scrim5").hidden=true; $("scrim6").hidden=true; $("scrim7").hidden=true; $("scrim8").hidden=true; $("scrim9").hidden=true; $("scrim10").hidden=true; });
 
 let delArmed=false;
 $("delBtn").onclick=async ()=>{
@@ -1652,7 +1734,7 @@ render();
   const [d,a,s,dl,u] = await Promise.all(["db","assets","sample","downloads","user"].map(n=>window.claude.use(n).catch(()=>null)));
   db=d; assets=a; sample=s; downloads=dl;
   if(u){ try{ const c=await u.can("data.write"); if(c===false) canWrite=false; }catch{} }
-  if(!canWrite){ $("addBtn").hidden=true; $("vendasBtn").hidden=true; $("eCountBtn").hidden=true; $("eAddProd").hidden=true; $("eCatalog").hidden=true; $("fNew").hidden=true; $("fAnt").hidden=true; $("fPay").hidden=true; $("copyFixos").hidden=true; }
+  if(!canWrite){ $("addBtn").hidden=true; $("vendasBtn").hidden=true; $("eCountBtn").hidden=true; $("eLossBtn").hidden=true; $("eAddProd").hidden=true; $("eCatalog").hidden=true; $("fNew").hidden=true; $("fAnt").hidden=true; $("fPay").hidden=true; $("copyFixos").hidden=true; }
   if(sample){ try{ const l=await sample.limits(); aiImages=!!l?.images; aiMax=l?.images?.maxCount||3; }catch{} }
   if(!db){ showStatus("Entre na sua conta do claude.ai para ver e salvar os lançamentos.",true); state.loaded=true; render(); return; }
   const timer=setTimeout(()=>showStatus("Não consegui buscar os lançamentos ainda. Verifique a conexão."),10000);
