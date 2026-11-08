@@ -119,6 +119,34 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .fab span{font-size:20px;line-height:1}
 
 .note{font-size:13px;color:var(--muted)}
+.tabs{display:flex;gap:4px;background:rgba(0,0,0,.18);padding:4px;border-radius:12px}
+.tabs button{flex:1;border:0;background:none;color:var(--brand-ink);opacity:.75;border-radius:9px;padding:9px 6px;font-weight:600;font-size:14px}
+.tabs button[aria-selected="true"]{background:var(--brand-ink);color:var(--brand);opacity:1}
+body.est .month, body.est .result, body.est .saldo, body.est #finMain, body.est #finFab{display:none}
+body:not(.est) #estMain, body:not(.est) #estFab{display:none}
+.badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.b-red{background:color-mix(in srgb,var(--neg) 16%,transparent);color:var(--neg)}
+.b-amb{background:color-mix(in srgb,var(--accent) 20%,transparent);color:color-mix(in srgb,var(--accent) 70%,var(--ink))}
+.b-ok{background:color-mix(in srgb,var(--pos) 14%,transparent);color:var(--pos)}
+.b-gray{background:var(--sunk);color:var(--muted)}
+.ped{display:flex;flex-direction:column;gap:8px}
+.pedgrp{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.pedgrp h4{margin:0;font-family:var(--display);font-size:15px;display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.pedline{display:grid;grid-template-columns:auto 1fr auto;gap:10px;font-size:14px;align-items:baseline}
+.pedline .num{font-weight:600}
+.inl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.inl input,.inl select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.inl input[type=number],.inl input.small{width:84px}
+.presets{display:flex;gap:6px;flex-wrap:wrap}
+.cnt{display:grid;grid-template-columns:1fr 72px 72px;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.cnt:first-child{border-top:0}
+.cnt input{font:inherit;font-family:var(--mono);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;text-align:right}
+.cnt .h{font-size:11px;color:var(--muted);text-align:center;font-weight:600}
+.hist{display:flex;flex-direction:column;font-size:13px}
+.hist div{display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.hist div:first-child{border-top:0}
+.hist button{border:0;background:none;color:var(--muted);font-size:15px}
+.copybox{width:100%;font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--bg);color:var(--ink)}
 .vsum{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px 10px}
 .vsum div{display:flex;flex-direction:column;gap:2px;min-width:0}
 .vsum .num{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -191,11 +219,39 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
       <div><span class="label">Saldo final do mês</span><span class="num" id="saldoFim">—</span></div>
       <button class="sbtn" id="saldoBtn">Definir saldo anterior</button>
     </div>
+    <nav class="tabs" role="tablist" aria-label="Seções">
+      <button role="tab" id="tabFin" data-tab="fin" aria-selected="true">Financeiro</button>
+      <button role="tab" id="tabEst" data-tab="est" aria-selected="false">Estoque de cerveja</button>
+    </nav>
   </div>
 </header>
 
-<main class="wrap" style="margin-top:18px">
-  <div id="status" class="banner" hidden></div>
+<div class="wrap" style="margin-top:18px"><div id="status" class="banner" hidden></div></div>
+
+<main class="wrap" id="estMain" style="margin-top:6px">
+  <div class="tiles" id="eTiles"></div>
+
+  <section class="sec">
+    <div class="sechead"><h2>Próximo pedido</h2>
+      <div class="inl"><label for="eDias" class="note">Pedido para</label><input id="eDias" type="number" min="1" max="60" value="7" inputmode="numeric"><span class="note">dias</span></div>
+    </div>
+    <div class="card ped" id="ePed"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sechead"><h2>Cervejas</h2>
+      <div class="tools"><button class="btn" id="eAddProd">+ Cadastrar cerveja</button></div>
+    </div>
+    <div class="list" id="eList"></div>
+  </section>
+
+  <section class="sec" id="eCompSec">
+    <div class="sechead"><h2>Compras para dar entrada</h2><span class="note">Das notas fiscais lançadas nos últimos 60 dias</span></div>
+    <div class="list" id="eComp"></div>
+  </section>
+</main>
+
+<main class="wrap" id="finMain" style="margin-top:6px">
 
   <div class="tiles" id="tiles"></div>
 
@@ -239,7 +295,50 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   </section>
 </main>
 
-<div class="fabs"><button class="fab alt" id="vendasBtn">Vendas do dia</button><button class="fab" id="addBtn"><span>+</span> Lançar</button></div>
+<div class="fabs" id="estFab"><button class="fab" id="eCountBtn">Fazer contagem</button></div>
+
+<div class="scrim" id="scrim4" hidden>
+  <form class="sheet" id="pForm" novalidate>
+    <h3 id="pTitle">Cadastrar cerveja</h3>
+    <div class="presets" id="pPresets"></div>
+    <div class="field"><label for="pNome">Nome</label><input id="pNome" placeholder="Ex.: Heineken 600ml" autocomplete="off"></div>
+    <div class="grid2">
+      <div class="field"><label for="pEmb">Embalagem</label><select id="pEmb"><option>Garrafa 600ml</option><option>Garrafa 1L</option><option>Long neck</option><option>Lata 350ml</option><option>Lata 473ml</option><option>Barril (litros)</option><option>Outro</option></select></div>
+      <div class="field"><label for="pCx">Unidades por caixa</label><input id="pCx" type="number" min="1" inputmode="numeric" value="24"><span class="note">Engradado, fardo ou caixa.</span></div>
+      <div class="field"><label for="pMin">Estoque mínimo (unid.)</label><input id="pMin" type="number" min="0" inputmode="numeric" placeholder="Ex.: 48"></div>
+      <div class="field"><label for="pSem">Venda média por semana (unid.)</label><input id="pSem" type="number" min="0" inputmode="numeric" placeholder="Opcional"><span class="note">Usada até o app ter contagens suficientes.</span></div>
+      <div class="field"><label for="pForn">Fornecedor</label><input id="pForn" list="pFornList" autocomplete="off"><datalist id="pFornList"></datalist></div>
+      <div class="field"><label for="pCusto">Custo por unidade (R$)</label><input id="pCusto" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+    </div>
+    <div class="field"><label for="pChave">Palavras para achar nas notas</label><input id="pChave" placeholder="Ex.: heineken 600" autocomplete="off"><span class="note">Separe alternativas com vírgula. Ex.: heineken 600, heinek 600</span></div>
+    <div id="pMov" class="sec" hidden>
+      <div class="label">Movimentar estoque</div>
+      <div class="inl"><select id="mTipo"><option value="entrada">Entrada</option><option value="saida">Saída / perda</option></select>
+        <input id="mCx" type="number" min="0" inputmode="numeric" placeholder="cx" aria-label="Caixas"><input id="mUn" type="number" min="0" inputmode="numeric" placeholder="unid." aria-label="Unidades">
+        <button type="button" class="btn" id="mAdd">Registrar</button></div>
+      <div class="label">Histórico</div>
+      <div class="hist" id="pHist"></div>
+    </div>
+    <div class="note" id="pNote"></div>
+    <div class="actions">
+      <button type="button" class="btn danger" id="pDel" hidden>Excluir</button>
+      <div class="r"><button type="button" class="btn" id="pCancel">Cancelar</button><button type="submit" class="btn primary" id="pSave">Salvar</button></div>
+    </div>
+  </form>
+</div>
+
+<div class="scrim" id="scrim5" hidden>
+  <form class="sheet" id="cForm" novalidate>
+    <h3>Contagem de estoque</h3>
+    <div class="note">Conte as cervejas que estão no bar (geladeira + depósito). Deixe em branco o que não contou. Com contagens regulares, o app calcula quanto você vende e sugere o pedido.</div>
+    <div class="field"><label for="cData">Data da contagem</label><input id="cData" type="date"></div>
+    <div id="cRows"></div>
+    <div class="note" id="cNote"></div>
+    <div class="actions"><div class="r"><button type="button" class="btn" id="cCancel">Cancelar</button><button type="submit" class="btn primary" id="cSave">Salvar contagem</button></div></div>
+  </form>
+</div>
+
+<div class="fabs" id="finFab"><button class="fab alt" id="vendasBtn">Vendas do dia</button><button class="fab" id="addBtn"><span>+</span> Lançar</button></div>
 
 <div class="scrim" id="scrim3" hidden>
   <form class="sheet" id="vForm" novalidate>
@@ -391,6 +490,7 @@ function render(){
 
   $("tiles").innerHTML = ORDER.map(k=>`<div class="tile"><span class="label"><i class="dot" style="background:${TYPES[k].color}"></i>${TYPES[k].plural}</span><span class="v num" style="${k==="entrada"?"color:var(--pos)":""}">${brl.format(t[k])}</span></div>`).join("");
 
+  if(document.body.classList.contains("est")) renderEstoque();
   renderVendas(); renderChart(); renderCats(); renderList(); renderProducts();
 }
 
@@ -602,6 +702,188 @@ $("vDays").addEventListener("click", e=>{ const b=e.target.closest("[data-day]")
   const ex=state.items.filter(it=>it.vendas&&it.data===b.dataset.day).sort((a,b)=>(a.criadoEm||0)-(b.criadoEm||0));
   openVendas(ex[0]||null, b.dataset.day); });
 
+/* ---------- estoque de cerveja ---------- */
+let produtos=[], movs=[], eCfg={dias:7, ign:[]};
+const PRESETS=[["Heineken 600ml","Garrafa 600ml",24],["Brahma 600ml","Garrafa 600ml",24],["Original 600ml","Garrafa 600ml",24],["Amstel 600ml","Garrafa 600ml",24],["Spaten 600ml","Garrafa 600ml",24],["Skol 600ml","Garrafa 600ml",24],["Heineken long neck","Long neck",24],["Stella long neck","Long neck",24],["Corona long neck","Long neck",24],["Budweiser long neck","Long neck",24],["Skol lata 350ml","Lata 350ml",12],["Brahma lata 350ml","Lata 350ml",12]];
+const CASE_UN=/^(cx|cxa|caixa|fd|fardo|pct|pc|pac|eng|engr|engradado|dz)$/i;
+const addDays=(d,k)=>{ const t=new Date(d+"T12:00:00"); t.setDate(t.getDate()+k); return `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`; };
+const dayDiff=(a,b)=>Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/864e5);
+const ddmm=d=>`${d.slice(8)}/${d.slice(5,7)}`;
+function fmtCx(u,cx){ u=Math.round(u); if(!cx||cx<=1) return `${u} un`; const c=Math.floor(Math.abs(u)/cx)*(u<0?-1:1), r=Math.abs(u)%cx; return c&&r?`${c} cx + ${r} un`:c?`${c} cx`:`${u} un`; }
+function movOrder(a,b){ return a.data.localeCompare(b.data) || (a.criadoEm||0)-(b.criadoEm||0); }
+function analyze(p){
+  const ms=movs.filter(m=>m.produtoId===p.id).sort(movOrder), since=addDays(today(),-28);
+  let st=0, prev=null, ent=0, cons=0, days=0, last=null;
+  for(const m of ms){
+    if(m.tipo==="contagem"){ if(prev && m.data>=since && m.data>prev.data){ cons+=Math.max(0,prev.qtd+ent-m.qtd); days+=dayDiff(prev.data,m.data); } prev=m; ent=0; st=m.qtd; last=m.data; }
+    else if(m.tipo==="entrada"){ st+=m.qtd; if(prev) ent+=m.qtd; }
+    else { st-=m.qtd; if(prev) ent-=m.qtd; }
+  }
+  const calc = days>=1 ? cons/days : null;
+  const perDay = calc ?? (p.consumoSemana>0 ? p.consumoSemana/7 : null);
+  const dias = Number(eCfg.dias)||7, cx=p.porCaixa||1, min=p.minimo||0;
+  let need=0; if(perDay!==null) need=perDay*dias+min-st; else need=min>0? min*2-st : 0;
+  const caixas = need>0 ? Math.ceil(need/cx) : 0;
+  const diasRest = perDay ? st/perDay : null;
+  let status = st<=min && (min>0||st<=0) ? "red" : (diasRest!==null && diasRest<dias) ? "amb" : (perDay===null && !min ? "gray" : "ok");
+  if(!ms.length) status="gray";
+  return {st, perDay, calc, diasRest, caixas, status, last, n:ms.length};
+}
+function renderEstoque(){
+  const A=produtos.map(p=>({p,a:analyze(p)}));
+  const totUn=A.reduce((s,x)=>s+Math.max(0,x.a.st),0), valor=A.reduce((s,x)=>s+Math.max(0,x.a.st)*(x.p.custoUnit||0),0), pedir=A.filter(x=>x.a.caixas>0).length;
+  const tile=(l,v,c="")=>`<div class="tile"><span class="label">${l}</span><span class="v num"${c}>${v}</span></div>`;
+  $("eTiles").innerHTML=tile("Cervejas",produtos.length)+tile("Unidades em estoque",Math.round(totUn).toLocaleString("pt-BR"))+tile("Valor em estoque",brl.format(valor))+tile("Itens para pedir",pedir,pedir?' style="color:var(--neg)"':"");
+  if(document.activeElement!==$("eDias")) $("eDias").value=eCfg.dias||7;
+  // pedido
+  const groups={};
+  for(const x of A) if(x.a.caixas>0){ const f=x.p.fornecedor||"Sem fornecedor"; (groups[f] ||= []).push(x); }
+  const gk=Object.keys(groups).sort();
+  if(!produtos.length) $("ePed").innerHTML=`<div class="empty"><strong>Cadastre suas cervejas</strong>Toque em <b>+ Cadastrar cerveja</b>. Depois faça uma contagem do estoque, e o app sugere o pedido.</div>`;
+  else if(!gk.length) $("ePed").innerHTML=`<div class="note">Nada para pedir agora: o estoque cobre os próximos ${eCfg.dias||7} dias. ${A.some(x=>x.a.perDay===null)?"Algumas cervejas ainda não têm consumo calculado: faça contagens em dias diferentes ou informe a venda média por semana.":""}</div>`;
+  else $("ePed").innerHTML=gk.map((f,gi)=>{ const its=groups[f], cost=its.reduce((s,x)=>s+x.a.caixas*(x.p.porCaixa||1)*(x.p.custoUnit||0),0);
+    return `<div class="pedgrp"><h4><span>${esc(f)}</span><span class="note num">${cost?"≈ "+brl.format(cost):""}</span></h4>${its.map(x=>`<div class="pedline"><span class="num">${x.a.caixas} cx</span><span>${esc(x.p.nome)} <span class="note">· tem ${fmtCx(x.a.st,x.p.porCaixa)}${x.a.perDay?` · vende ~${(x.a.perDay*7).toLocaleString("pt-BR",{maximumFractionDigits:0})}/sem`:""}</span></span><span class="badge ${x.a.status==="red"?"b-red":"b-amb"}">${x.a.status==="red"?"Abaixo do mínimo":"Acaba em "+Math.max(0,Math.floor(x.a.diasRest??0))+"d"}</span></div>`).join("")}
+      <div class="tools"><button type="button" class="btn" data-copy="${gi}">Copiar pedido para WhatsApp</button></div><div data-copybox="${gi}"></div></div>`; }).join("")
+    + `<div class="note">Cálculo: venda média por dia × ${eCfg.dias||7} dias + estoque mínimo − estoque atual, arredondado para caixas fechadas.</div>`;
+  $("ePed")._groups=gk.map(f=>[f,groups[f]]);
+  // lista
+  if(!produtos.length) $("eList").innerHTML=`<div class="empty"><strong>Nenhuma cerveja cadastrada</strong>Use os atalhos ao cadastrar (Heineken 600ml, Brahma 600ml, long necks…).</div>`;
+  else $("eList").innerHTML=A.sort((x,y)=>({red:0,amb:1,ok:2,gray:3}[x.a.status]-{red:0,amb:1,ok:2,gray:3}[y.a.status])||x.p.nome.localeCompare(y.p.nome)).map(({p,a})=>{
+    const lbl={red:"Comprar",amb:"Pedir logo",ok:"OK",gray:a.n?"Sem consumo":"Sem contagem"}[a.status];
+    return `<button class="row" data-pid="${esc(p.id)}"><span class="stripe" style="background:${a.status==="red"?"var(--neg)":a.status==="amb"?"var(--accent)":a.status==="ok"?"var(--pos)":"var(--line)"}"></span>
+      <span class="main"><span class="t">${esc(p.nome)}</span><span class="s"><span>${esc(p.embalagem||"")}</span>${a.perDay?`<span>· vende ~${(a.perDay*7).toLocaleString("pt-BR",{maximumFractionDigits:0})}/sem${a.calc===null?" (informado)":""}</span>`:""}${a.diasRest!==null?`<span>· dura ~${Math.max(0,Math.floor(a.diasRest))} dias</span>`:""}${a.last?`<span>· contado ${ddmm(a.last)}</span>`:""}</span></span>
+      <span class="amt"><span class="num">${fmtCx(a.st,p.porCaixa)}</span><br><span class="badge ${"b-"+a.status}">${lbl}</span></span></button>`; }).join("");
+  renderCompras();
+}
+function matchProd(nome){
+  const k=norm(nome);
+  for(const p of produtos){ const alts=(p.chaves||p.nome).split(",").map(x=>norm(x)).filter(Boolean);
+    if(alts.some(a=>a.split(" ").every(w=>k.includes(w)))) return p; }
+  return null;
+}
+function compraCands(){
+  const since=addDays(today(),-60), done=new Set(movs.map(m=>m.origem).filter(Boolean)), ign=new Set(eCfg.ign||[]), out=[];
+  for(const it of state.items){ if(!Array.isArray(it.itens) || it.data<since) continue;
+    it.itens.forEach((x,i)=>{ const key=`${it.id}:${i}`; if(done.has(key)||ign.has(key)) return;
+      const p=matchProd(x.nome); if(!p && !/cerv|chop|beer|long ?neck|heineken|brahma|skol|amstel|spaten|stella|corona|budweiser|original|eisenbahn|itaipava|devassa|petra|imperio|bohemia|antarctica/.test(norm(x.nome))) return;
+      out.push({key,it,x,p}); }); }
+  return out.sort((a,b)=>b.it.data.localeCompare(a.it.data)).slice(0,40);
+}
+function unitsFor(x,p){ const cx=p?.porCaixa||1; return CASE_UN.test(String(x.un||"").trim()) ? Math.round((x.qtd||0)*cx) : Math.round(x.qtd||0); }
+function renderCompras(){
+  const c=compraCands(); $("eCompSec").hidden=!c.length; if(!c.length){ $("eComp").innerHTML=""; return; }
+  const opts=p=>`<option value="">Escolha a cerveja…</option>`+produtos.map(q=>`<option value="${esc(q.id)}"${p&&q.id===p.id?" selected":""}>${esc(q.nome)}</option>`).join("");
+  $("eComp").innerHTML=c.map(({key,it,x,p})=>`<div class="row" style="cursor:default" data-key="${esc(key)}"><span class="stripe" style="background:var(--pos)"></span>
+    <span class="main"><span class="t">${esc(x.nome)}</span><span class="s"><span class="num">${ddmm(it.data)}</span><span>${esc(it.fornecedor||"")}</span><span class="num">${fmtQ(x.qtd)} ${esc(x.un||"")} × ${brl.format(x.vUnit||0)}</span></span>
+    <span class="inl" style="margin-top:6px"><select data-sel aria-label="Cerveja do estoque">${opts(p)}</select><input class="small" data-q type="number" min="0" value="${p?unitsFor(x,p):""}" aria-label="Unidades"><span class="note">unid.</span>
+    <button type="button" class="btn primary" data-in>Dar entrada</button><button type="button" class="btn" data-ign>Ignorar</button></span></span><span></span></div>`).join("");
+}
+$("eComp").addEventListener("change", e=>{ const sel=e.target.closest("[data-sel]"); if(!sel) return; const row=sel.closest("[data-key]"), c=compraCands().find(z=>z.key===row.dataset.key), p=produtos.find(q=>q.id===sel.value);
+  if(c&&p) row.querySelector("[data-q]").value=unitsFor(c.x,p); });
+$("eComp").addEventListener("click", async e=>{
+  const row=e.target.closest("[data-key]"); if(!row||!db||!canWrite) return; const key=row.dataset.key;
+  if(e.target.closest("[data-ign]")){ const ign=[...(eCfg.ign||[]),key].slice(-500); eCfg.ign=ign; await db.doc("config/estoque").set({dias:Number(eCfg.dias)||7,ign}).catch(()=>{}); renderCompras(); return; }
+  if(!e.target.closest("[data-in]")) return;
+  const c=compraCands().find(z=>z.key===key), p=produtos.find(q=>q.id===row.querySelector("[data-sel]").value), q=Math.round(Number(row.querySelector("[data-q]").value));
+  if(!p){ showStatus("Escolha a qual cerveja do estoque esse item pertence.",true); return; }
+  if(!(q>0)){ showStatus("Informe a quantidade em unidades.",true); return; }
+  try{
+    await db.collection("movimentos").doc().set({produtoId:p.id,tipo:"entrada",qtd:q,data:c.it.data,origem:key,obs:`NF ${c.it.fornecedor||""}`.trim(),criadoEm:Date.now()});
+    const cu=c.x.vTotal&&q?Math.round(c.x.vTotal/q*100)/100:0, upd={atualizadoEm:Date.now()}; if(cu) upd.custoUnit=cu; if(!p.fornecedor&&c.it.fornecedor) upd.fornecedor=c.it.fornecedor;
+    await db.collection("estoque").doc(p.id).update(upd);
+    showStatus(`Entrada de ${q} unid. de ${p.nome} registrada.`); setTimeout(()=>showStatus(""),3500);
+  }catch(err){ showStatus("Não foi possível dar entrada: "+(err?.message||err?.code),true); }
+});
+$("ePed").addEventListener("click", async e=>{
+  const b=e.target.closest("[data-copy]"); if(!b) return; const [f,its]=$("ePed")._groups[Number(b.dataset.copy)];
+  const txt=`Pedido Bar Simpatia (${ddmm(today())})\n`+its.map(x=>`- ${x.a.caixas} cx ${x.p.nome}`).join("\n")+`\n\nObrigado!`;
+  try{ await navigator.clipboard.writeText(txt); b.textContent="Copiado! Cole no WhatsApp do "+f; setTimeout(()=>b.textContent="Copiar pedido para WhatsApp",3000); }
+  catch{ const box=$("ePed").querySelector(`[data-copybox="${b.dataset.copy}"]`); box.innerHTML=`<textarea class="copybox" rows="${its.length+4}" readonly>${esc(txt)}</textarea>`; box.firstChild.select(); }
+});
+let eDiasT=null;
+$("eDias").addEventListener("input", ()=>{ const d=Math.max(1,Math.min(60,Number($("eDias").value)||7)); eCfg.dias=d; renderEstoque();
+  clearTimeout(eDiasT); eDiasT=setTimeout(()=>{ if(db&&canWrite) db.doc("config/estoque").set({dias:d,ign:eCfg.ign||[]}).catch(()=>{}); },800); });
+
+// cadastro de cerveja
+let pEditing=null;
+function openProd(p){
+  if(!db){ showStatus("Entre na sua conta do claude.ai para usar o estoque.",true); return; }
+  if(!canWrite){ showStatus("Seu acesso é só de leitura.",true); return; }
+  pEditing=p||null; $("pTitle").textContent=p?p.nome:"Cadastrar cerveja";
+  $("pPresets").hidden=!!p; $("pPresets").innerHTML=PRESETS.filter(([n])=>!produtos.some(q=>norm(q.nome)===norm(n))).map(([n],i)=>`<button type="button" class="chip" data-pre="${i}">${esc(n)}</button>`).join("");
+  $("pNome").value=p?.nome||""; $("pEmb").value=p?.embalagem||"Garrafa 600ml"; $("pCx").value=p?.porCaixa||24; $("pMin").value=p?.minimo??"";
+  $("pSem").value=p?.consumoSemana||""; $("pForn").value=p?.fornecedor||""; $("pCusto").value=p?.custoUnit?fmt2(p.custoUnit):""; $("pChave").value=p?.chaves||"";
+  $("pFornList").innerHTML=[...new Set([...produtos.map(q=>q.fornecedor),...state.items.filter(i=>i.tipo==="variavel").map(i=>i.fornecedor)].filter(Boolean))].slice(0,30).map(f=>`<option value="${esc(f)}">`).join("");
+  $("pDel").hidden=!p; $("pMov").hidden=!p; $("pNote").textContent=""; $("mCx").value=""; $("mUn").value="";
+  renderHist(); $("scrim4").hidden=false;
+}
+function renderHist(){
+  if(!pEditing){ $("pHist").innerHTML=""; return; }
+  const ms=movs.filter(m=>m.produtoId===pEditing.id).sort(movOrder).reverse().slice(0,20), cx=pEditing.porCaixa;
+  $("pHist").innerHTML=ms.length?ms.map(m=>`<div><span class="num">${ddmm(m.data)}</span><span>${{contagem:"Contagem",entrada:"Entrada",saida:"Saída / perda"}[m.tipo]||m.tipo}${m.obs?` <span class="note">· ${esc(m.obs)}</span>`:""}</span><span class="num">${m.tipo==="saida"?"−":m.tipo==="entrada"?"+":"="} ${fmtCx(m.qtd,cx)}</span><button type="button" data-delm="${esc(m.id)}" aria-label="Apagar movimento">×</button></div>`).join(""):`<div class="note">Sem movimentos ainda.</div>`;
+}
+$("pPresets").addEventListener("click", e=>{ const b=e.target.closest("[data-pre]"); if(!b) return; const [n,emb,cx]=PRESETS[Number(b.dataset.pre)];
+  $("pNome").value=n; $("pEmb").value=emb; $("pCx").value=cx; $("pChave").value=norm(n).replace(/\s*(long neck)\s*/," long neck ").replace(/ml$/,"").trim(); });
+$("pEmb").addEventListener("change", ()=>{ const m={"Garrafa 600ml":24,"Garrafa 1L":12,"Long neck":24,"Lata 350ml":12,"Lata 473ml":12,"Barril (litros)":1}; if(m[$("pEmb").value]&&!pEditing) $("pCx").value=m[$("pEmb").value]; });
+$("pForm").addEventListener("submit", async e=>{
+  e.preventDefault(); const nome=$("pNome").value.trim().slice(0,80); if(!nome){ $("pNote").textContent="Informe o nome da cerveja."; $("pNome").focus(); return; }
+  const doc={nome,embalagem:$("pEmb").value,porCaixa:Math.max(1,Math.round(Number($("pCx").value)||1)),minimo:Math.max(0,Math.round(Number($("pMin").value)||0)),
+    consumoSemana:Math.max(0,Number($("pSem").value)||0),fornecedor:$("pForn").value.trim().slice(0,80),custoUnit:Math.max(0,num($("pCusto").value)),
+    chaves:$("pChave").value.trim().slice(0,120),criadoEm:pEditing?.criadoEm||Date.now(),atualizadoEm:Date.now()};
+  const b=$("pSave"); b.disabled=true;
+  try{ await (pEditing?db.collection("estoque").doc(pEditing.id):db.collection("estoque").doc()).set(doc); $("scrim4").hidden=true; }
+  catch(err){ $("pNote").textContent="Não foi possível salvar: "+(err?.message||err?.code); } finally{ b.disabled=false; }
+});
+$("mAdd").onclick=async ()=>{
+  if(!pEditing) return; const q=Math.round((Number($("mCx").value)||0)*(pEditing.porCaixa||1)+(Number($("mUn").value)||0));
+  if(!(q>0)){ $("pNote").textContent="Informe caixas e/ou unidades."; return; }
+  try{ await db.collection("movimentos").doc().set({produtoId:pEditing.id,tipo:$("mTipo").value,qtd:q,data:today(),obs:"",criadoEm:Date.now()}); $("mCx").value=""; $("mUn").value=""; $("pNote").textContent="Registrado."; }
+  catch(err){ $("pNote").textContent="Não foi possível registrar: "+(err?.message||err?.code); }
+};
+$("pHist").addEventListener("click", async e=>{ const b=e.target.closest("[data-delm]"); if(!b) return;
+  if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="apagar?"; setTimeout(()=>{b.dataset.armed="";b.textContent="×";},3000); return; }
+  try{ await db.collection("movimentos").doc(b.dataset.delm).delete(); }catch{} });
+let pDelArmed=false;
+$("pDel").onclick=async ()=>{ if(!pEditing) return;
+  if(!pDelArmed){ pDelArmed=true; $("pDel").textContent="Toque de novo para excluir"; setTimeout(()=>{pDelArmed=false;$("pDel").textContent="Excluir"},3000); return; }
+  try{ for(const m of movs.filter(m=>m.produtoId===pEditing.id)) await db.collection("movimentos").doc(m.id).delete();
+    await db.collection("estoque").doc(pEditing.id).delete(); $("scrim4").hidden=true; }catch(err){ $("pNote").textContent="Não foi possível excluir: "+(err?.message||err?.code); } };
+$("pCancel").onclick=()=>{ $("scrim4").hidden=true; };
+$("scrim4").addEventListener("click", e=>{ if(e.target===$("scrim4")) $("scrim4").hidden=true; });
+$("eAddProd").onclick=()=>openProd(null);
+$("eList").addEventListener("click", e=>{ const b=e.target.closest("[data-pid]"); if(b) openProd(produtos.find(p=>p.id===b.dataset.pid)); });
+
+// contagem
+function openCount(){
+  if(!db){ showStatus("Entre na sua conta do claude.ai para usar o estoque.",true); return; }
+  if(!canWrite){ showStatus("Seu acesso é só de leitura.",true); return; }
+  if(!produtos.length){ openProd(null); return; }
+  $("cData").value=today(); $("cNote").textContent="";
+  $("cRows").innerHTML=`<div class="cnt"><span class="h" style="text-align:left">Cerveja</span><span class="h">Caixas</span><span class="h">Avulsas</span></div>`+
+    [...produtos].sort((a,b)=>a.nome.localeCompare(b.nome)).map(p=>{ const a=analyze(p); return `<div class="cnt" data-cp="${esc(p.id)}"><span><b>${esc(p.nome)}</b><br><span class="note">${p.porCaixa>1?`cx de ${p.porCaixa} · `:""}sistema: ${fmtCx(a.st,p.porCaixa)}</span></span>
+      <input type="number" min="0" inputmode="numeric" data-c aria-label="Caixas de ${esc(p.nome)}"${p.porCaixa>1?"":" disabled"}><input type="number" min="0" inputmode="numeric" data-u aria-label="Unidades avulsas de ${esc(p.nome)}"></div>`; }).join("");
+  $("scrim5").hidden=false;
+}
+$("cForm").addEventListener("submit", async e=>{
+  e.preventDefault(); const data=$("cData").value; if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){ $("cNote").textContent="Informe a data."; return; }
+  const rows=[...$("cRows").querySelectorAll("[data-cp]")].map(r=>{ const c=r.querySelector("[data-c]").value, u=r.querySelector("[data-u]").value; const p=produtos.find(q=>q.id===r.dataset.cp);
+    return (c===""&&u==="")?null:{p,q:Math.round((Number(c)||0)*(p.porCaixa||1)+(Number(u)||0))}; }).filter(Boolean);
+  if(!rows.length){ $("cNote").textContent="Preencha a contagem de pelo menos uma cerveja."; return; }
+  const b=$("cSave"); b.disabled=true; b.textContent="Salvando…";
+  try{ const now=Date.now(); for(const [i,r] of rows.entries()) await db.collection("movimentos").doc().set({produtoId:r.p.id,tipo:"contagem",qtd:r.q,data,obs:"",criadoEm:now+i});
+    $("scrim5").hidden=true; showStatus(`Contagem de ${rows.length} cerveja(s) salva.`); setTimeout(()=>showStatus(""),3500); }
+  catch(err){ $("cNote").textContent="Não foi possível salvar: "+(err?.message||err?.code); } finally{ b.disabled=false; b.textContent="Salvar contagem"; }
+});
+$("cCancel").onclick=()=>{ $("scrim5").hidden=true; };
+$("scrim5").addEventListener("click", e=>{ if(e.target===$("scrim5")) $("scrim5").hidden=true; });
+$("eCountBtn").onclick=openCount;
+
+// abas
+function setTab(t){ document.body.classList.toggle("est", t==="est"); $("tabFin").setAttribute("aria-selected", t!=="est"); $("tabEst").setAttribute("aria-selected", t==="est"); if(t==="est") renderEstoque(); }
+document.querySelector(".tabs").addEventListener("click", e=>{ const b=e.target.closest("[data-tab]"); if(!b) return; const t=b.dataset.tab; try{ history.replaceState(null,"",t==="est"?"#estoque":"#"); }catch{} setTab(t); });
+window.addEventListener("hashchange", ()=>setTab(location.hash==="#estoque"?"est":"fin"));
+setTab(location.hash==="#estoque"?"est":"fin");
+
 /* ---------- saldo ---------- */
 let saldo=null;
 const sign=it=> it.tipo==="entrada"? it.valor : -it.valor;
@@ -797,7 +1079,7 @@ Use ponto como separador decimal nos números.`,
 $("typeSeg").addEventListener("click", e=>{ const b=e.target.closest("button[data-t]"); if(b) setTipo(b.dataset.t); });
 $("cancelBtn").onclick=closeForm;
 $("scrim").addEventListener("click", e=>{ if(e.target===$("scrim")) closeForm(); });
-document.addEventListener("keydown", e=>{ if(e.key!=="Escape") return; if(!$("scrim").hidden) closeForm(); if(!$("scrim2").hidden) closeSaldo(); if(!$("scrim3").hidden) closeVendas(); });
+document.addEventListener("keydown", e=>{ if(e.key!=="Escape") return; if(!$("scrim").hidden) closeForm(); if(!$("scrim2").hidden) closeSaldo(); if(!$("scrim3").hidden) closeVendas(); $("scrim4").hidden=true; $("scrim5").hidden=true; });
 
 let delArmed=false;
 $("delBtn").onclick=async ()=>{
@@ -891,10 +1173,13 @@ render();
   const [d,a,s,dl,u] = await Promise.all(["db","assets","sample","downloads","user"].map(n=>window.claude.use(n).catch(()=>null)));
   db=d; assets=a; sample=s; downloads=dl;
   if(u){ try{ const c=await u.can("data.write"); if(c===false) canWrite=false; }catch{} }
-  if(!canWrite){ $("addBtn").hidden=true; $("vendasBtn").hidden=true; $("copyFixos").hidden=true; }
+  if(!canWrite){ $("addBtn").hidden=true; $("vendasBtn").hidden=true; $("eCountBtn").hidden=true; $("eAddProd").hidden=true; $("copyFixos").hidden=true; }
   if(sample){ try{ const l=await sample.limits(); aiImages=!!l?.images; aiMax=l?.images?.maxCount||3; }catch{} }
   if(!db){ showStatus("Entre na sua conta do claude.ai para ver e salvar os lançamentos.",true); state.loaded=true; render(); return; }
   const timer=setTimeout(()=>showStatus("Não consegui buscar os lançamentos ainda. Verifique a conexão."),10000);
+  db.collection("estoque").onSnapshot(sn=>{ produtos=sn.docs.map(x=>({id:x.id,...x.data()})).filter(p=>p.nome); renderEstoque(); }, ()=>{});
+  db.collection("movimentos").onSnapshot(sn=>{ movs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.produtoId&&typeof m.qtd==="number"&&typeof m.data==="string"); renderEstoque(); if(!$("scrim4").hidden) renderHist(); }, ()=>{});
+  db.doc("config/estoque").onSnapshot(d=>{ const v=d.exists?d.data():{}; eCfg={dias:Number(v.dias)||7, ign:Array.isArray(v.ign)?v.ign:[]}; renderEstoque(); }, ()=>{});
   db.doc("config/saldo").onSnapshot(d=>{
     const v=d.exists?d.data():null;
     saldo = v && typeof v.valor==="number" && /^\d{4}-\d{2}-\d{2}$/.test(v.data||"") ? {valor:v.valor,data:v.data,obs:v.obs||""} : null;
