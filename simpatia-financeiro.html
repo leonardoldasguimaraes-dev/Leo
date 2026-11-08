@@ -332,6 +332,11 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="card"><div class="cats" id="cats"></div></div>
   </section>
 
+  <section class="sec" id="pendSec" hidden>
+    <div class="sechead"><h2>Aguardando entrada</h2><span class="note">Ainda não contam no balanço do mês</span></div>
+    <div class="list" id="pendList"></div>
+  </section>
+
   <section class="sec">
     <div class="sechead">
       <h2>Lançamentos</h2>
@@ -541,6 +546,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
       </div>
     </div>
     <div class="field"><label for="fObs">Observação</label><textarea id="fObs" rows="2"></textarea></div>
+    <label class="chk"><input type="checkbox" id="fPend"><span>Ainda não entrou (pendente)<br><span class="note">Fica guardado, mas só conta no balanço do mês depois que você confirmar a entrada.</span></span></label>
 
     <div class="attach">
       <div class="label">Nota fiscal / comprovante</div>
@@ -591,7 +597,7 @@ function showStatus(msg, err){ const s=$("status"); s.textContent=msg; s.classNa
 /* ---------- cálculo ---------- */
 function totals(ym){
   const t={entrada:0,fixo:0,variavel:0,despesa:0};
-  for(const it of state.items) if(ymOf(it.data)===ym && t[it.tipo]!==undefined) t[it.tipo]+=it.valor;
+  for(const it of state.items) if(!it.pendente && ymOf(it.data)===ym && t[it.tipo]!==undefined) t[it.tipo]+=it.valor;
   t.saidas=t.fixo+t.variavel+t.despesa; t.resultado=t.entrada-t.saidas;
   return t;
 }
@@ -633,7 +639,7 @@ function shortMoney(v){ if(v>=1e6) return (v/1e6).toLocaleString("pt-BR",{maximu
 
 function renderCats(){
   const by={};
-  for(const it of state.items){ if(ymOf(it.data)!==state.ym || it.tipo==="entrada") continue;
+  for(const it of state.items){ if(it.pendente || ymOf(it.data)!==state.ym || it.tipo==="entrada") continue;
     const k=it.categoria||"Sem categoria"; (by[k] ||= {v:0,tipo:it.tipo}).v+=it.valor; }
   const rows=Object.entries(by).sort((a,b)=>b[1].v-a[1].v);
   const total=rows.reduce((s,[,o])=>s+o.v,0);
@@ -646,6 +652,13 @@ function renderList(){
   const counts={todos:0,entrada:0,fixo:0,variavel:0,despesa:0,notas:0};
   const month=state.items.filter(it=>ymOf(it.data)===state.ym);
   for(const it of month){ counts.todos++; counts[it.tipo]++; if(it.nota) counts.notas++; }
+  const pend=state.items.filter(it=>it.pendente).sort((a,b)=>a.data.localeCompare(b.data));
+  $("pendSec").hidden=!pend.length;
+  $("pendList").innerHTML=pend.map(it=>{ const T=TYPES[it.tipo];
+    return `<div class="row" style="cursor:default"><span class="stripe" style="background:var(--accent)"></span><span class="main"><span class="t">${esc(it.descricao||it.categoria||T.label)}</span>
+      <span class="s"><span class="num">${ddmm(it.data)}</span><span class="tag" style="color:${T.color}">${T.label}</span>${it.fornecedor?`<span>${esc(it.fornecedor)}</span>`:""}${it.itens?.length?`<span>· ${it.itens.length} produto(s)</span>`:""}</span>
+      ${canWrite&&db?`<span class="inl" style="margin-top:6px"><button type="button" class="btn primary" data-conf="${esc(it.id)}">Confirmar que entrou</button><button type="button" class="btn" data-pedit="${esc(it.id)}">Abrir</button></span>`:""}</span>
+      <span class="amt num">${it.tipo==="entrada"?"+":"−"} ${brl.format(it.valor)}<br><span class="badge b-amb">Pendente</span></span></div>`; }).join("");
   const F=[["todos","Todos"],["entrada","Entradas"],["fixo","Fixos"],["variavel","Variáveis"],["despesa","Despesas"],["notas","Com nota"]];
   $("filters").innerHTML=F.map(([k,l])=>`<button class="chip" data-f="${k}" aria-pressed="${state.filter===k}">${l} <span class="num">${counts[k]}</span></button>`).join("");
   let rows = month.filter(it=> state.filter==="todos" || (state.filter==="notas"? !!it.nota : it.tipo===state.filter));
@@ -657,7 +670,7 @@ function renderList(){
     return `<button class="row" data-id="${esc(it.id)}"><span class="stripe" style="background:${T.color}"></span>
       <span class="main"><span class="t">${esc(it.descricao||it.categoria||T.label)}</span>
       <span class="s"><span class="num">${d}/${m}</span><span class="tag" style="color:${T.color}">${T.label}</span>${it.categoria?`<span>${esc(it.categoria)}</span>`:""}${it.fornecedor?`<span>· ${esc(it.fornecedor)}</span>`:""}${it.nota?`<span class="clip">📎 nota</span>`:""}</span></span>
-      <span class="amt num" style="color:${it.tipo==="entrada"?"var(--pos)":"var(--ink)"}">${it.tipo==="entrada"?"+":"−"} ${brl.format(it.valor)}</span></button>`; }).join("");
+      <span class="amt num" style="color:${it.pendente?"var(--muted)":it.tipo==="entrada"?"var(--pos)":"var(--ink)"}">${it.tipo==="entrada"?"+":"−"} ${brl.format(it.valor)}${it.pendente?`<br><span class="badge b-amb">Pendente</span>`:""}</span></button>`; }).join("");
 }
 
 const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim();
@@ -907,7 +920,7 @@ function matchProd(nome){
 }
 function compraCands(){
   const since=addDays(today(),-60), done=new Set(movs.map(m=>m.origem).filter(Boolean)), ign=new Set(eCfg.ign||[]), out=[];
-  for(const it of state.items){ if(!Array.isArray(it.itens) || it.data<since) continue;
+  for(const it of state.items){ if(it.pendente || !Array.isArray(it.itens) || it.data<since) continue;
     it.itens.forEach((x,i)=>{ const key=`${it.id}:${i}`; if(done.has(key)||ign.has(key)) return;
       const p=matchProd(x.nome); if(!p && !/cerv|chop|beer|long ?neck|heineken|brahma|skol|amstel|spaten|stella|corona|budweiser|original|eisenbahn|itaipava|devassa|petra|imperio|bohemia|antarctica/.test(norm(x.nome))) return;
       out.push({key,it,x,p}); }); }
@@ -1176,9 +1189,9 @@ function saldoInfo(ym){
   if(!saldo) return null;
   if(ym < ymOf(saldo.data)) return {antes:true};
   const monthStart=ym+"-01"; let ini=saldo.valor, fim;
-  for(const it of state.items) if(it.data>=saldo.data && it.data<monthStart) ini+=sign(it);
+  for(const it of state.items) if(!it.pendente && it.data>=saldo.data && it.data<monthStart) ini+=sign(it);
   fim=ini;
-  for(const it of state.items) if(ymOf(it.data)===ym && it.data>=saldo.data) fim+=sign(it);
+  for(const it of state.items) if(!it.pendente && ymOf(it.data)===ym && it.data>=saldo.data) fim+=sign(it);
   return {ini,fim,inicio:ym===ymOf(saldo.data)};
 }
 function renderSaldo(){
@@ -1242,7 +1255,7 @@ function openForm(it){
   $("fDesc").value = it?.descricao||""; $("fCat").value=it?.categoria||"";
   const defDate = ymOf(today())===state.ym ? today() : state.ym+"-01";
   $("fData").value = it?.data || defDate; $("fForn").value=it?.fornecedor||"";
-  $("fPag").value = it?.pagamento||"Pix"; $("fObs").value=it?.obs||"";
+  $("fPag").value = it?.pagamento||"Pix"; $("fObs").value=it?.obs||""; $("fPend").checked=!!it?.pendente;
   $("delBtn").hidden=!it; $("fFile").value="";
   formItens=(it?.itens||[]).map(x=>({...x})); renderItems();
   renderAttach(); $("scrim").hidden=false; setTimeout(()=>$("fValor").focus(),50);
@@ -1392,7 +1405,7 @@ $("form").addEventListener("submit", async e=>{
     }
     const doc={tipo:formTipo,valor,data,mes:ymOf(data),descricao:$("fDesc").value.trim().slice(0,120),
       categoria:$("fCat").value.trim().slice(0,60),fornecedor:$("fForn").value.trim().slice(0,100),
-      pagamento:$("fPag").value,obs:$("fObs").value.trim().slice(0,500),nota:nota||null,itens:formItens,
+      pagamento:$("fPag").value,obs:$("fObs").value.trim().slice(0,500),nota:nota||null,itens:formItens,pendente:$("fPend").checked,
       criadoEm:editing?.criadoEm||Date.now(),atualizadoEm:Date.now()};
     const ref = editing ? db.collection("lancamentos").doc(editing.id) : db.collection("lancamentos").doc();
     await ref.set(doc);
@@ -1408,6 +1421,15 @@ $("form").addEventListener("submit", async e=>{
 
 /* ---------- ações ---------- */
 $("addBtn").onclick=()=>{ if(!db){ showStatus("Abra este app no claude.ai com sua conta para lançar.",true); return; } if(!canWrite){showStatus("Seu acesso é só de leitura.",true);return;} openForm(); };
+$("pendList").addEventListener("click", async e=>{
+  const ed=e.target.closest("[data-pedit]"); if(ed){ const it=state.items.find(x=>x.id===ed.dataset.pedit); if(it) openForm(it); return; }
+  const b=e.target.closest("[data-conf]"); if(!b||!db) return; const it=state.items.find(x=>x.id===b.dataset.conf); if(!it) return;
+  if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Toque de novo para confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Confirmar que entrou"; },3000); return; }
+  b.disabled=true;
+  try{ await db.collection("lancamentos").doc(it.id).update({pendente:false,confirmadoEm:today(),atualizadoEm:Date.now()});
+    showStatus(`${it.descricao||"Lançamento"} confirmado: ${brl.format(it.valor)} agora conta no balanço de ${ymLabel(ymOf(it.data))}.${it.itens?.length?" As cervejas já aparecem no Estoque para dar entrada.":""}`); setTimeout(()=>showStatus(""),6000); }
+  catch(err){ b.disabled=false; showStatus("Não foi possível confirmar: "+(err?.message||err?.code),true); }
+});
 $("prevM").onclick=()=>{ state.ym=shiftYm(state.ym,-1); render(); };
 $("nextM").onclick=()=>{ state.ym=shiftYm(state.ym,1); render(); };
 $("filters").addEventListener("click", e=>{ const b=e.target.closest("[data-f]"); if(b){ state.filter=b.dataset.f; renderList(); }});
