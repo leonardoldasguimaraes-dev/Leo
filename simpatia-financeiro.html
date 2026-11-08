@@ -130,6 +130,10 @@ body.fia .month, body.fia .result, body.fia .saldo, body.fia #finMain, body.fia 
 body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:not(.fia) #fiaFab{display:none}
 .fiahead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
 .fiahead .num{font-size:26px}
+.fiatop{position:sticky;top:env(safe-area-inset-top,0px);z-index:15;background:var(--bg);display:flex;align-items:center;gap:12px;padding-block:8px}
+.fiatop h2{font-size:22px}
+.backbtn{width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:24px;line-height:1;display:flex;align-items:center;justify-content:center;flex:none;color:var(--ink)}
+.backbtn:hover{background:var(--sunk)}
 .fiabtn{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:var(--ink);cursor:pointer}
 .fiabtn:hover{background:var(--sunk)}
 .fiaarrow{font-size:26px;color:var(--muted)}
@@ -277,7 +281,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 <div class="wrap" style="margin-top:18px"><div id="status" class="banner" hidden></div></div>
 
 <main class="wrap" id="fiaMain" style="margin-top:6px">
-  <div class="tools"><button type="button" class="btn" id="fiaBack">‹ Voltar ao Financeiro</button></div>
+  <div class="fiatop"><button type="button" class="backbtn" id="fiaBack" aria-label="Voltar para a página inicial">←</button><div><h2>Fiados</h2><span class="note">Toque na seta para voltar à página inicial</span></div></div>
   <div class="tiles" id="fTiles"></div>
   <section class="sec">
     <div class="sechead"><h2>Quem está devendo</h2>
@@ -369,7 +373,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
   </section>
 </main>
 
-<div class="fabs" id="fiaFab"><button class="fab" id="fNew"><span>+</span> Novo fiado</button></div>
+<div class="fabs" id="fiaFab"><button class="fab alt" id="fiaBack2" aria-label="Voltar para a página inicial"><span>←</span> Voltar</button><button class="fab" id="fNew"><span>+</span> Novo fiado</button></div>
 
 <div class="scrim" id="scrim8" hidden>
   <form class="sheet" id="payForm" novalidate>
@@ -1283,7 +1287,8 @@ $("cClose").onclick=()=>{ $("scrim7").hidden=true; };
 $("scrim7").addEventListener("click", e=>{ if(e.target===$("scrim7")) $("scrim7").hidden=true; });
 
 $("fiaGo").onclick=()=>{ try{ history.replaceState(null,"","#fiados"); }catch{} setTab("fia"); window.scrollTo({top:0}); };
-$("fiaBack").onclick=()=>{ try{ history.replaceState(null,"","#"); }catch{} setTab("fin"); window.scrollTo({top:0}); };
+const voltarInicio=()=>{ try{ history.replaceState(null,"","#"); }catch{} setTab("fin"); window.scrollTo({top:0}); };
+$("fiaBack").onclick=voltarInicio; $("fiaBack2").onclick=voltarInicio;
 // abas
 const TAB_HASH={fin:"",est:"#estoque",fia:"#fiados"};
 function tabFromHash(){ return location.hash==="#estoque"?"est":location.hash==="#fiados"?"fia":"fin"; }
