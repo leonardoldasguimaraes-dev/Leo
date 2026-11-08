@@ -112,12 +112,26 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .btn:disabled{opacity:.5;cursor:default}
 .tools{display:flex;gap:8px;flex-wrap:wrap}
 
-.fab{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));
-  background:var(--accent);color:#1A1205;border:0;border-radius:999px;padding:14px 20px;font-weight:700;font-size:15px;
+.fabs{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;z-index:20}
+.fab.alt{background:var(--brand);color:var(--brand-ink)}
+.fab{background:var(--accent);color:#1A1205;border:0;border-radius:999px;padding:14px 20px;font-weight:700;font-size:15px;
   box-shadow:0 6px 20px rgba(0,0,0,.22);display:flex;align-items:center;gap:8px;z-index:20}
 .fab span{font-size:20px;line-height:1}
 
 .note{font-size:13px;color:var(--muted)}
+.vsum{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px 10px}
+.vsum div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.vsum .num{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.days .wd{font-size:11px;color:var(--muted);text-align:center;font-weight:600}
+.day{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;min-height:44px}
+.day b{font-size:13px;font-weight:600}
+.day small{font-family:var(--mono);font-size:10px;color:var(--pos);white-space:nowrap}
+.day.on{background:color-mix(in srgb,var(--pos) 14%,var(--surface));border-color:color-mix(in srgb,var(--pos) 45%,var(--line))}
+.day.today{outline:2px solid var(--accent);outline-offset:-2px}
+.day.fut{opacity:.45}
+.vtotal{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;background:var(--sunk);border-radius:10px;padding:10px 12px}
+.vtotal .num{font-size:20px}
 .banner{background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px}
 .banner.err{border-color:var(--neg);color:var(--neg)}
 
@@ -186,6 +200,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <div class="tiles" id="tiles"></div>
 
   <section class="sec">
+    <div class="sechead"><h2>Vendas do dia</h2><span class="note" id="vNote"></span></div>
+    <div class="card sec">
+      <div class="vsum" id="vSum"></div>
+      <div class="days" id="vDays"></div>
+      <div class="note">Toque em um dia para lançar ou corrigir o relatório da maquininha.</div>
+    </div>
+  </section>
+
+  <section class="sec">
     <div class="sechead"><h2>Últimos 6 meses</h2>
       <div class="legend"><span><i style="background:var(--pos)"></i>Entradas</span><span><i style="background:var(--neg)"></i>Saídas</span></div>
     </div>
@@ -216,7 +239,47 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   </section>
 </main>
 
-<button class="fab" id="addBtn"><span>+</span> Lançar</button>
+<div class="fabs"><button class="fab alt" id="vendasBtn">Vendas do dia</button><button class="fab" id="addBtn"><span>+</span> Lançar</button></div>
+
+<div class="scrim" id="scrim3" hidden>
+  <form class="sheet" id="vForm" novalidate>
+    <h3 id="vTitle">Vendas do dia</h3>
+    <div class="grid2">
+      <div class="field"><label for="vData">Data</label><input id="vData" type="date"></div>
+      <div class="field"><label for="vMaq">Maquininha</label><input id="vMaq" list="maqList" placeholder="Ex.: Stone, Cielo" autocomplete="off">
+        <datalist id="maqList"><option value="Stone"><option value="Cielo"><option value="Rede"><option value="Getnet"><option value="PagSeguro / PagBank"><option value="Mercado Pago"><option value="SumUp"><option value="InfinitePay"><option value="Ton"></datalist></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label for="vDeb">Débito</label><input id="vDeb" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="vCre">Crédito</label><input id="vCre" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="vPix">Pix</label><input id="vPix" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="vVou">Voucher / VR</label><input id="vVou" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="vDin">Dinheiro (caixa)</label><input id="vDin" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="vOut">Outros</label><input id="vOut" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+    </div>
+    <div class="field"><label for="vTax">Taxas da maquininha (R$)</label><input id="vTax" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off">
+      <span class="note">Opcional. Entra automaticamente como custo variável “Taxas de cartão”.</span></div>
+    <div class="vtotal"><span><span class="label">Total vendido</span><br><span class="num" id="vTotal">R$ 0,00</span></span><span class="note" id="vLiq"></span></div>
+    <div class="field"><label for="vObs">Observação</label><input id="vObs" autocomplete="off"></div>
+    <div class="attach">
+      <div class="label">Relatório da maquininha</div>
+      <div id="vAttach"></div>
+      <div class="tools">
+        <label class="btn" for="vFile" id="vFileLbl">Anexar foto ou PDF</label>
+        <input id="vFile" type="file" accept="image/*,application/pdf" hidden>
+        <button type="button" class="btn primary" id="vAi" hidden>Ler relatório com IA</button>
+      </div>
+      <div class="note" id="vNoteF"></div>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn danger" id="vDel" hidden>Excluir</button>
+      <div class="r">
+        <button type="button" class="btn" id="vCancel">Cancelar</button>
+        <button type="submit" class="btn primary" id="vSave">Salvar</button>
+      </div>
+    </div>
+  </form>
+</div>
 
 <div class="scrim" id="scrim2" hidden>
   <form class="sheet" id="saldoForm" novalidate>
@@ -289,7 +352,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 const TYPES = {
-  entrada:  {label:"Entrada", plural:"Entradas",       color:"var(--pos)", cats:["Vendas no balcão","Vendas cartão","Vendas Pix","iFood / delivery","Eventos","Couvert","Outras entradas"]},
+  entrada:  {label:"Entrada", plural:"Entradas",       color:"var(--pos)", cats:["Vendas do dia","Vendas no balcão","Vendas cartão","Vendas Pix","iFood / delivery","Eventos","Couvert","Outras entradas"]},
   fixo:     {label:"Custo fixo", plural:"Custos fixos",    color:"var(--fix)", cats:["Aluguel","Salários","Pró-labore","Energia","Água","Internet / telefone","Contador","Sistema / maquininha","Impostos (Simples)","Seguro","Encargos"]},
   variavel: {label:"Custo variável", plural:"Custos variáveis",color:"var(--var)", cats:["Bebidas","Cervejas","Destilados","Alimentos / cozinha","Gelo","Descartáveis","Taxas de cartão","Comissões","Freelancers","Gás"]},
   despesa:  {label:"Despesa", plural:"Despesas",       color:"var(--accent)", cats:["Manutenção","Limpeza","Marketing","Equipamentos","Músicos / eventos","Transporte","Diversos"]},
@@ -328,7 +391,7 @@ function render(){
 
   $("tiles").innerHTML = ORDER.map(k=>`<div class="tile"><span class="label"><i class="dot" style="background:${TYPES[k].color}"></i>${TYPES[k].plural}</span><span class="v num" style="${k==="entrada"?"color:var(--pos)":""}">${brl.format(t[k])}</span></div>`).join("");
 
-  renderChart(); renderCats(); renderList(); renderProducts();
+  renderVendas(); renderChart(); renderCats(); renderList(); renderProducts();
 }
 
 function renderChart(){
@@ -419,6 +482,126 @@ function renderProducts(){
     <span class="amt num">${brl.format(a.tot)}</span></button>`).join("");
 }
 
+/* ---------- vendas do dia ---------- */
+const VF=[["debito","vDeb","Débito"],["credito","vCre","Crédito"],["pix","vPix","Pix"],["voucher","vVou","Voucher"],["dinheiro","vDin","Dinheiro"],["outros","vOut","Outros"]];
+const fmt2=v=>v? v.toLocaleString("pt-BR",{minimumFractionDigits:2}) : "";
+const vNum=id=>{ const n=parseMoney($(id).value); return isFinite(n)&&n>0?n:0; };
+function kShort(v){ return v>=1000 ? (v/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})+"k" : Math.round(v).toString(); }
+function renderVendas(){
+  const reps=state.items.filter(it=>it.vendas && ymOf(it.data)===state.ym);
+  const byDay={}, tot={debito:0,credito:0,pix:0,voucher:0,dinheiro:0,outros:0,taxas:0,total:0};
+  for(const r of reps){ byDay[r.data]=(byDay[r.data]||0)+r.valor; tot.total+=r.valor; for(const [k] of VF) tot[k]+=r.vendas[k]||0; tot.taxas+=r.vendas.taxas||0; }
+  const dias=Object.keys(byDay).length;
+  let best=null; for(const [d,v] of Object.entries(byDay)) if(!best||v>best[1]) best=[d,v];
+  $("vNote").textContent = dias ? `${dias} dia(s) lançado(s)` : "";
+  const cell=(l,v,extra="")=>`<div><span class="label">${l}</span><span class="num"${extra}>${v}</span></div>`;
+  $("vSum").innerHTML = cell("Total vendido",brl.format(tot.total),' style="color:var(--pos)"') + cell("Média por dia",dias?brl.format(tot.total/dias):"—") +
+    cell("Melhor dia",best?`${best[0].slice(8)}/${best[0].slice(5,7)} · ${kShort(best[1])}`:"—") +
+    VF.filter(([k])=>tot[k]>0).map(([k,,l])=>cell(l,`${brl.format(tot[k])} <span class="note">${Math.round(tot[k]/tot.total*100)}%</span>`)).join("") +
+    (tot.taxas>0?cell("Taxas",`${brl.format(tot.taxas)} <span class="note">${(tot.taxas/tot.total*100).toLocaleString("pt-BR",{maximumFractionDigits:1})}%</span>`):"");
+  const [y,m]=state.ym.split("-").map(Number), n=new Date(y,m,0).getDate(), off=new Date(y,m-1,1).getDay(), hoje=today();
+  let g=["D","S","T","Q","Q","S","S"].map(w=>`<span class="wd">${w}</span>`).join("")+"<span></span>".repeat(off);
+  for(let d=1; d<=n; d++){ const ds=`${state.ym}-${pad(d)}`, v=byDay[ds];
+    g+=`<button type="button" class="day${v?" on":""}${ds===hoje?" today":""}${ds>hoje?" fut":""}" data-day="${ds}" aria-label="${d}${v?": "+brl.format(v):""}"><b>${d}</b>${v?`<small>${kShort(v)}</small>`:""}</button>`; }
+  $("vDays").innerHTML=g;
+}
+let vEditing=null, vPending=null, vNota=null;
+function openVendas(it, date){
+  if(!db){ showStatus("Entre na sua conta do claude.ai para lançar.",true); return; }
+  if(!canWrite){ showStatus("Seu acesso é só de leitura.",true); return; }
+  vEditing=it||null; vPending=null; vNota=it?.nota||null; const v=it?.vendas||{};
+  $("vTitle").textContent = it ? "Editar vendas do dia" : "Vendas do dia";
+  $("vData").value = it?.data || date || today();
+  const lastMaq=[...state.items].filter(x=>x.vendas?.maquina).sort((a,b)=>b.data.localeCompare(a.data))[0]?.vendas.maquina||"";
+  $("vMaq").value = it ? (v.maquina||"") : lastMaq;
+  for(const [k,id] of VF) $(id).value=fmt2(v[k]||0);
+  $("vTax").value=fmt2(v.taxas||0); $("vObs").value=it?.obs||"";
+  $("vDel").hidden=!it; $("vFile").value=""; $("vNoteF").textContent="";
+  vRenderAttach(); vCalc(); $("scrim3").hidden=false;
+}
+function closeVendas(){ $("scrim3").hidden=true; if(vPending?.url) URL.revokeObjectURL(vPending.url); vPending=null; }
+function vCalc(){
+  const total=VF.reduce((s,[,id])=>s+vNum(id),0), tax=vNum("vTax");
+  $("vTotal").textContent=brl.format(total);
+  $("vLiq").textContent = tax>0 ? `Líquido ${brl.format(total-tax)} · taxa ${total?(tax/total*100).toLocaleString("pt-BR",{maximumFractionDigits:2}):0}%` : "";
+  return {total,tax};
+}
+$("vForm").addEventListener("input", e=>{ if(e.target.classList.contains("vmoney")) vCalc(); });
+function vRenderAttach(){
+  const v=$("vAttach");
+  if(!assets){ $("vFileLbl").hidden=true; $("vAi").hidden=true; v.innerHTML=`<div class="note">Anexos ficam disponíveis para quem pode editar este app.</div>`; return; }
+  $("vFileLbl").hidden=false;
+  if(vPending) v.innerHTML=`<div class="file"><span>${esc(vPending.file.name)} <span class="note">(será enviado ao salvar)</span></span><button type="button" class="btn" id="vRm">Remover</button></div>${vPending.file.type.startsWith("image/")?`<img class="preview" src="${vPending.url}" alt="Prévia do relatório">`:""}`;
+  else if(vNota){ const url="/_blob/"+vNota.id; v.innerHTML=`<div class="file"><a href="${url}" target="_blank" rel="noopener">${esc(vNota.nome||"Relatório anexado")}</a><button type="button" class="btn" id="vRm">Remover</button></div>${(vNota.tipo||"").startsWith("image/")?`<img class="preview" src="${url}" alt="Relatório anexado">`:""}`; }
+  else v.innerHTML=`<div class="note">Nenhum arquivo anexado.</div>`;
+  $("vFileLbl").textContent=(vPending||vNota)?"Trocar arquivo":"Anexar foto ou PDF";
+  const f=vPending?.file, isPdf=f&&(f.type==="application/pdf"||/\.pdf$/i.test(f.name));
+  $("vAi").hidden=!(sample&&aiImages&&f&&(f.type.startsWith("image/")||(isPdf&&window.pdfjsLib)));
+  const rm=$("vRm"); if(rm) rm.onclick=()=>{ if(vPending){URL.revokeObjectURL(vPending.url);vPending=null;} else vNota=null; $("vFile").value=""; vRenderAttach(); };
+}
+$("vFile").addEventListener("change", e=>{ const f=e.target.files[0]; if(!f) return;
+  if(f.size>20*1024*1024){ $("vNoteF").textContent="Arquivo maior que 20 MB."; return; }
+  if(vPending) URL.revokeObjectURL(vPending.url); vPending={file:f,url:URL.createObjectURL(f)}; vRenderAttach(); });
+$("vAi").addEventListener("click", async ()=>{
+  if(!sample||!vPending) return; const b=$("vAi"); b.disabled=true; b.textContent="Lendo o relatório…"; $("vNoteF").textContent="";
+  try{
+    const f=vPending.file, imgs=f.type.startsWith("image/")?[f]:await pdfToImages(f,Math.max(1,Math.min(3,aiMax)));
+    const r=await sample.json(`As imagens são o relatório/resumo de vendas do dia de uma maquininha de cartão (ou do sistema de caixa) de um bar no Brasil.
+Responda SOMENTE com um objeto JSON: {"data":"AAAA-MM-DD" ou null, "maquina": nome da empresa da maquininha (Stone, Cielo, Rede, Getnet, PagSeguro, Mercado Pago, SumUp, InfinitePay, Ton...) ou null,
+"debito": total vendido no débito, "credito": total no crédito (somar à vista e parcelado), "pix": total em Pix, "voucher": total em voucher/vale-refeição/alimentação, "dinheiro": total em dinheiro se aparecer, "outros": outros meios,
+"taxas": total de taxas/descontos da maquininha se aparecer (valor bruto menos líquido), "total": total bruto vendido}.
+Use números com ponto decimal e 0 quando o meio não aparecer. Use valores BRUTOS de venda, não o líquido. Ignore vendas canceladas/estornadas.`,{images:imgs,modelTier:"default"});
+    if(r&&typeof r==="object"){
+      if(typeof r.data==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(r.data)) $("vData").value=r.data;
+      if(r.maquina) $("vMaq").value=String(r.maquina).slice(0,40);
+      for(const [k,id] of VF) $(id).value=fmt2(num(r[k]));
+      $("vTax").value=fmt2(num(r.taxas));
+      const {total}=vCalc(), t=num(r.total);
+      $("vNoteF").textContent = t && Math.abs(t-total)>0.05 ? `Atenção: o relatório mostra total de ${brl.format(t)}, mas a soma das formas deu ${brl.format(total)}. Confira os valores.` : "Valores preenchidos pela leitura do relatório. Confira antes de salvar.";
+    }
+  }catch(e){ $("vNoteF").textContent = e?.code==="rate_limited"?"Muitas leituras seguidas. Tente de novo em alguns minutos.":"Não consegui ler o relatório. Preencha os valores à mão."; }
+  finally{ b.disabled=false; b.textContent="Ler relatório com IA"; }
+});
+$("vForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const data=$("vData").value; if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){ $("vNoteF").textContent="Informe a data."; return; }
+  const {total,tax}=vCalc(); if(!(total>0)){ $("vNoteF").textContent="Informe pelo menos um valor de venda."; $("vDeb").focus(); return; }
+  const maq=$("vMaq").value.trim().slice(0,40);
+  const b=$("vSave"); b.disabled=true; b.textContent="Salvando…";
+  try{
+    let nota=vNota; const old=vEditing?.nota||null;
+    if(vPending){ const f=vPending.file; const up=await assets.upload(f, f.type?undefined:{type:"application/pdf"}); nota={id:up.id,nome:f.name.slice(0,120),tipo:up.contentType,tamanho:up.sizeBytes}; }
+    const vendas={maquina:maq,taxas:tax}; for(const [k,id] of VF) vendas[k]=vNum(id);
+    const ref=vEditing? db.collection("lancamentos").doc(vEditing.id) : db.collection("lancamentos").doc();
+    const now=Date.now();
+    await ref.set({tipo:"entrada",categoria:"Vendas do dia",descricao:"Vendas do dia"+(maq?` · ${maq}`:""),valor:Math.round(total*100)/100,data,mes:ymOf(data),
+      fornecedor:maq,pagamento:"Misto",obs:$("vObs").value.trim().slice(0,300),nota:nota||null,vendas,criadoEm:vEditing?.criadoEm||now,atualizadoEm:now});
+    const taxRef=db.collection("lancamentos").doc(ref.id+"-taxa");
+    if(tax>0) await taxRef.set({tipo:"variavel",categoria:"Taxas de cartão",descricao:"Taxas da maquininha"+(maq?` · ${maq}`:""),valor:tax,data,mes:ymOf(data),
+      fornecedor:maq,pagamento:"Desconto na maquininha",obs:"",nota:null,origem:ref.id,criadoEm:now,atualizadoEm:now});
+    else if(vEditing) await taxRef.delete();
+    if(old&&(!nota||nota.id!==old.id)) assets.delete(old.id).catch(()=>{});
+    if(ymOf(data)!==state.ym) state.ym=ymOf(data);
+    closeVendas(); render();
+  }catch(err){ $("vNoteF").textContent=err?.code==="quota_exceeded"?"Espaço do app cheio. Exclua anexos antigos.":"Não foi possível salvar: "+(err?.message||err?.code||"erro"); }
+  finally{ b.disabled=false; b.textContent="Salvar"; }
+});
+let vDelArmed=false;
+$("vDel").onclick=async ()=>{
+  if(!vEditing) return;
+  if(!vDelArmed){ vDelArmed=true; $("vDel").textContent="Toque de novo para excluir"; setTimeout(()=>{vDelArmed=false;$("vDel").textContent="Excluir"},3000); return; }
+  vDelArmed=false; $("vDel").textContent="Excluir";
+  try{ await db.collection("lancamentos").doc(vEditing.id).delete(); await db.collection("lancamentos").doc(vEditing.id+"-taxa").delete();
+    if(vEditing.nota&&assets) assets.delete(vEditing.nota.id).catch(()=>{}); closeVendas(); }
+  catch(e){ $("vNoteF").textContent="Não foi possível excluir: "+(e?.message||e?.code); }
+};
+$("vCancel").onclick=closeVendas;
+$("scrim3").addEventListener("click", e=>{ if(e.target===$("scrim3")) closeVendas(); });
+$("vendasBtn").onclick=()=>openVendas(null, ymOf(today())===state.ym?today():state.ym+"-01");
+$("vDays").addEventListener("click", e=>{ const b=e.target.closest("[data-day]"); if(!b) return;
+  const ex=state.items.filter(it=>it.vendas&&it.data===b.dataset.day).sort((a,b)=>(a.criadoEm||0)-(b.criadoEm||0));
+  openVendas(ex[0]||null, b.dataset.day); });
+
 /* ---------- saldo ---------- */
 let saldo=null;
 const sign=it=> it.tipo==="entrada"? it.valor : -it.valor;
@@ -484,6 +667,7 @@ function setTipo(k){
   $("fFornLabel").textContent = k==="entrada" ? "Origem / cliente" : "Fornecedor";
 }
 function openForm(it){
+  if(it && (it.vendas || it.origem)){ const p=it.vendas?it:state.items.find(x=>x.id===it.origem); if(p){ openVendas(p); return; } }
   editing = it||null; pendingFile=null; currentNota = it?.nota||null;
   $("formTitle").textContent = it? "Editar lançamento" : "Novo lançamento";
   setTipo(it?.tipo || "variavel");
@@ -613,7 +797,7 @@ Use ponto como separador decimal nos números.`,
 $("typeSeg").addEventListener("click", e=>{ const b=e.target.closest("button[data-t]"); if(b) setTipo(b.dataset.t); });
 $("cancelBtn").onclick=closeForm;
 $("scrim").addEventListener("click", e=>{ if(e.target===$("scrim")) closeForm(); });
-document.addEventListener("keydown", e=>{ if(e.key!=="Escape") return; if(!$("scrim").hidden) closeForm(); if(!$("scrim2").hidden) closeSaldo(); });
+document.addEventListener("keydown", e=>{ if(e.key!=="Escape") return; if(!$("scrim").hidden) closeForm(); if(!$("scrim2").hidden) closeSaldo(); if(!$("scrim3").hidden) closeVendas(); });
 
 let delArmed=false;
 $("delBtn").onclick=async ()=>{
@@ -707,7 +891,7 @@ render();
   const [d,a,s,dl,u] = await Promise.all(["db","assets","sample","downloads","user"].map(n=>window.claude.use(n).catch(()=>null)));
   db=d; assets=a; sample=s; downloads=dl;
   if(u){ try{ const c=await u.can("data.write"); if(c===false) canWrite=false; }catch{} }
-  if(!canWrite){ $("addBtn").hidden=true; $("copyFixos").hidden=true; }
+  if(!canWrite){ $("addBtn").hidden=true; $("vendasBtn").hidden=true; $("copyFixos").hidden=true; }
   if(sample){ try{ const l=await sample.limits(); aiImages=!!l?.images; aiMax=l?.images?.maxCount||3; }catch{} }
   if(!db){ showStatus("Entre na sua conta do claude.ai para ver e salvar os lançamentos.",true); state.loaded=true; render(); return; }
   const timer=setTimeout(()=>showStatus("Não consegui buscar os lançamentos ainda. Verifique a conexão."),10000);
