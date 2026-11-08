@@ -30,6 +30,7 @@
   --pos:#4CC487; --neg:#F07368; --fix:#86A3E6; --var:#C996DB;
   color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 96px}
 .wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
@@ -130,6 +131,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .attach{border:1px dashed var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .attach .file{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13.5px;min-width:0}
 .attach .file a{color:var(--accent);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.items{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:9px;max-height:240px;overflow:auto}
+.it{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:7px 10px;border-top:1px solid var(--line);font-size:13px}
+.it:first-child{border-top:0}
+.it .n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.it .q{color:var(--muted);font-size:12px}
+.it button{border:0;background:none;color:var(--muted);font-size:16px;width:28px;height:28px;border-radius:6px}
+.it button:hover{background:var(--sunk);color:var(--neg)}
+.prodsum{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.prodsum div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.up{color:var(--neg)} .down{color:var(--pos)}
 .preview{max-height:160px;border-radius:8px;object-fit:contain;align-self:flex-start}
 .actions{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap}
 .actions .r{display:flex;gap:8px;margin-left:auto}
@@ -184,6 +195,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
     <div class="chips" id="filters"></div>
     <div class="list" id="list"></div>
   </section>
+  <section class="sec">
+    <div class="sechead"><h2>Produtos comprados</h2><span class="note" id="prodNote"></span></div>
+    <div class="field"><input id="prodQ" type="search" placeholder="Buscar produto em todos os meses (ex.: heineken, gelo)" aria-label="Buscar produto" autocomplete="off"></div>
+    <div id="prodSum" class="card" hidden></div>
+    <div class="list" id="prodList"></div>
+  </section>
 </main>
 
 <button class="fab" id="addBtn"><span>+</span> Lançar</button>
@@ -216,11 +233,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
       <div class="label">Nota fiscal / comprovante</div>
       <div id="attachView"></div>
       <div class="tools">
-        <label class="btn" for="fFile" id="fileLbl">Anexar foto ou PDF</label>
-        <input id="fFile" type="file" accept="image/*,application/pdf" hidden>
-        <button type="button" class="btn" id="aiBtn" hidden>Ler nota com IA</button>
+        <label class="btn" for="fFile" id="fileLbl">Anexar DANFE, foto ou XML</label>
+        <input id="fFile" type="file" accept="image/*,application/pdf,.xml,text/xml,application/xml" hidden>
+        <button type="button" class="btn primary" id="aiBtn" hidden>Ler produtos da nota</button>
       </div>
       <div class="note" id="attachNote"></div>
+      <div id="itemsView" class="sec"></div>
     </div>
 
     <div class="actions">
@@ -233,6 +251,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   </form>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 const TYPES = {
   entrada:  {label:"Entrada", plural:"Entradas",       color:"var(--pos)", cats:["Vendas no balcão","Vendas cartão","Vendas Pix","iFood / delivery","Eventos","Couvert","Outras entradas"]},
@@ -273,7 +292,7 @@ function render(){
 
   $("tiles").innerHTML = ORDER.map(k=>`<div class="tile"><span class="label"><i class="dot" style="background:${TYPES[k].color}"></i>${TYPES[k].plural}</span><span class="v num" style="${k==="entrada"?"color:var(--pos)":""}">${brl.format(t[k])}</span></div>`).join("");
 
-  renderChart(); renderCats(); renderList();
+  renderChart(); renderCats(); renderList(); renderProducts();
 }
 
 function renderChart(){
@@ -326,8 +345,46 @@ function renderList(){
       <span class="amt num" style="color:${it.tipo==="entrada"?"var(--pos)":"var(--ink)"}">${it.tipo==="entrada"?"+":"−"} ${brl.format(it.valor)}</span></button>`; }).join("");
 }
 
+const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim();
+function allLines(){
+  const out=[];
+  for(const it of state.items) if(Array.isArray(it.itens)) for(const x of it.itens) if(x && x.nome)
+    out.push({...x, key:norm(x.nome), data:it.data, fornecedor:it.fornecedor||"", lid:it.id});
+  return out;
+}
+function renderProducts(){
+  const q=norm($("prodQ").value), lines=allLines(), sum=$("prodSum");
+  if(q){
+    const terms=q.split(" ");
+    const m=lines.filter(l=>terms.every(t=>l.key.includes(t))).sort((a,b)=>b.data.localeCompare(a.data));
+    $("prodNote").textContent=`${m.length} compra(s) em todos os meses`;
+    if(!m.length){ sum.hidden=true; $("prodList").innerHTML=`<div class="empty"><strong>Nenhum produto com “${esc($("prodQ").value)}”</strong>Tente outra palavra, como a marca ou o tipo.</div>`; return; }
+    const tot=m.reduce((s,l)=>s+(l.vTotal||0),0), qt=m.reduce((s,l)=>s+(l.qtd||0),0);
+    const ordered=[...m].sort((a,b)=>a.data.localeCompare(b.data)), first=ordered[0].vUnit, last=ordered[ordered.length-1].vUnit;
+    const varp = first>0 && ordered.length>1 ? (last-first)/first*100 : null;
+    sum.hidden=false;
+    sum.innerHTML=`<div class="prodsum"><div><span class="label">Total gasto</span><span class="num">${brl.format(tot)}</span></div>
+      <div><span class="label">Quantidade</span><span class="num">${fmtQ(qt)} ${esc(m[0].un||"")}</span></div>
+      <div><span class="label">Último preço</span><span class="num">${brl.format(last||0)}${varp===null?"":` <span class="${varp>0.05?"up":varp<-0.05?"down":"note"}">${varp>0?"▲":varp<0?"▼":""} ${Math.abs(varp).toLocaleString("pt-BR",{maximumFractionDigits:1})}%</span>`}</span></div></div>`;
+    $("prodList").innerHTML=m.slice(0,200).map(l=>{ const [y,mo,d]=l.data.split("-");
+      return `<button class="row" data-id="${esc(l.lid)}"><span class="stripe" style="background:var(--var)"></span><span class="main"><span class="t">${esc(l.nome)}</span>
+      <span class="s"><span class="num">${d}/${mo}/${y.slice(2)}</span>${l.fornecedor?`<span>${esc(l.fornecedor)}</span>`:""}<span class="num">${fmtQ(l.qtd)} ${esc(l.un)} × ${brl.format(l.vUnit||0)}</span></span></span>
+      <span class="amt num">${brl.format(l.vTotal||0)}</span></button>`; }).join("");
+    return;
+  }
+  sum.hidden=true;
+  const month=lines.filter(l=>ymOf(l.data)===state.ym), agg=new Map();
+  for(const l of month){ const a=agg.get(l.key)||{nome:l.nome,un:l.un,qtd:0,tot:0,n:0,forn:new Set()}; a.qtd+=l.qtd||0; a.tot+=l.vTotal||0; a.n++; if(l.fornecedor) a.forn.add(l.fornecedor); agg.set(l.key,a); }
+  const rows=[...agg.values()].sort((a,b)=>b.tot-a.tot);
+  $("prodNote").textContent = rows.length ? `${rows.length} produto(s) em ${ymLabel(state.ym)}` : "";
+  if(!rows.length){ $("prodList").innerHTML=`<div class="empty"><strong>Nenhum produto registrado em ${ymLabel(state.ym)}</strong>Ao lançar uma compra, anexe a DANFE (foto ou PDF) e toque em <b>Ler produtos da nota</b>, ou anexe o XML da NF-e.</div>`; return; }
+  $("prodList").innerHTML=rows.slice(0,60).map(a=>`<button class="row" data-q="${esc(a.nome)}"><span class="stripe" style="background:var(--var)"></span><span class="main"><span class="t">${esc(a.nome)}</span>
+    <span class="s"><span class="num">${fmtQ(a.qtd)} ${esc(a.un||"")}</span><span>${a.n} compra(s)</span>${a.forn.size?`<span>· ${esc([...a.forn].join(", "))}</span>`:""}</span></span>
+    <span class="amt num">${brl.format(a.tot)}</span></button>`).join("");
+}
+
 /* ---------- formulário ---------- */
-let editing=null, formTipo="variavel", pendingFile=null, currentNota=null;
+let editing=null, formTipo="variavel", pendingFile=null, currentNota=null, formItens=[];
 function setTipo(k){
   formTipo=k;
   $("typeSeg").innerHTML=ORDER.map(t=>`<button type="button" data-t="${t}" aria-pressed="${t===k}">${TYPES[t].label}</button>`).join("");
@@ -344,6 +401,7 @@ function openForm(it){
   $("fData").value = it?.data || defDate; $("fForn").value=it?.fornecedor||"";
   $("fPag").value = it?.pagamento||"Pix"; $("fObs").value=it?.obs||"";
   $("delBtn").hidden=!it; $("fFile").value="";
+  formItens=(it?.itens||[]).map(x=>({...x})); renderItems();
   renderAttach(); $("scrim").hidden=false; setTimeout(()=>$("fValor").focus(),50);
 }
 function closeForm(){ $("scrim").hidden=true; if(pendingFile?.url) URL.revokeObjectURL(pendingFile.url); pendingFile=null; }
@@ -359,7 +417,8 @@ function renderAttach(){
     v.innerHTML=`<div class="file"><a href="${url}" target="_blank" rel="noopener">${esc(currentNota.nome||"Nota anexada")}</a><button type="button" class="btn" id="rmFile">Remover</button></div>${(currentNota.tipo||"").startsWith("image/")?`<img class="preview" src="${url}" alt="Nota fiscal anexada">`:""}`;
   } else v.innerHTML=`<div class="note">Nenhum arquivo anexado.</div>`;
   $("fileLbl").textContent = (pendingFile||currentNota) ? "Trocar arquivo" : "Anexar foto ou PDF";
-  $("aiBtn").hidden = !(sample && aiImages && pendingFile && pendingFile.file.type.startsWith("image/"));
+  const pf=pendingFile?.file; const isPdf=pf && (pf.type==="application/pdf"||/\.pdf$/i.test(pf.name));
+  $("aiBtn").hidden = !(sample && aiImages && pf && (pf.type.startsWith("image/") || (isPdf && window.pdfjsLib)));
   const rm=$("rmFile"); if(rm) rm.onclick=()=>{ if(pendingFile){URL.revokeObjectURL(pendingFile.url);pendingFile=null;} else currentNota=null; $("fFile").value=""; renderAttach(); };
 }
 
@@ -368,29 +427,90 @@ $("fFile").addEventListener("change", e=>{
   if(f.size>20*1024*1024){ $("attachNote").textContent="Arquivo maior que 20 MB. Tire uma foto com menos resolução."; return; }
   if(pendingFile) URL.revokeObjectURL(pendingFile.url);
   pendingFile={file:f,url:URL.createObjectURL(f)}; renderAttach();
+  if(isXmlFile(f)){
+    f.text().then(txt=>{
+      const r=parseNFeXml(txt);
+      if(!r){ $("attachNote").textContent="Este XML não parece ser uma NF-e. Ele será anexado, mas sem produtos."; return; }
+      setTipo("variavel"); applyNota(r);
+      $("attachNote").textContent=`XML lido: ${r.itens.length} produto(s)${r.numero?` da NF ${r.numero}`:""}. Confira antes de salvar.`;
+    }).catch(()=>{ $("attachNote").textContent="Não consegui ler o XML."; });
+  }
 });
+function isXmlFile(f){ return /\.xml$/i.test(f.name) || /xml/.test(f.type); }
+function num(v){ if(typeof v==="number") return isFinite(v)?v:0; const n=parseMoney(v); return isFinite(n)?n:0; }
+function cleanItens(arr){
+  if(!Array.isArray(arr)) return [];
+  return arr.slice(0,300).map(x=>({nome:String(x?.nome||"").trim().slice(0,120),qtd:num(x?.qtd),un:String(x?.un||"").trim().slice(0,10),
+    vUnit:num(x?.vUnit),vTotal:num(x?.vTotal)})).filter(x=>x.nome)
+    .map(x=>{ if(!x.vTotal && x.qtd && x.vUnit) x.vTotal=Math.round(x.qtd*x.vUnit*100)/100; if(!x.vUnit && x.qtd && x.vTotal) x.vUnit=Math.round(x.vTotal/x.qtd*100)/100; return x; });
+}
+function applyNota(r){
+  if(r.valor>0) $("fValor").value=r.valor.toLocaleString("pt-BR",{minimumFractionDigits:2});
+  if(/^\d{4}-\d{2}-\d{2}$/.test(r.data||"")) $("fData").value=r.data;
+  if(r.fornecedor) $("fForn").value=String(r.fornecedor).slice(0,80);
+  if(r.descricao) $("fDesc").value=String(r.descricao).slice(0,80);
+  else if(r.itens?.length && !$("fDesc").value) $("fDesc").value=(r.fornecedor?`Compra ${r.fornecedor}`:"Compra")+(r.numero?` · NF ${r.numero}`:"");
+  if(r.categoria) $("fCat").value=String(r.categoria).slice(0,40);
+  if(r.itens?.length){ formItens=cleanItens(r.itens); renderItems(); }
+}
+function parseNFeXml(text){
+  const doc=new DOMParser().parseFromString(text,"application/xml");
+  if(doc.getElementsByTagName("parsererror").length) return null;
+  const g=(el,tag)=>el?.getElementsByTagName(tag)[0]?.textContent?.trim()||"";
+  const dets=[...doc.getElementsByTagName("det")]; if(!dets.length) return null;
+  const itens=dets.map(d=>({nome:g(d,"xProd"),qtd:parseFloat(g(d,"qCom"))||0,un:g(d,"uCom"),vUnit:parseFloat(g(d,"vUnCom"))||0,vTotal:parseFloat(g(d,"vProd"))||0}));
+  const emit=doc.getElementsByTagName("emit")[0];
+  return {itens, valor:parseFloat(g(doc,"vNF"))||itens.reduce((s,x)=>s+x.vTotal,0), data:(g(doc,"dhEmi")||g(doc,"dEmi")).slice(0,10),
+    fornecedor:g(emit,"xFant")||g(emit,"xNome"), numero:g(doc,"nNF")};
+}
+function renderItems(){
+  const v=$("itemsView");
+  if(!formItens.length){ v.innerHTML=""; return; }
+  const soma=formItens.reduce((s,x)=>s+(x.vTotal||0),0);
+  v.innerHTML=`<div class="label">Produtos da nota (${formItens.length})</div><div class="items">${formItens.map((x,i)=>
+    `<div class="it"><span class="n" title="${esc(x.nome)}">${esc(x.nome)}<br><span class="q num">${fmtQ(x.qtd)} ${esc(x.un)} × ${brl.format(x.vUnit||0)}</span></span><span class="num">${brl.format(x.vTotal||0)}</span><button type="button" data-rm="${i}" aria-label="Remover ${esc(x.nome)}">×</button></div>`).join("")}</div>
+    <div class="note">Soma dos produtos: <span class="num">${brl.format(soma)}</span>. A diferença para o total da nota costuma ser frete, desconto ou impostos.</div>`;
+}
+function fmtQ(q){ return (q||0).toLocaleString("pt-BR",{maximumFractionDigits:3}); }
+$("itemsView").addEventListener("click", e=>{ const b=e.target.closest("[data-rm]"); if(b){ formItens.splice(Number(b.dataset.rm),1); renderItems(); }});
+async function pdfToImages(file,max){
+  const lib=window.pdfjsLib;
+  lib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  const pdf=await lib.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false}).promise;
+  const out=[];
+  for(let i=1;i<=Math.min(pdf.numPages,max);i++){
+    const page=await pdf.getPage(i); const vp=page.getViewport({scale:2});
+    const c=document.createElement("canvas"); c.width=Math.floor(vp.width); c.height=Math.floor(vp.height);
+    const ctx=c.getContext("2d"); ctx.fillStyle="#fff"; ctx.fillRect(0,0,c.width,c.height);
+    await page.render({canvasContext:ctx,viewport:vp}).promise;
+    out.push(await new Promise(r=>c.toBlob(r,"image/jpeg",0.85)));
+  }
+  return out;
+}
 
-let aiImages=false;
+let aiImages=false, aiMax=3;
 $("aiBtn").addEventListener("click", async ()=>{
   if(!sample||!pendingFile) return;
   const b=$("aiBtn"); b.disabled=true; b.textContent="Lendo a nota…"; $("attachNote").textContent="";
   try{
+    const f=pendingFile.file;
+    const imgs = f.type.startsWith("image/") ? [f] : await pdfToImages(f, Math.max(1, Math.min(3, aiMax)));
     const r = await sample.json(
-`A imagem é uma nota fiscal, cupom fiscal, boleto ou comprovante de um bar no Brasil (bar Simpatia).
+`As imagens são uma DANFE (nota fiscal eletrônica), cupom fiscal, boleto ou comprovante de um bar no Brasil (bar Simpatia). Se houver várias páginas, são da mesma nota.
 Extraia os dados e responda SOMENTE com um objeto JSON com estas chaves:
 {"valor": número total em reais (ex: 1234.56), "data": "AAAA-MM-DD" ou null, "fornecedor": nome do emitente ou null,
  "descricao": resumo curto do que foi comprado/pago (até 60 caracteres),
  "tipo": "variavel" se for compra de mercadoria/insumo (bebidas, comida, gelo, descartáveis), "fixo" se for conta recorrente (aluguel, energia, água, internet, contador, salários), "despesa" para outros gastos, "entrada" se for recebimento,
- "categoria": uma destas conforme o tipo: ${JSON.stringify(Object.fromEntries(ORDER.map(k=>[k,TYPES[k].cats])))} }`,
-      {images:[pendingFile.file], modelTier:"default"});
+ "categoria": uma destas conforme o tipo: ${JSON.stringify(Object.fromEntries(ORDER.map(k=>[k,TYPES[k].cats])))},
+ "numero": número da nota ou null,
+ "itens": TODOS os produtos da tabela "Dados dos produtos/serviços", na ordem, cada um como {"nome": descrição do produto, "qtd": quantidade (número), "un": unidade (UN, CX, FD, KG, L...), "vUnit": valor unitário (número), "vTotal": valor total do item (número)}; use [] se não houver lista de produtos }
+Use ponto como separador decimal nos números.`,
+      {images:imgs, modelTier:"default"});
     if(r && typeof r==="object"){
       if(ORDER.includes(r.tipo)) setTipo(r.tipo);
-      if(typeof r.valor==="number" && r.valor>0) $("fValor").value=r.valor.toLocaleString("pt-BR",{minimumFractionDigits:2});
-      if(typeof r.data==="string" && /^\d{4}-\d{2}-\d{2}$/.test(r.data)) $("fData").value=r.data;
-      if(r.fornecedor) $("fForn").value=String(r.fornecedor).slice(0,80);
-      if(r.descricao) $("fDesc").value=String(r.descricao).slice(0,80);
-      if(r.categoria) $("fCat").value=String(r.categoria).slice(0,40);
-      $("attachNote").textContent="Campos preenchidos pela leitura da nota. Confira antes de salvar.";
+      applyNota({...r, valor:num(r.valor), data:typeof r.data==="string"?r.data:""});
+      const n=cleanItens(r.itens).length;
+      $("attachNote").textContent=(n?`${n} produto(s) encontrados. `:"Nenhuma lista de produtos encontrada. ")+"Confira antes de salvar.";
     }
   }catch(e){
     $("attachNote").textContent = e?.code==="not_granted" ? "A leitura com IA não foi autorizada neste acesso." :
@@ -424,12 +544,12 @@ $("form").addEventListener("submit", async e=>{
     const oldNota=editing?.nota||null;
     if(pendingFile){
       const f=pendingFile.file;
-      const up=await assets.upload(f, f.type?undefined:{type:"application/pdf"});
+      const up=await assets.upload(f, isXmlFile(f)?{type:"text/plain"}:(f.type?undefined:{type:"application/pdf"}));
       nota={id:up.id,nome:f.name.slice(0,120),tipo:up.contentType,tamanho:up.sizeBytes};
     }
     const doc={tipo:formTipo,valor,data,mes:ymOf(data),descricao:$("fDesc").value.trim().slice(0,120),
       categoria:$("fCat").value.trim().slice(0,60),fornecedor:$("fForn").value.trim().slice(0,100),
-      pagamento:$("fPag").value,obs:$("fObs").value.trim().slice(0,500),nota:nota||null,
+      pagamento:$("fPag").value,obs:$("fObs").value.trim().slice(0,500),nota:nota||null,itens:formItens,
       criadoEm:editing?.criadoEm||Date.now(),atualizadoEm:Date.now()};
     const ref = editing ? db.collection("lancamentos").doc(editing.id) : db.collection("lancamentos").doc();
     await ref.set(doc);
@@ -448,6 +568,9 @@ $("addBtn").onclick=()=>{ if(!db){ showStatus("Abra este app no claude.ai com su
 $("prevM").onclick=()=>{ state.ym=shiftYm(state.ym,-1); render(); };
 $("nextM").onclick=()=>{ state.ym=shiftYm(state.ym,1); render(); };
 $("filters").addEventListener("click", e=>{ const b=e.target.closest("[data-f]"); if(b){ state.filter=b.dataset.f; renderList(); }});
+$("prodQ").addEventListener("input", ()=>renderProducts());
+$("prodList").addEventListener("click", e=>{ const q=e.target.closest("[data-q]"); if(q){ $("prodQ").value=q.dataset.q; renderProducts(); $("prodQ").scrollIntoView({block:"start",behavior:"smooth"}); return; }
+  const b=e.target.closest("[data-id]"); if(!b) return; const it=state.items.find(x=>x.id===b.dataset.id); if(it && db && canWrite) openForm(it); });
 $("list").addEventListener("click", e=>{ const b=e.target.closest(".row"); if(!b) return; const it=state.items.find(x=>x.id===b.dataset.id); if(it && db && canWrite) openForm(it); });
 
 $("copyFixos").onclick=async ()=>{
@@ -478,7 +601,9 @@ $("exportCsv").onclick=async ()=>{
     (it.tipo==="entrada"?it.valor:-it.valor).toFixed(2).replace(".",","),it.nota?"sim":"não",it.obs].map(q).join(";"));
   const t=totals(state.ym);
   lines.push("", ...[["Entradas",t.entrada],["Custos fixos",t.fixo],["Custos variáveis",t.variavel],["Despesas",t.despesa],["Resultado",t.resultado]].map(([k,v])=>q(k)+";"+q(v.toFixed(2).replace(".",","))));
-  const csv="﻿"+lines.join("\n");
+  const prods=rows.flatMap(it=>(it.itens||[]).map(x=>[it.data.split("-").reverse().join("/"),it.fornecedor,x.nome,fmtQ(x.qtd),x.un,(x.vUnit||0).toFixed(2).replace(".",","),(x.vTotal||0).toFixed(2).replace(".",",")].map(q).join(";")));
+  if(prods.length) lines.push("", ["Data","Fornecedor","Produto","Quantidade","Unidade","Valor unitário","Valor total"].join(";"), ...prods);
+  const csv="\ufeff"+lines.join("\n");
   if(!downloads){ showStatus("A exportação não está disponível neste acesso.",true); return; }
   try{ await downloads.save({filename:`simpatia-${state.ym}.csv`,data:csv}); }catch(e){ if(e?.code && e.code!=="declined" && e.code!=="cancelled") showStatus("Não foi possível exportar.",true); }
 };
@@ -491,7 +616,7 @@ render();
   db=d; assets=a; sample=s; downloads=dl;
   if(u){ try{ const c=await u.can("data.write"); if(c===false) canWrite=false; }catch{} }
   if(!canWrite){ $("addBtn").hidden=true; $("copyFixos").hidden=true; }
-  if(sample){ try{ const l=await sample.limits(); aiImages=!!l?.images; }catch{} }
+  if(sample){ try{ const l=await sample.limits(); aiImages=!!l?.images; aiMax=l?.images?.maxCount||3; }catch{} }
   if(!db){ showStatus("Entre na sua conta do claude.ai para ver e salvar os lançamentos.",true); state.loaded=true; render(); return; }
   const timer=setTimeout(()=>showStatus("Não consegui buscar os lançamentos ainda. Verifique a conexão."),10000);
   db.collection("lancamentos").onSnapshot(snap=>{
