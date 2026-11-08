@@ -102,8 +102,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .row .amt{text-align:right;font-size:15px}
 .tag{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;border:1px solid currentColor}
 .clip{font-size:11px;font-weight:600;color:var(--accent)}
-.empty{padding:28px 18px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:6px;align-items:center}
-.empty strong{color:var(--ink);font-family:var(--display);font-size:17px}
+.empty{padding:28px 18px;text-align:center;color:var(--muted);display:block;text-wrap:pretty}
+.empty strong{color:var(--ink);font-family:var(--display);font-size:17px;display:block;margin-bottom:6px}
+.empty b{color:var(--ink)}
 
 a.btn{text-decoration:none;display:inline-flex;align-items:center;color:var(--ink)}
 a.btn.primary{color:#1A1205}
@@ -129,6 +130,9 @@ body.fia .month, body.fia .result, body.fia .saldo, body.fia #finMain, body.fia 
 body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:not(.fia) #fiaFab{display:none}
 .fiahead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
 .fiahead .num{font-size:26px}
+.fiabtn{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:var(--ink);cursor:pointer}
+.fiabtn:hover{background:var(--sunk)}
+.fiaarrow{font-size:26px;color:var(--muted)}
 .chk{display:flex;gap:8px;align-items:flex-start;font-size:14px}
 .chk input{margin-top:3px;width:18px;height:18px}
 .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
@@ -266,7 +270,6 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <nav class="tabs" role="tablist" aria-label="Seções">
       <button role="tab" id="tabFin" data-tab="fin" aria-selected="true">Financeiro</button>
       <button role="tab" id="tabEst" data-tab="est" aria-selected="false">Estoque</button>
-      <button role="tab" id="tabFia" data-tab="fia" aria-selected="false">Fiados</button>
     </nav>
   </div>
 </header>
@@ -274,6 +277,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 <div class="wrap" style="margin-top:18px"><div id="status" class="banner" hidden></div></div>
 
 <main class="wrap" id="fiaMain" style="margin-top:6px">
+  <div class="tools"><button type="button" class="btn" id="fiaBack">‹ Voltar ao Financeiro</button></div>
   <div class="tiles" id="fTiles"></div>
   <section class="sec">
     <div class="sechead"><h2>Quem está devendo</h2>
@@ -342,9 +346,8 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="list" id="pendList"></div>
   </section>
 
-  <section class="sec" id="fiaSumSec" hidden>
-    <div class="sechead"><h2>Fiados a receber</h2><span class="note">Controle à parte · não entra no caixa</span></div>
-    <div class="card sec" id="fiaSum"></div>
+  <section class="sec" id="fiaSumSec">
+    <button type="button" class="card fiabtn" id="fiaGo"><span><span class="vh">Fiados</span><br><span class="note">Controle à parte · não entra no caixa</span></span><span class="fiaarrow" aria-hidden="true">›</span></button>
   </section>
 
   <section class="sec">
@@ -1180,12 +1183,7 @@ function renderFiados(){
   const tile=(l,v,c="")=>`<div class="tile"><span class="label">${l}</span><span class="v num"${c}>${v}</span></div>`;
   $("fTiles").innerHTML=tile("Total a receber",brl.format(total),total?' style="color:var(--neg)"':"")+tile(`Fiado até ${ymLabel(shiftYm(ym,-1),true)}`,brl.format(ant))+tile(`Fiado novo em ${ymLabel(ym,true)}`,brl.format(novos))+tile(`Recebido em ${ymLabel(ym,true)}`,brl.format(rec),rec?' style="color:var(--pos)"':"");
   $("fCliList").innerHTML=cs.map(c=>`<option value="${esc(c.nome)}">`).join("");
-  $("fiaSumSec").hidden=!devendo.length;
-  if(devendo.length){ const top=[...devendo].sort((a,b)=>b.saldo-a.saldo).slice(0,3), antN=devendo.filter(c=>c.ant>0.009).length;
-    $("fiaSum").innerHTML=`<div class="fiahead"><span><span class="label">Total a receber</span><br><span class="num" style="font-size:24px;color:var(--neg)">${brl.format(total)}</span></span><span class="note">${devendo.length} cliente(s)${antN?` · ${antN} do mês anterior`:""}${rec?` · recebido em ${ymLabel(ym,true)}: ${brl.format(rec)}`:""}</span></div>
-      <div class="detl">${top.map(c=>`<div><span>${esc(c.nome)}${c.ant>0.009?` <span class="badge b-red">mês anterior</span>`:""}</span><span class="num">${brl.format(c.saldo)}</span></div>`).join("")}</div>
-      <div class="tools"><button type="button" class="btn primary" id="fiaGo">Abrir Fiados</button></div>`;
-    $("fiaGo").onclick=()=>{ try{ history.replaceState(null,"","#fiados"); }catch{} setTab("fia"); window.scrollTo({top:0}); }; }
+
   const q=ckey($("fQ").value);
   let rows=(fShowAll?cs:devendo).filter(c=>!q||c.key.includes(q)).sort((a,b)=>b.saldo-a.saldo||a.nome.localeCompare(b.nome));
   if(!cs.length){ $("fList").innerHTML=`<div class="empty"><strong>Nenhum fiado lançado</strong>Comece pelos fiados do mês anterior: toque em <b>+ Fiado do mês anterior</b> e lance o total que cada cliente deve. Depois use <b>+ Novo fiado</b> no dia a dia.</div>`; return; }
@@ -1284,11 +1282,13 @@ $("cTelSave").onclick=async ()=>{ const c=fClients().find(x=>x.key===fOpenKey); 
 $("cClose").onclick=()=>{ $("scrim7").hidden=true; };
 $("scrim7").addEventListener("click", e=>{ if(e.target===$("scrim7")) $("scrim7").hidden=true; });
 
+$("fiaGo").onclick=()=>{ try{ history.replaceState(null,"","#fiados"); }catch{} setTab("fia"); window.scrollTo({top:0}); };
+$("fiaBack").onclick=()=>{ try{ history.replaceState(null,"","#"); }catch{} setTab("fin"); window.scrollTo({top:0}); };
 // abas
 const TAB_HASH={fin:"",est:"#estoque",fia:"#fiados"};
 function tabFromHash(){ return location.hash==="#estoque"?"est":location.hash==="#fiados"?"fia":"fin"; }
 function setTab(t){ document.body.classList.toggle("est", t==="est"); document.body.classList.toggle("fia", t==="fia");
-  $("tabFin").setAttribute("aria-selected", t==="fin"); $("tabEst").setAttribute("aria-selected", t==="est"); $("tabFia").setAttribute("aria-selected", t==="fia");
+  $("tabFin").setAttribute("aria-selected", t==="fin"); $("tabEst").setAttribute("aria-selected", t==="est"); 
   if(t==="est") renderEstoque(); if(t==="fia") renderFiados(); }
 document.querySelector(".tabs").addEventListener("click", e=>{ const b=e.target.closest("[data-tab]"); if(!b) return; const t=b.dataset.tab; try{ history.replaceState(null,"",TAB_HASH[t]||"#"); }catch{} setTab(t); });
 window.addEventListener("hashchange", ()=>setTab(tabFromHash()));
