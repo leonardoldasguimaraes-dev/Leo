@@ -932,7 +932,7 @@ $("eComp").addEventListener("click", async e=>{
   if(!p){ showStatus("Escolha a qual cerveja do estoque esse item pertence.",true); return; }
   if(!(q>0)){ showStatus("Informe a quantidade em unidades.",true); return; }
   try{
-    await db.collection("movimentos").doc().set({produtoId:p.id,tipo:"entrada",qtd:q,data:today()>c.it.data?today():c.it.data,origem:key,obs:`NF ${c.it.fornecedor||""}`.trim(),criadoEm:Date.now()});
+    await db.collection("movimentos").doc().set({produtoId:p.id,tipo:"entrada",qtd:q,data:today(),origem:key,obs:`NF ${c.it.fornecedor||""}`.trim(),criadoEm:Date.now()});
     const cu=c.x.vTotal&&q?Math.round(c.x.vTotal/q*100)/100:0, upd={atualizadoEm:Date.now()}; if(cu) upd.custoUnit=cu; if(!p.fornecedor&&c.it.fornecedor) upd.fornecedor=c.it.fornecedor;
     await db.collection("estoque").doc(p.id).update(upd);
     showStatus(`Entrada de ${q} unid. de ${p.nome} registrada.`); setTimeout(()=>showStatus(""),3500);
