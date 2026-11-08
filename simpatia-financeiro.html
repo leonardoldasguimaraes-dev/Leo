@@ -163,6 +163,8 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 .day b{font-size:13px;font-weight:600}
 .day small{font-family:var(--mono);font-size:10px;color:var(--pos);white-space:nowrap}
 .day.on{background:color-mix(in srgb,var(--pos) 14%,var(--surface));border-color:color-mix(in srgb,var(--pos) 45%,var(--line))}
+.day.sel{background:var(--ink);border-color:var(--ink)}
+.day.sel b,.day.sel small{color:var(--bg)}
 .day.today{outline:2px solid var(--accent);outline-offset:-2px}
 .day.fut{opacity:.45}
 .vbox{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
@@ -173,6 +175,29 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 .grid3 .field input{padding:9px 8px}
 .vmore{border-top:1px solid var(--line);padding-top:10px}
 .vmore summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--muted)}
+.vdet{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
+.dethead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.dethead h3{font-size:17px;text-transform:capitalize}
+.dethead .num{font-size:20px;color:var(--pos)}
+.detgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.detgrid div{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.detgrid .num{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.detgrid .zero{color:var(--muted)}
+.detl{display:flex;flex-direction:column;gap:6px}
+.detl a{color:var(--accent);font-weight:600}
+.detl div{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13.5px}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+.vt{border-collapse:collapse;width:100%;font-size:13px}
+.vt th,.vt td{padding:8px 9px;text-align:right;white-space:nowrap;border-top:1px solid var(--line)}
+.vt td{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5px}
+.vt thead th{border-top:0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.vt th:first-child,.vt td:first-child{text-align:left;position:sticky;left:0;background:var(--surface)}
+.vt tbody tr{cursor:pointer}
+.vt tbody tr:hover td{background:var(--sunk)}
+.vt tr.sel td{background:color-mix(in srgb,var(--accent) 16%,var(--surface))}
+.vt tfoot td{font-weight:700;background:var(--sunk)}
+.vt .z{color:var(--muted)}
+.vt .tot{color:var(--pos);font-weight:600}
 .vtotal{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;background:var(--sunk);border-radius:10px;padding:10px 12px}
 .vtotal .num{font-size:20px}
 .banner{background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px}
@@ -289,7 +314,9 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="card sec">
       <div class="vsum" id="vSum"></div>
       <div class="days" id="vDays"></div>
-      <div class="note">Toque em um dia para lançar ou corrigir o relatório da maquininha.</div>
+      <div id="vDet" class="vdet"></div>
+      <div class="sechead" style="margin-top:6px"><h3 style="font-size:16px">Dia a dia</h3><span class="note">valores em R$ · toque numa linha para ver o dia</span></div>
+      <div class="tblwrap" id="vTbl"></div>
     </div>
   </section>
 
@@ -421,11 +448,12 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     </div>
 
     <div class="vbox">
-      <div class="vh">Maquininha Cielo</div>
-      <div class="grid3">
+      <div class="vh">Maquininha Sicoob</div>
+      <div class="grid2">
         <div class="field"><label for="vDeb">Débito</label><input id="vDeb" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
         <div class="field"><label for="vCre">Crédito</label><input id="vCre" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
         <div class="field"><label for="vPix">Pix</label><input id="vPix" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+        <div class="field"><label for="vVou">Voucher</label><input id="vVou" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
       </div>
       <div class="tools">
         <label class="btn" for="vFile" id="vFileLbl">Anexar foto do relatório</label>
@@ -436,9 +464,9 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     </div>
 
     <div class="vbox">
-      <label for="vVou" class="vh">Alelo (alimentação / refeição)</label>
-      <span class="note">Total vendido no cartão Alelo no dia.</span>
-      <input id="vVou" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off">
+      <label for="vAle" class="vh">Alelo (maquininha Cielo)</label>
+      <span class="note">Total vendido no cartão Alelo alimentação / refeição no dia.</span>
+      <input id="vAle" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off">
     </div>
 
     <div class="vtotal"><span><span class="label">Total vendido no dia</span><br><span class="num" id="vTotal">R$ 0,00</span></span><span class="note" id="vLiq"></span></div>
@@ -449,8 +477,8 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
         <div class="grid2">
           <div class="field"><label for="vOut">Outros</label><input id="vOut" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
           <div class="field"><label for="vTax">Taxas da maquininha</label><input id="vTax" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
-          <div class="field"><label for="vMaq">Nome da maquininha</label><input id="vMaq" list="maqList" placeholder="Ex.: Stone, Cielo" autocomplete="off">
-            <datalist id="maqList"><option value="Stone"><option value="Cielo"><option value="Rede"><option value="Getnet"><option value="PagSeguro / PagBank"><option value="Mercado Pago"><option value="SumUp"><option value="InfinitePay"><option value="Ton"></datalist></div>
+          <div class="field"><label for="vMaq">Nome da maquininha</label><input id="vMaq" list="maqList" placeholder="Ex.: Sicoob" autocomplete="off">
+            <datalist id="maqList"><option value="Sicoob"><option value="Stone"><option value="Cielo"><option value="Rede"><option value="Getnet"><option value="PagSeguro / PagBank"><option value="Mercado Pago"><option value="SumUp"><option value="InfinitePay"><option value="Ton"></datalist></div>
         </div>
         <span class="note">As taxas entram sozinhas como custo variável “Taxas de cartão”.</span>
         <div class="field"><label for="vObs">Observação</label><input id="vObs" autocomplete="off"></div>
@@ -671,14 +699,20 @@ function renderProducts(){
 }
 
 /* ---------- vendas do dia ---------- */
-const VF=[["debito","vDeb","Débito"],["credito","vCre","Crédito"],["pix","vPix","Pix"],["voucher","vVou","Alelo"],["dinheiro","vDin","Dinheiro"],["outros","vOut","Outros"]];
+const VF=[["dinheiro","vDin","Dinheiro"],["debito","vDeb","Débito"],["credito","vCre","Crédito"],["pix","vPix","Pix"],["voucher","vVou","Voucher"],["alelo","vAle","Alelo"],["outros","vOut","Outros"]];
+let vSel=null;
+const WD=["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
+const dayLabel=d=>`${WD[new Date(d+"T12:00:00").getDay()]}, ${ddmm(d)}`;
+const n2=v=>v? v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : "–";
 const fmt2=v=>v? v.toLocaleString("pt-BR",{minimumFractionDigits:2}) : "";
 const vNum=id=>{ const n=parseMoney($(id).value); return isFinite(n)&&n>0?n:0; };
 function kShort(v){ return v>=1000 ? (v/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})+"k" : Math.round(v).toString(); }
 function renderVendas(){
   const reps=state.items.filter(it=>it.vendas && ymOf(it.data)===state.ym);
-  const byDay={}, tot={debito:0,credito:0,pix:0,voucher:0,dinheiro:0,outros:0,taxas:0,total:0};
-  for(const r of reps){ byDay[r.data]=(byDay[r.data]||0)+r.valor; tot.total+=r.valor; for(const [k] of VF) tot[k]+=r.vendas[k]||0; tot.taxas+=r.vendas.taxas||0; }
+  const byDay={}, det={}, tot={debito:0,credito:0,pix:0,voucher:0,alelo:0,dinheiro:0,outros:0,taxas:0,total:0};
+  for(const r of reps){ byDay[r.data]=(byDay[r.data]||0)+r.valor; tot.total+=r.valor; tot.taxas+=r.vendas.taxas||0;
+    const d=(det[r.data] ||= {total:0,taxas:0,docs:[]}); d.total+=r.valor; d.taxas+=r.vendas.taxas||0; d.docs.push(r);
+    for(const [k] of VF){ tot[k]+=r.vendas[k]||0; d[k]=(d[k]||0)+(r.vendas[k]||0); } }
   const dias=Object.keys(byDay).length;
   let best=null; for(const [d,v] of Object.entries(byDay)) if(!best||v>best[1]) best=[d,v];
   $("vNote").textContent = dias ? `${dias} dia(s) lançado(s)` : "";
@@ -692,6 +726,23 @@ function renderVendas(){
   for(let d=1; d<=n; d++){ const ds=`${state.ym}-${pad(d)}`, v=byDay[ds];
     g+=`<button type="button" class="day${v?" on":""}${ds===hoje?" today":""}${ds>hoje?" fut":""}" data-day="${ds}" aria-label="${d}${v?": "+brl.format(v):""}"><b>${d}</b>${v?`<small>${kShort(v)}</small>`:""}</button>`; }
   $("vDays").innerHTML=g;
+  // dia selecionado
+  if(!vSel || ymOf(vSel)!==state.ym){ const ks=Object.keys(det).sort(); vSel = ymOf(hoje)===state.ym && (det[hoje]||!ks.length) ? hoje : (ks[ks.length-1]||null); }
+  [...$("vDays").querySelectorAll("[data-day]")].forEach(b=>b.classList.toggle("sel", b.dataset.day===vSel));
+  const D=vSel?det[vSel]:null;
+  if(!vSel){ $("vDet").innerHTML=""; }
+  else $("vDet").innerHTML=`<div class="dethead"><h3>${dayLabel(vSel)}</h3><span class="num">${D?brl.format(D.total):"R$ 0,00"}</span></div>`+
+    (D?`<div class="detgrid">${VF.filter(([k])=>k!=="outros"||D.outros).map(([k,,l])=>`<div><span class="label">${l}</span><span class="num${D[k]?"":" zero"}">${D[k]?brl.format(D[k]):"–"}</span></div>`).join("")}</div>`+
+      (D.taxas?`<div class="note">Taxas da maquininha: ${brl.format(D.taxas)} · líquido ${brl.format(D.total-D.taxas)}</div>`:"")+
+      `<div class="detl">${D.docs.sort((a,b)=>(a.criadoEm||0)-(b.criadoEm||0)).map(r=>`<div><span>${esc(r.vendas.maquina||"Lançamento")}${r.nota?` · <a href="/_blob/${esc(r.nota.id)}" target="_blank" rel="noopener">ver relatório</a>`:""} <span class="note">· ${brl.format(r.valor)}</span></span>${canWrite?`<button type="button" class="btn" data-ved="${esc(r.id)}">Editar</button>`:""}</div>`).join("")}</div>`
+     :`<div class="note">Nenhuma venda lançada neste dia.</div>`)+
+    (canWrite&&db?`<div class="tools"><button type="button" class="btn primary" data-vnew="${vSel}">+ Lançar vendas deste dia</button></div>`:"");
+  // tabela dia a dia
+  const days=Object.keys(det).sort(), cols=VF.filter(([k])=>k!=="outros"||tot.outros);
+  if(!days.length){ $("vTbl").innerHTML=`<div class="empty">Nenhuma venda lançada em ${ymLabel(state.ym)}. Toque em <b>Vendas do dia</b> para lançar.</div>`; return; }
+  $("vTbl").innerHTML=`<table class="vt"><thead><tr><th>Dia</th>${cols.map(([,,l])=>`<th>${l}</th>`).join("")}<th>Total</th></tr></thead><tbody>`+
+    days.map(d=>`<tr data-vday="${d}"${d===vSel?' class="sel"':""}><td>${ddmm(d)} <span class="note">${WD[new Date(d+"T12:00:00").getDay()].slice(0,3)}</span></td>${cols.map(([k])=>`<td${det[d][k]?"":' class="z"'}>${n2(det[d][k])}</td>`).join("")}<td class="tot">${n2(det[d].total)}</td></tr>`).join("")+
+    `</tbody><tfoot><tr><td>Total</td>${cols.map(([k])=>`<td>${n2(tot[k])}</td>`).join("")}<td>${n2(tot.total)}</td></tr></tfoot></table>`;
 }
 let vEditing=null, vPending=null, vNota=null;
 function openVendas(it, date){
@@ -701,7 +752,7 @@ function openVendas(it, date){
   $("vTitle").textContent = it ? "Editar vendas do dia" : "Vendas do dia";
   $("vData").value = it?.data || date || today();
   const lastMaq=[...state.items].filter(x=>x.vendas?.maquina).sort((a,b)=>b.data.localeCompare(a.data))[0]?.vendas.maquina||"";
-  $("vMaq").value = it ? (v.maquina||"") : (lastMaq||"Cielo");
+  $("vMaq").value = it ? (v.maquina||"") : (lastMaq||"Sicoob");
   for(const [k,id] of VF) $(id).value=fmt2(v[k]||0);
   $("vTax").value=fmt2(v.taxas||0); $("vObs").value=it?.obs||"";
   $("vDel").hidden=!it; $("vFile").value=""; $("vNoteF").textContent="";
@@ -737,7 +788,7 @@ $("vAi").addEventListener("click", async ()=>{
     const f=vPending.file, imgs=f.type.startsWith("image/")?[f]:await pdfToImages(f,Math.max(1,Math.min(3,aiMax)));
     const r=await sample.json(`As imagens são o relatório/resumo de vendas do dia de uma maquininha de cartão (ou do sistema de caixa) de um bar no Brasil.
 Responda SOMENTE com um objeto JSON: {"data":"AAAA-MM-DD" ou null, "maquina": nome da empresa da maquininha (Stone, Cielo, Rede, Getnet, PagSeguro, Mercado Pago, SumUp, InfinitePay, Ton...) ou null,
-"debito": total vendido no débito, "credito": total no crédito (somar à vista e parcelado), "pix": total em Pix, "voucher": total em Alelo/voucher/vale-refeição/alimentação, "dinheiro": total em dinheiro se aparecer, "outros": outros meios,
+"debito": total vendido no débito, "credito": total no crédito (somar à vista e parcelado), "pix": total em Pix, "voucher": total em voucher/vale da própria maquininha (exceto Alelo), "alelo": total em cartão Alelo, "dinheiro": total em dinheiro se aparecer, "outros": outros meios,
 "taxas": total de taxas/descontos da maquininha se aparecer (valor bruto menos líquido), "total": total bruto vendido}.
 Use números com ponto decimal e 0 quando o meio não aparecer. Use valores BRUTOS de venda, não o líquido. Ignore vendas canceladas/estornadas.`,{images:imgs,modelTier:"default"});
     if(r&&typeof r==="object"){
@@ -786,10 +837,11 @@ $("vDel").onclick=async ()=>{
 };
 $("vCancel").onclick=closeVendas;
 $("scrim3").addEventListener("click", e=>{ if(e.target===$("scrim3")) closeVendas(); });
-$("vendasBtn").onclick=()=>openVendas(null, ymOf(today())===state.ym?today():state.ym+"-01");
-$("vDays").addEventListener("click", e=>{ const b=e.target.closest("[data-day]"); if(!b) return;
-  const ex=state.items.filter(it=>it.vendas&&it.data===b.dataset.day).sort((a,b)=>(a.criadoEm||0)-(b.criadoEm||0));
-  openVendas(ex[0]||null, b.dataset.day); });
+$("vendasBtn").onclick=()=>openVendas(null, ymOf(today())===state.ym?today():(vSel||state.ym+"-01"));
+$("vDays").addEventListener("click", e=>{ const b=e.target.closest("[data-day]"); if(!b) return; vSel=b.dataset.day; renderVendas(); });
+$("vTbl").addEventListener("click", e=>{ const r=e.target.closest("[data-vday]"); if(!r) return; vSel=r.dataset.vday; renderVendas(); $("vDet").scrollIntoView({block:"nearest",behavior:"smooth"}); });
+$("vDet").addEventListener("click", e=>{ const ed=e.target.closest("[data-ved]"); if(ed){ const it=state.items.find(x=>x.id===ed.dataset.ved); if(it) openVendas(it); return; }
+  const nw=e.target.closest("[data-vnew]"); if(nw) openVendas(null, nw.dataset.vnew); });
 
 /* ---------- estoque de cerveja ---------- */
 let produtos=[], movs=[], eCfg={dias:7, prazo:0, ign:[]};
