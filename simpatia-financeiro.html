@@ -137,6 +137,8 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 .fiabtn{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:var(--ink);cursor:pointer}
 .fiabtn:hover{background:var(--sunk)}
 .fiaarrow{font-size:26px;color:var(--muted)}
+.extarrow{transition:transform .2s;line-height:1}
+#extBtn[aria-expanded="true"] .extarrow{transform:rotate(180deg)}
 .chk{display:flex;gap:8px;align-items:flex-start;font-size:14px}
 .chk input{margin-top:3px;width:18px;height:18px}
 .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
@@ -355,15 +357,18 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
   </section>
 
   <section class="sec">
-    <div class="sechead">
-      <h2>Lançamentos</h2>
+    <button type="button" class="card fiabtn" id="extBtn" aria-expanded="false" aria-controls="extBody">
+      <span><span class="vh">Extrato do mês</span><br><span class="note" id="extNote">Lançamentos de entradas e saídas</span></span>
+      <span class="fiaarrow extarrow" aria-hidden="true">⌄</span>
+    </button>
+    <div id="extBody" class="sec" hidden>
       <div class="tools">
         <button class="btn" id="copyFixos">Copiar fixos do mês anterior</button>
         <button class="btn" id="exportCsv">Exportar CSV</button>
       </div>
+      <div class="chips" id="filters"></div>
+      <div class="list" id="list"></div>
     </div>
-    <div class="chips" id="filters"></div>
-    <div class="list" id="list"></div>
   </section>
   <section class="sec">
     <div class="sechead"><h2>Produtos comprados</h2><span class="note" id="prodNote"></span></div>
@@ -700,6 +705,7 @@ function renderList(){
   const counts={todos:0,entrada:0,fixo:0,variavel:0,despesa:0,notas:0};
   const month=state.items.filter(it=>ymOf(it.data)===state.ym);
   for(const it of month){ counts.todos++; counts[it.tipo]++; if(it.nota) counts.notas++; }
+  $("extNote").textContent = counts.todos ? `${counts.todos} lançamento(s) em ${ymLabel(state.ym)} · toque para ${$("extBody").hidden?"ver":"esconder"}` : `Nenhum lançamento em ${ymLabel(state.ym)}`;
   const pend=state.items.filter(it=>it.pendente||it.pago===false).sort((a,b)=>a.data.localeCompare(b.data));
   $("pendSec").hidden=!pend.length;
   const apagar=pend.filter(it=>it.pago===false).reduce((t,it)=>t+it.valor,0);
@@ -1572,6 +1578,8 @@ $("payForm").addEventListener("submit", async e=>{ e.preventDefault(); if(!payIt
   finally{ b.disabled=false; b.textContent="Confirmar pagamento"; } });
 $("payCancel").onclick=()=>{ $("scrim8").hidden=true; };
 $("scrim8").addEventListener("click", e=>{ if(e.target===$("scrim8")) $("scrim8").hidden=true; });
+$("extBtn").onclick=()=>{ const open=$("extBody").hidden; $("extBody").hidden=!open; $("extBtn").setAttribute("aria-expanded",open); try{ localStorage.setItem("extAberto",open?"1":""); }catch{} renderList(); };
+try{ if(localStorage.getItem("extAberto")==="1"){ $("extBody").hidden=false; $("extBtn").setAttribute("aria-expanded","true"); } }catch{}
 $("prevM").onclick=()=>{ state.ym=shiftYm(state.ym,-1); render(); };
 $("nextM").onclick=()=>{ state.ym=shiftYm(state.ym,1); render(); };
 $("filters").addEventListener("click", e=>{ const b=e.target.closest("[data-f]"); if(b){ state.filter=b.dataset.f; renderList(); }});
