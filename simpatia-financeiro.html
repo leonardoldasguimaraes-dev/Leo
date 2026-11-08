@@ -105,7 +105,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .empty{padding:28px 18px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:6px;align-items:center}
 .empty strong{color:var(--ink);font-family:var(--display);font-size:17px}
 
-a.btn{text-decoration:none;display:inline-flex;align-items:center}
+a.btn{text-decoration:none;display:inline-flex;align-items:center;color:var(--ink)}
+a.btn.primary{color:#1A1205}
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 14px;font-weight:600;font-size:14px}
 .btn:hover{background:var(--sunk)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#1A1205}
@@ -353,6 +354,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
       <div class="inl"><input id="cTel" type="tel" inputmode="tel" placeholder="(11) 98765-4321" autocomplete="off" style="flex:1;min-width:0"><button type="button" class="btn" id="cTelSave">Salvar</button></div>
       <span class="note" id="cTelNote"></span></div>
     <a class="btn" id="cWaHi" target="_blank" rel="noopener" hidden>Avisar que salvei o número</a>
+    <a class="btn" id="cWaOk" target="_blank" rel="noopener" hidden>Avisar que a conta foi quitada</a>
     <div class="tools"><a class="btn primary" id="cWa" target="_blank" rel="noopener" hidden>Cobrar no WhatsApp</a><button type="button" class="btn" id="cPay">Receber pagamento</button><button type="button" class="btn" id="cAdd">+ Fiado</button><button type="button" class="btn" id="cCopy">Copiar cobrança</button></div>
     <div id="cCopyBox"></div>
     <div class="label">Histórico</div>
@@ -977,6 +979,7 @@ const telOf=k=>clientesTel[k]?.tel||"";
 async function saveTel(nome, tel){ const d=telDigits(tel); await db.collection("clientes").doc(cid(ckey(nome))).set({nome, tel:d, atualizadoEm:Date.now()}); clientesTel[ckey(nome)]={nome,tel:d}; }
 const saudacao=()=>{ const h=new Date().getHours(); return h<12?"Bom dia":h<18?"Boa tarde":"Boa noite"; };
 function avisoText(){ return `${saudacao()}! Aqui é o Léo do Simpatia. Estou adicionando seu número aqui, só para a gente ter um controle melhor. Obrigado!`; }
+function quitadoText(){ return `${saudacao()}, meu amigo! Recebi seu pagamento, sua continha aqui está quitada. Tá tudo certinho, tá joia! Obrigado pela confiança, boa semana e fica com Deus!`; }
 function cobrancaText(c){
   const saud=saudacao();
   return `${saud}, meu amigo!\nFechei sua continha aqui, ficou em ${brl.format(Math.max(0,c.saldo))}.\nObrigado, boa semana e fica com Deus!`;
@@ -1047,8 +1050,12 @@ $("fForm").addEventListener("submit", async e=>{
     const tv=$("fTel").value.trim(); let telNovo=false;
     if(tv && telOk(telDigits(tv)) && telDigits(tv)!==telOf(ckey(nome))){ await saveTel(nome,tv).then(()=>{telNovo=true;}).catch(()=>{}); }
     $("scrim6").hidden=true;
-    if(telNovo){ fOpenKey=ckey(nome); $("cCopyBox").innerHTML=""; const n=$("cTelNote"); n.dataset.msg="1"; n.dataset.novo="1";
-      n.textContent="Telefone salvo. Toque em “Avisar que salvei o número” para mandar a mensagem para o cliente."; setTimeout(()=>{ renderClient(); $("scrim7").hidden=false; },50); }
+    const quitou = fMode==="pagamento" && (existing?existing.saldo:0)-valor<=0.009;
+    if(telNovo||quitou){ fOpenKey=ckey(nome); $("cCopyBox").innerHTML=""; const n=$("cTelNote"); n.dataset.msg="1"; n.dataset.novo=telNovo&&!quitou?"1":""; n.dataset.quitou=quitou?"1":"";
+      const temTel=telOk(telOf(ckey(nome)));
+      n.textContent = quitou ? (temTel?"Conta quitada! Toque em “Avisar que a conta foi quitada” para mandar a mensagem para o cliente.":"Conta quitada! Salve o telefone para avisar o cliente pelo WhatsApp.")
+        : "Telefone salvo. Toque em “Avisar que salvei o número” para mandar a mensagem para o cliente.";
+      setTimeout(()=>{ renderClient(); $("scrim7").hidden=false; },50); }
     const after=(existing?existing.saldo:0)+(fMode==="pagamento"?-valor:valor);
     showStatus(`${fMode==="pagamento"?"Pagamento":"Fiado"} de ${brl.format(valor)} lançado para ${nome}. Saldo: ${brl.format(Math.max(0,after))}.`); setTimeout(()=>showStatus(""),4000);
   }catch(err){ $("fNote").textContent="Não foi possível salvar: "+(err?.message||err?.code); }
@@ -1061,7 +1068,7 @@ $("fAnt").onclick=()=>openFiado("compra","",{anterior:true});
 $("fPay").onclick=()=>openFiado("pagamento");
 $("fQ").addEventListener("input", renderFiados);
 $("fShowAll").onclick=()=>{ fShowAll=!fShowAll; $("fShowAll").setAttribute("aria-pressed",fShowAll); renderFiados(); };
-$("fList").addEventListener("click", e=>{ const b=e.target.closest("[data-ck]"); if(!b) return; fOpenKey=b.dataset.ck; $("cCopyBox").innerHTML=""; $("cTelNote").dataset.msg=""; $("cTelNote").dataset.novo=""; renderClient(); $("scrim7").hidden=false; });
+$("fList").addEventListener("click", e=>{ const b=e.target.closest("[data-ck]"); if(!b) return; fOpenKey=b.dataset.ck; $("cCopyBox").innerHTML=""; $("cTelNote").dataset.msg=""; $("cTelNote").dataset.novo=""; $("cTelNote").dataset.quitou=""; renderClient(); $("scrim7").hidden=false; });
 function renderClient(){
   const c=fClients().find(x=>x.key===fOpenKey); if(!c){ $("scrim7").hidden=true; return; }
   $("cName").textContent=c.nome; $("cSaldo").textContent=brl.format(Math.max(0,c.saldo)); $("cSaldo").style.color=c.saldo>0.009?"var(--neg)":"var(--pos)";
@@ -1071,6 +1078,8 @@ function renderClient(){
   $("cTel").disabled=!canWrite; $("cTelSave").hidden=!canWrite;
   const hi=$("cWaHi"); hi.hidden=!telOk(tel); if(!hi.hidden) hi.href=`https://wa.me/${tel}?text=${encodeURIComponent(avisoText())}`;
   hi.classList.toggle("primary", !!$("cTelNote").dataset.novo);
+  const ok=$("cWaOk"); ok.hidden=!(telOk(tel)&&c.saldo<=0.009&&c.hist.some(f=>f.tipo==="pagamento")); if(!ok.hidden) ok.href=`https://wa.me/${tel}?text=${encodeURIComponent(quitadoText())}`;
+  ok.classList.toggle("primary", !!$("cTelNote").dataset.quitou);
   const wa=$("cWa"); wa.hidden=!(telOk(tel)&&c.saldo>0.009); if(!wa.hidden) wa.href=`https://wa.me/${tel}?text=${encodeURIComponent(cobrancaText(c))}`;
   if(!$("cTelNote").dataset.msg) $("cTelNote").textContent = telOk(tel) ? "" : "Salve o telefone para cobrar direto no WhatsApp.";
   $("cHist").innerHTML=[...c.hist].reverse().map(f=>`<div><span class="num">${ddmm(f.data)}</span><span>${f.tipo==="pagamento"?`Pagamento${f.forma?` · ${esc(f.forma)}`:""}`:"Fiado"}${f.desc?` <span class="note">· ${esc(f.desc)}</span>`:""}</span><span class="num" style="color:${f.tipo==="pagamento"?"var(--pos)":"var(--neg)"}">${f.tipo==="pagamento"?"−":"+"} ${brl.format(f.valor)}</span>${canWrite?`<button type="button" data-delf="${esc(f.id)}" aria-label="Apagar">×</button>`:"<span></span>"}</div>`).join("");
