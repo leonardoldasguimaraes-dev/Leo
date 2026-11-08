@@ -970,8 +970,8 @@ function fmtTel(d){ d=String(d||""); const n=d.startsWith("55")?d.slice(2):d; re
 const telOf=k=>clientesTel[k]?.tel||"";
 async function saveTel(nome, tel){ const d=telDigits(tel); await db.collection("clientes").doc(cid(ckey(nome))).set({nome, tel:d, atualizadoEm:Date.now()}); clientesTel[ckey(nome)]={nome,tel:d}; }
 function cobrancaText(c){
-  const abertos=c.hist.filter(f=>f.tipo!=="pagamento"&&(!c.aberto||f.data>=c.aberto));
-  return `Olá, ${c.nome.split(" ")[0]}! Tudo bem? Aqui é do Bar Simpatia.\nSeu fiado está em ${brl.format(Math.max(0,c.saldo))}`+(c.aberto?` (desde ${ddmm(c.aberto)})`:"")+`.\n`+abertos.slice(-8).map(f=>`- ${ddmm(f.data)}: ${brl.format(f.valor)}${f.desc?` (${f.desc})`:""}`).join("\n")+`\nPode pagar por Pix ou no balcão. Obrigado!`;
+  const h=new Date().getHours(), saud=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
+  return `${saud}, meu amigo! Tudo bem?\nSomei aqui o valor do mês passado, ficou em ${brl.format(Math.max(0,c.saldo))}.\nObrigado e boa semana!`;
 }
 const thisMonth=()=>ymOf(today());
 const lastDayPrev=()=>{ const ym=shiftYm(thisMonth(),-1), [y,m]=ym.split("-").map(Number); return `${ym}-${pad(new Date(y,m,0).getDate())}`; };
