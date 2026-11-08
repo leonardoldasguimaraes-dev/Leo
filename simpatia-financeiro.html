@@ -54,6 +54,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .result{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .result .big{font-size:clamp(30px,8vw,44px);font-weight:500;line-height:1}
 .result .label{color:var(--brand-ink);opacity:.75}
+.saldo{display:grid;grid-template-columns:1fr 1fr auto;gap:10px 16px;align-items:end;border-top:1px solid rgba(255,255,255,.18);padding-top:12px}
+.saldo>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.saldo .label{color:var(--brand-ink);opacity:.75}
+.saldo .num{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.saldo .neg{color:#FFB4AC}
+.sbtn{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);color:var(--brand-ink);border-radius:9px;padding:7px 11px;font-size:13px;font-weight:600}
+.sbtn:hover{background:rgba(255,255,255,.22)}
+@media (max-width:460px){.saldo{grid-template-columns:1fr 1fr}.saldo .sbtn{grid-column:1/-1}}
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(255,255,255,.14)}
 
 /* totais */
@@ -164,6 +172,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
       </div>
       <span class="pill" id="margem">Margem —</span>
     </div>
+    <div class="saldo">
+      <div><span class="label" id="saldoIniLbl">Saldo anterior</span><span class="num" id="saldoIni">—</span></div>
+      <div><span class="label">Saldo final do mês</span><span class="num" id="saldoFim">—</span></div>
+      <button class="sbtn" id="saldoBtn">Definir saldo anterior</button>
+    </div>
   </div>
 </header>
 
@@ -204,6 +217,28 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 </main>
 
 <button class="fab" id="addBtn"><span>+</span> Lançar</button>
+
+<div class="scrim" id="scrim2" hidden>
+  <form class="sheet" id="saldoForm" novalidate>
+    <h3>Saldo anterior</h3>
+    <div class="note">Informe quanto o bar tinha em caixa e no banco no dia em que você começou a usar o app. Daí em diante o saldo é calculado com os lançamentos, sem precisar lançar o passado.</div>
+    <div class="field">
+      <label for="sValor">Saldo (R$)</label>
+      <input id="sValor" class="money" inputmode="decimal" placeholder="0,00" autocomplete="off">
+      <span class="note">Se estava devendo (saldo negativo), coloque o sinal de menos. Ex.: -1.500,00</span>
+    </div>
+    <div class="field"><label for="sData">A partir de</label><input id="sData" type="date"></div>
+    <div class="field"><label for="sObs">Observação</label><input id="sObs" placeholder="Ex.: R$ 800 no caixa + R$ 4.200 no banco" autocomplete="off"></div>
+    <div class="note" id="saldoNote">Lançamentos com data anterior a essa não entram no saldo.</div>
+    <div class="actions">
+      <button type="button" class="btn danger" id="sDel" hidden>Remover saldo</button>
+      <div class="r">
+        <button type="button" class="btn" id="sCancel">Cancelar</button>
+        <button type="submit" class="btn primary" id="sSave">Salvar</button>
+      </div>
+    </div>
+  </form>
+</div>
 
 <div class="scrim" id="scrim" hidden>
   <form class="sheet" id="form" novalidate>
@@ -288,6 +323,7 @@ function render(){
   $("monthLabel").textContent = ymLabel(state.ym);
   const t = totals(state.ym);
   $("resultado").textContent = brl.format(t.resultado);
+  renderSaldo();
   $("margem").textContent = t.entrada>0 ? `Margem ${(t.resultado/t.entrada*100).toLocaleString("pt-BR",{maximumFractionDigits:1})}%` : "Margem —";
 
   $("tiles").innerHTML = ORDER.map(k=>`<div class="tile"><span class="label"><i class="dot" style="background:${TYPES[k].color}"></i>${TYPES[k].plural}</span><span class="v num" style="${k==="entrada"?"color:var(--pos)":""}">${brl.format(t[k])}</span></div>`).join("");
@@ -382,6 +418,62 @@ function renderProducts(){
     <span class="s"><span class="num">${fmtQ(a.qtd)} ${esc(a.un||"")}</span><span>${a.n} compra(s)</span>${a.forn.size?`<span>· ${esc([...a.forn].join(", "))}</span>`:""}</span></span>
     <span class="amt num">${brl.format(a.tot)}</span></button>`).join("");
 }
+
+/* ---------- saldo ---------- */
+let saldo=null;
+const sign=it=> it.tipo==="entrada"? it.valor : -it.valor;
+function saldoInfo(ym){
+  if(!saldo) return null;
+  if(ym < ymOf(saldo.data)) return {antes:true};
+  const monthStart=ym+"-01"; let ini=saldo.valor, fim;
+  for(const it of state.items) if(it.data>=saldo.data && it.data<monthStart) ini+=sign(it);
+  fim=ini;
+  for(const it of state.items) if(ymOf(it.data)===ym && it.data>=saldo.data) fim+=sign(it);
+  return {ini,fim,inicio:ym===ymOf(saldo.data)};
+}
+function renderSaldo(){
+  const i=saldoInfo(state.ym), a=$("saldoIni"), b=$("saldoFim");
+  $("saldoBtn").textContent = saldo ? "Editar saldo anterior" : "Definir saldo anterior";
+  a.classList.remove("neg"); b.classList.remove("neg");
+  if(!i){ $("saldoIniLbl").textContent="Saldo anterior"; a.textContent="—"; b.textContent="—"; return; }
+  if(i.antes){ $("saldoIniLbl").textContent="Saldo anterior"; a.textContent="—"; b.textContent="—";
+    $("saldoIniLbl").textContent=`Saldo começa em ${saldo.data.split("-").reverse().join("/")}`; return; }
+  $("saldoIniLbl").textContent = i.inicio ? `Saldo anterior (${saldo.data.slice(8)}/${saldo.data.slice(5,7)})` : "Saldo no início do mês";
+  a.textContent=brl.format(i.ini); b.textContent=brl.format(i.fim);
+  if(i.ini<0) a.classList.add("neg"); if(i.fim<0) b.classList.add("neg");
+}
+function openSaldo(){
+  if(!db){ showStatus("Entre na sua conta do claude.ai para definir o saldo.",true); return; }
+  if(!canWrite){ showStatus("Seu acesso é só de leitura.",true); return; }
+  $("sValor").value = saldo ? saldo.valor.toLocaleString("pt-BR",{minimumFractionDigits:2}) : "";
+  $("sData").value = saldo?.data || today(); $("sObs").value = saldo?.obs || "";
+  $("sDel").hidden=!saldo; $("saldoNote").textContent="Lançamentos com data anterior a essa não entram no saldo.";
+  $("scrim2").hidden=false; setTimeout(()=>$("sValor").focus(),50);
+}
+const closeSaldo=()=>{ $("scrim2").hidden=true; };
+$("saldoBtn").onclick=openSaldo;
+$("sCancel").onclick=closeSaldo;
+$("scrim2").addEventListener("click", e=>{ if(e.target===$("scrim2")) closeSaldo(); });
+$("saldoForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const valor=parseMoney($("sValor").value), data=$("sData").value;
+  if(!isFinite(valor)){ $("saldoNote").textContent="Informe o valor do saldo (pode ser 0)."; $("sValor").focus(); return; }
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){ $("saldoNote").textContent="Informe a data de início."; return; }
+  const b=$("sSave"); b.disabled=true; b.textContent="Salvando…";
+  try{
+    await db.doc("config/saldo").set({valor,data,obs:$("sObs").value.trim().slice(0,200),atualizadoEm:Date.now()});
+    saldo={valor,data,obs:$("sObs").value.trim()}; state.ym=ymOf(data)>state.ym?ymOf(data):state.ym;
+    closeSaldo(); render();
+  }catch(err){ $("saldoNote").textContent="Não foi possível salvar: "+(err?.message||err?.code); }
+  finally{ b.disabled=false; b.textContent="Salvar"; }
+});
+let sDelArmed=false;
+$("sDel").onclick=async ()=>{
+  if(!sDelArmed){ sDelArmed=true; $("sDel").textContent="Toque de novo para remover"; setTimeout(()=>{sDelArmed=false;$("sDel").textContent="Remover saldo"},3000); return; }
+  sDelArmed=false; $("sDel").textContent="Remover saldo";
+  try{ await db.doc("config/saldo").delete(); saldo=null; closeSaldo(); render(); }
+  catch(err){ $("saldoNote").textContent="Não foi possível remover: "+(err?.message||err?.code); }
+};
 
 /* ---------- formulário ---------- */
 let editing=null, formTipo="variavel", pendingFile=null, currentNota=null, formItens=[];
@@ -521,7 +613,7 @@ Use ponto como separador decimal nos números.`,
 $("typeSeg").addEventListener("click", e=>{ const b=e.target.closest("button[data-t]"); if(b) setTipo(b.dataset.t); });
 $("cancelBtn").onclick=closeForm;
 $("scrim").addEventListener("click", e=>{ if(e.target===$("scrim")) closeForm(); });
-document.addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("scrim").hidden) closeForm(); });
+document.addEventListener("keydown", e=>{ if(e.key!=="Escape") return; if(!$("scrim").hidden) closeForm(); if(!$("scrim2").hidden) closeSaldo(); });
 
 let delArmed=false;
 $("delBtn").onclick=async ()=>{
@@ -600,7 +692,7 @@ $("exportCsv").onclick=async ()=>{
   for(const it of rows) lines.push([it.data.split("-").reverse().join("/"),TYPES[it.tipo].label,it.categoria,it.descricao,it.fornecedor,it.pagamento,
     (it.tipo==="entrada"?it.valor:-it.valor).toFixed(2).replace(".",","),it.nota?"sim":"não",it.obs].map(q).join(";"));
   const t=totals(state.ym);
-  lines.push("", ...[["Entradas",t.entrada],["Custos fixos",t.fixo],["Custos variáveis",t.variavel],["Despesas",t.despesa],["Resultado",t.resultado]].map(([k,v])=>q(k)+";"+q(v.toFixed(2).replace(".",","))));
+  lines.push("", ...[["Entradas",t.entrada],["Custos fixos",t.fixo],["Custos variáveis",t.variavel],["Despesas",t.despesa],["Resultado",t.resultado],...(()=>{const i=saldoInfo(state.ym); return i&&!i.antes?[["Saldo inicial",i.ini],["Saldo final",i.fim]]:[];})()].map(([k,v])=>q(k)+";"+q(v.toFixed(2).replace(".",","))));
   const prods=rows.flatMap(it=>(it.itens||[]).map(x=>[it.data.split("-").reverse().join("/"),it.fornecedor,x.nome,fmtQ(x.qtd),x.un,(x.vUnit||0).toFixed(2).replace(".",","),(x.vTotal||0).toFixed(2).replace(".",",")].map(q).join(";")));
   if(prods.length) lines.push("", ["Data","Fornecedor","Produto","Quantidade","Unidade","Valor unitário","Valor total"].join(";"), ...prods);
   const csv="\ufeff"+lines.join("\n");
@@ -619,6 +711,11 @@ render();
   if(sample){ try{ const l=await sample.limits(); aiImages=!!l?.images; aiMax=l?.images?.maxCount||3; }catch{} }
   if(!db){ showStatus("Entre na sua conta do claude.ai para ver e salvar os lançamentos.",true); state.loaded=true; render(); return; }
   const timer=setTimeout(()=>showStatus("Não consegui buscar os lançamentos ainda. Verifique a conexão."),10000);
+  db.doc("config/saldo").onSnapshot(d=>{
+    const v=d.exists?d.data():null;
+    saldo = v && typeof v.valor==="number" && /^\d{4}-\d{2}-\d{2}$/.test(v.data||"") ? {valor:v.valor,data:v.data,obs:v.obs||""} : null;
+    render();
+  }, ()=>{});
   db.collection("lancamentos").onSnapshot(snap=>{
     state.items = snap.docs.map(x=>({id:x.id,...x.data()})).filter(it=>TYPES[it.tipo] && typeof it.valor==="number" && typeof it.data==="string");
     state.loaded=true;
