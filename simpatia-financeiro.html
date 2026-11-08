@@ -144,6 +144,10 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 .inl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .inl input,.inl select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
 .inl input[type=number],.inl input.small{width:84px}
+.kitem{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.kitem:first-child{border-top:0}
+.kitem input{width:20px;height:20px}
+.kgrp h4{margin:6px 0 2px;font-family:var(--display);font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .presets{display:flex;gap:6px;flex-wrap:wrap}
 .cnt{display:grid;grid-template-columns:1fr 72px 72px;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
 .cnt:first-child{border-top:0}
@@ -282,6 +286,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 </main>
 
 <main class="wrap" id="estMain" style="margin-top:6px">
+  <div class="chips" id="eCats"></div>
   <div class="tiles" id="eTiles"></div>
 
   <section class="sec">
@@ -293,8 +298,8 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
   </section>
 
   <section class="sec">
-    <div class="sechead"><h2>Cervejas</h2>
-      <div class="tools"><button class="btn" id="eAddProd">+ Cadastrar cerveja</button></div>
+    <div class="sechead"><h2 id="eListTitle">Produtos</h2>
+      <div class="tools"><button class="btn" id="eCatalog">+ Do catálogo</button><button class="btn" id="eAddProd">+ Cadastrar produto</button></div>
     </div>
     <div class="list" id="eList"></div>
   </section>
@@ -418,11 +423,12 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 
 <div class="scrim" id="scrim4" hidden>
   <form class="sheet" id="pForm" novalidate>
-    <h3 id="pTitle">Cadastrar cerveja</h3>
-    <div class="presets" id="pPresets"></div>
-    <div class="field"><label for="pNome">Nome</label><input id="pNome" placeholder="Ex.: Heineken 600ml" autocomplete="off"></div>
+    <h3 id="pTitle">Cadastrar produto</h3>
+    <div class="tools" id="pCatBtnWrap"><button type="button" class="btn" id="pCatBtn">Escolher do catálogo de fornecedores</button></div>
+    <div class="field"><label for="pCat">Tipo de bebida</label><select id="pCat"></select></div>
+    <div class="field"><label for="pNome">Nome</label><input id="pNome" placeholder="Ex.: Coca-Cola lata 350ml" autocomplete="off"></div>
     <div class="grid2">
-      <div class="field"><label for="pEmb">Embalagem</label><select id="pEmb"><option>Garrafa 600ml</option><option>Garrafa 1L</option><option>Long neck</option><option>Lata 350ml</option><option>Lata 473ml</option><option>Barril (litros)</option><option>Outro</option></select></div>
+      <div class="field"><label for="pEmb">Embalagem</label><select id="pEmb"><option>Garrafa 600ml</option><option>Garrafa 1L</option><option>Long neck</option><option>Garrafa 355ml</option><option>Vidro 290ml (KS)</option><option>Lata 269ml</option><option>Lata 350ml</option><option>Lata 473ml</option><option>Pet 200ml</option><option>Pet 500ml</option><option>Pet 600ml</option><option>Pet 1L</option><option>Pet 1,5L</option><option>Pet 2L</option><option>Barril (litros)</option><option>Outro</option></select></div>
       <div class="field"><label for="pCx">Unidades por caixa</label><input id="pCx" type="number" min="1" inputmode="numeric" value="24"><span class="note">Engradado, fardo ou caixa.</span></div>
       <div class="field"><label for="pMin">Estoque mínimo (unid.)</label><input id="pMin" type="number" min="0" inputmode="numeric" placeholder="Ex.: 48"></div>
       <div class="field"><label for="pSem">Venda média por semana (unid.)</label><input id="pSem" type="number" min="0" inputmode="numeric" placeholder="Opcional"><span class="note">Usada até o app ter contagens suficientes.</span></div>
@@ -444,6 +450,17 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
       <div class="r"><button type="button" class="btn" id="pCancel">Cancelar</button><button type="submit" class="btn primary" id="pSave">Salvar</button></div>
     </div>
   </form>
+</div>
+
+<div class="scrim" id="scrim9" hidden>
+  <div class="sheet">
+    <h3>Catálogo de fornecedores</h3>
+    <div class="note">Marque o que você vende e toque em Cadastrar. Depois é só fazer a contagem. Os nomes e as quantidades por caixa podem variar: ajuste no cadastro se precisar.</div>
+    <div class="chips" id="kForn"></div>
+    <div id="kList" class="sec"></div>
+    <div class="note" id="kNote"></div>
+    <div class="actions"><div class="r"><button type="button" class="btn" id="kCancel">Fechar</button><button type="button" class="btn primary" id="kSave">Cadastrar selecionados</button></div></div>
+  </div>
 </div>
 
 <div class="scrim" id="scrim5" hidden>
@@ -883,7 +900,34 @@ $("vDet").addEventListener("click", e=>{ const ed=e.target.closest("[data-ved]")
 let produtos=[], movs=[], eCfg={dias:7, prazo:0, ign:[]};
 const saveECfg=()=>{ if(db&&canWrite) return db.doc("config/estoque").set({dias:Number(eCfg.dias)||7,prazo:Number(eCfg.prazo)||0,ign:eCfg.ign||[]}).catch(()=>{}); };
 const horizonte=()=>(Number(eCfg.dias)||7)+(Number(eCfg.prazo)||0);
-const PRESETS=[["Heineken 600ml","Garrafa 600ml",24],["Brahma 600ml","Garrafa 600ml",24],["Original 600ml","Garrafa 600ml",24],["Amstel 600ml","Garrafa 600ml",24],["Spaten 600ml","Garrafa 600ml",24],["Skol 600ml","Garrafa 600ml",24],["Heineken long neck","Long neck",24],["Stella long neck","Long neck",24],["Corona long neck","Long neck",24],["Budweiser long neck","Long neck",24],["Skol lata 350ml","Lata 350ml",12],["Brahma lata 350ml","Lata 350ml",12]];
+const CATS=[["cerveja","Cerveja","Cervejas"],["refrigerante","Refrigerante","Refrigerantes"],["agua","Água","Águas"],["energetico","Energético / isotônico","Energéticos"],["outros","Outros","Outras"]];
+const catOf=p=>p.categoria||"cerveja";
+const catName=k=>(CATS.find(c=>c[0]===k)||CATS[4])[1];
+let eCat="todas";
+const K=(n,e,c,cat,ch)=>({nome:n,embalagem:e,porCaixa:c,categoria:cat,chaves:ch});
+const CATALOGO={
+ "Ambev":[K("Brahma 600ml","Garrafa 600ml",24,"cerveja","brahma 600"),K("Brahma 1L","Garrafa 1L",12,"cerveja","brahma 1l, brahma 1000, brahma litro"),K("Brahma lata 350ml","Lata 350ml",12,"cerveja","brahma 350"),K("Brahma lata 473ml","Lata 473ml",12,"cerveja","brahma 473"),K("Brahma Duplo Malte 600ml","Garrafa 600ml",24,"cerveja","brahma duplo malte 600"),K("Brahma Duplo Malte lata 350ml","Lata 350ml",12,"cerveja","duplo malte 350"),
+  K("Skol 600ml","Garrafa 600ml",24,"cerveja","skol 600"),K("Skol 1L","Garrafa 1L",12,"cerveja","skol 1l, skol 1000, skol litro"),K("Skol lata 350ml","Lata 350ml",12,"cerveja","skol 350"),K("Skol lata 473ml","Lata 473ml",12,"cerveja","skol 473"),
+  K("Antarctica 600ml","Garrafa 600ml",24,"cerveja","antarctica 600, antartica 600"),K("Antarctica 1L","Garrafa 1L",12,"cerveja","antarctica 1l, antartica 1l, antarctica 1000, antarctica litro"),K("Antarctica lata 350ml","Lata 350ml",12,"cerveja","antarctica 350, antartica 350"),K("Antarctica lata 473ml","Lata 473ml",12,"cerveja","antarctica 473, antartica 473"),
+  K("Original 600ml","Garrafa 600ml",24,"cerveja","original 600"),K("Original lata 350ml","Lata 350ml",12,"cerveja","original 350"),K("Bohemia 600ml","Garrafa 600ml",24,"cerveja","bohemia 600"),
+  K("Budweiser 600ml","Garrafa 600ml",24,"cerveja","budweiser 600"),K("Budweiser long neck 330ml","Long neck",24,"cerveja","budweiser 330"),K("Budweiser lata 350ml","Lata 350ml",12,"cerveja","budweiser 350"),
+  K("Stella Artois 600ml","Garrafa 600ml",24,"cerveja","stella artois 600, stella 600"),K("Stella Artois long neck 330ml","Long neck",24,"cerveja","stella artois 330, stella 330"),K("Stella Pure Gold 600ml","Garrafa 600ml",24,"cerveja","stella pure gold 600"),K("Stella Pure Gold long neck 330ml","Long neck",24,"cerveja","stella pure gold 330"),
+  K("Corona 600ml","Garrafa 600ml",24,"cerveja","corona 600"),K("Corona long neck 330ml","Long neck",24,"cerveja","corona 330"),K("Spaten 600ml","Garrafa 600ml",24,"cerveja","spaten 600"),K("Spaten long neck 330ml","Long neck",24,"cerveja","spaten 330"),K("Spaten lata 350ml","Lata 350ml",12,"cerveja","spaten 350"),
+  K("Beck's long neck 330ml","Long neck",24,"cerveja","beck 330"),K("Michelob Ultra long neck 330ml","Long neck",24,"cerveja","michelob 330"),
+  K("Guaraná Antarctica lata 350ml","Lata 350ml",12,"refrigerante","guarana 350"),K("Guaraná Antarctica Zero lata 350ml","Lata 350ml",12,"refrigerante","guarana zero 350"),K("Guaraná Antarctica 200ml","Pet 200ml",12,"refrigerante","guarana 200"),K("Guaraná Antarctica Zero 200ml","Pet 200ml",12,"refrigerante","guarana zero 200"),K("Guaraná Antarctica 1L","Pet 1L",6,"refrigerante","guarana 1l"),K("Guaraná Antarctica 2L","Pet 2L",6,"refrigerante","guarana 2l"),
+  K("Pepsi lata 350ml","Lata 350ml",12,"refrigerante","pepsi 350"),K("Pepsi 2L","Pet 2L",6,"refrigerante","pepsi 2l"),K("Soda Antarctica lata 350ml","Lata 350ml",12,"refrigerante","soda 350"),K("Sukita lata 350ml","Lata 350ml",12,"refrigerante","sukita 350"),K("Tônica Antarctica lata 350ml","Lata 350ml",12,"refrigerante","tonica antarctica 350, tonica antartica 350"),
+  K("H2OH! Limão 500ml","Pet 500ml",12,"refrigerante","h2oh 500"),K("Gatorade 500ml","Pet 500ml",6,"energetico","gatorade 500")],
+ "Grupo Petrópolis (Itaipava)":[K("Itaipava 600ml","Garrafa 600ml",24,"cerveja","itaipava 600"),K("Itaipava 1L","Garrafa 1L",12,"cerveja","itaipava 1l, itaipava 1000"),K("Itaipava lata 350ml","Lata 350ml",12,"cerveja","itaipava 350"),K("Itaipava lata 473ml","Lata 473ml",12,"cerveja","itaipava 473"),
+  K("Petra 600ml","Garrafa 600ml",24,"cerveja","petra 600"),K("Crystal lata 350ml","Lata 350ml",12,"cerveja","crystal 350"),K("Black Princess 600ml","Garrafa 600ml",24,"cerveja","black princess 600"),K("TNT Energy Drink lata 269ml","Lata 269ml",6,"energetico","tnt 269")],
+ "Heineken":[K("Heineken 600ml","Garrafa 600ml",24,"cerveja","heineken 600"),K("Heineken long neck 330ml","Long neck",24,"cerveja","heineken 330"),K("Heineken Zero long neck 330ml","Long neck",24,"cerveja","heineken 330 zero, heineken zero 330"),K("Heineken lata 350ml","Lata 350ml",12,"cerveja","heineken 350"),
+  K("Amstel 600ml","Garrafa 600ml",24,"cerveja","amstel 600"),K("Amstel lata 350ml","Lata 350ml",12,"cerveja","amstel 350"),K("Amstel lata 473ml","Lata 473ml",12,"cerveja","amstel 473"),K("Devassa 600ml","Garrafa 600ml",24,"cerveja","devassa 600"),K("Devassa lata 350ml","Lata 350ml",12,"cerveja","devassa 350"),
+  K("Eisenbahn long neck 355ml","Garrafa 355ml",24,"cerveja","eisenbahn 355"),K("Kaiser 600ml","Garrafa 600ml",24,"cerveja","kaiser 600"),K("Schin lata 350ml","Lata 350ml",12,"cerveja","schin 350"),K("Sol long neck 330ml","Long neck",24,"cerveja","sol premium 330"),
+  K("Itubaína 355ml","Garrafa 355ml",12,"refrigerante","itubaina 355")],
+ "Coca-Cola":[K("Coca-Cola lata 350ml","Lata 350ml",12,"refrigerante","coca 350"),K("Coca-Cola Zero lata 350ml","Lata 350ml",12,"refrigerante","coca zero 350"),K("Coca-Cola KS 290ml","Vidro 290ml (KS)",24,"refrigerante","coca 290"),K("Coca-Cola 600ml","Pet 600ml",12,"refrigerante","coca 600"),K("Coca-Cola 1L","Pet 1L",6,"refrigerante","coca 1l"),K("Coca-Cola 2L","Pet 2L",6,"refrigerante","coca 2l, coca 2000"),K("Coca-Cola Zero 2L","Pet 2L",6,"refrigerante","coca zero 2l"),
+  K("Fanta Laranja lata 350ml","Lata 350ml",12,"refrigerante","fanta laranja 350"),K("Fanta Laranja 2L","Pet 2L",6,"refrigerante","fanta laranja 2l"),K("Fanta Uva lata 350ml","Lata 350ml",12,"refrigerante","fanta uva 350"),K("Fanta Guaraná lata 350ml","Lata 350ml",12,"refrigerante","fanta guarana 350"),
+  K("Sprite lata 350ml","Lata 350ml",12,"refrigerante","sprite 350"),K("Kuat lata 350ml","Lata 350ml",12,"refrigerante","kuat 350"),K("Kuat 2L","Pet 2L",6,"refrigerante","kuat 2l"),K("Schweppes Tônica lata 350ml","Lata 350ml",12,"refrigerante","schweppes 350"),
+  K("Água Crystal sem gás 500ml","Pet 500ml",12,"agua","crystal 500"),K("Água Crystal com gás 500ml","Pet 500ml",12,"agua","crystal c/gas 500, crystal com gas 500"),K("Powerade 500ml","Pet 500ml",6,"energetico","powerade 500"),K("Monster Energy lata 473ml","Lata 473ml",6,"energetico","monster 473")]
+};
 const CASE_UN=/^(cx|cxa|caixa|fd|fardo|pct|pc|pac|eng|engr|engradado|dz)$/i;
 const addDays=(d,k)=>{ const t=new Date(d+"T12:00:00"); t.setDate(t.getDate()+k); return `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`; };
 const dayDiff=(a,b)=>Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/864e5);
@@ -909,28 +953,32 @@ function analyze(p){
   return {st, perDay, calc, diasRest, caixas, status, last, n:ms.length};
 }
 function renderEstoque(){
-  const A=produtos.map(p=>({p,a:analyze(p)}));
+  const cnt={todas:produtos.length}; for(const p of produtos) cnt[catOf(p)]=(cnt[catOf(p)]||0)+1;
+  if(eCat!=="todas" && !cnt[eCat]) eCat="todas";
+  $("eCats").innerHTML=[["todas","Todas"],...CATS.map(c=>[c[0],c[2]])].filter(([k])=>k==="todas"||cnt[k]).map(([k,l])=>`<button class="chip" data-ecat="${k}" aria-pressed="${eCat===k}">${l} <span class="num">${cnt[k]||0}</span></button>`).join("");
+  $("eListTitle").textContent = eCat==="todas" ? "Produtos" : (CATS.find(c=>c[0]===eCat)||[])[2];
+  const A=produtos.filter(p=>eCat==="todas"||catOf(p)===eCat).map(p=>({p,a:analyze(p)}));
   const totUn=A.reduce((s,x)=>s+Math.max(0,x.a.st),0), valor=A.reduce((s,x)=>s+Math.max(0,x.a.st)*(x.p.custoUnit||0),0), pedir=A.filter(x=>x.a.caixas>0).length;
   const tile=(l,v,c="")=>`<div class="tile"><span class="label">${l}</span><span class="v num"${c}>${v}</span></div>`;
-  $("eTiles").innerHTML=tile("Cervejas",produtos.length)+tile("Unidades em estoque",Math.round(totUn).toLocaleString("pt-BR"))+tile("Valor em estoque",brl.format(valor))+tile("Itens para pedir",pedir,pedir?' style="color:var(--neg)"':"");
+  $("eTiles").innerHTML=tile("Produtos",A.length)+tile("Unidades em estoque",Math.round(totUn).toLocaleString("pt-BR"))+tile("Valor em estoque",brl.format(valor))+tile("Itens para pedir",pedir,pedir?' style="color:var(--neg)"':"");
   if(document.activeElement!==$("eDias")) $("eDias").value=eCfg.dias||7; if(document.activeElement!==$("ePrazo")) $("ePrazo").value=eCfg.prazo||0;
   // pedido
   const groups={};
   for(const x of A) if(x.a.caixas>0){ const f=x.p.fornecedor||"Sem fornecedor"; (groups[f] ||= []).push(x); }
   const gk=Object.keys(groups).sort();
-  if(!produtos.length) $("ePed").innerHTML=`<div class="empty"><strong>Cadastre suas cervejas</strong>Toque em <b>+ Cadastrar cerveja</b>. Depois faça uma contagem do estoque, e o app sugere o pedido.</div>`;
-  else if(!gk.length) $("ePed").innerHTML=`<div class="note">Nada para pedir agora: o estoque cobre os próximos ${horizonte()} dias. ${A.some(x=>x.a.perDay===null)?"Algumas cervejas ainda não têm consumo calculado: faça contagens em dias diferentes ou informe a venda média por semana.":""}</div>`;
+  if(!A.length) $("ePed").innerHTML=`<div class="empty"><strong>Cadastre seus produtos</strong>Toque em <b>+ Do catálogo</b> ou <b>+ Cadastrar produto</b>. Depois faça uma contagem do estoque, e o app sugere o pedido.</div>`;
+  else if(!gk.length) $("ePed").innerHTML=`<div class="note">Nada para pedir agora: o estoque cobre os próximos ${horizonte()} dias. ${A.some(x=>x.a.perDay===null)?"Alguns produtos ainda não têm consumo calculado: faça contagens em dias diferentes ou informe a venda média por semana.":""}</div>`;
   else $("ePed").innerHTML=gk.map((f,gi)=>{ const its=groups[f], cost=its.reduce((s,x)=>s+x.a.caixas*(x.p.porCaixa||1)*(x.p.custoUnit||0),0);
     return `<div class="pedgrp"><h4><span>${esc(f)}</span><span class="note num">${cost?"≈ "+brl.format(cost):""}</span></h4>${its.map(x=>`<div class="pedline"><span class="num">${x.a.caixas} cx</span><span>${esc(x.p.nome)} <span class="note">· tem ${fmtCx(x.a.st,x.p.porCaixa)}${x.a.perDay?` · vende ~${(x.a.perDay*7).toLocaleString("pt-BR",{maximumFractionDigits:0})}/sem`:""}</span></span><span class="badge ${x.a.status==="red"?"b-red":"b-amb"}">${x.a.status==="red"?"Abaixo do mínimo":"Acaba em "+Math.max(0,Math.floor(x.a.diasRest??0))+"d"}</span></div>`).join("")}
       <div class="tools"><button type="button" class="btn" data-copy="${gi}">Copiar pedido para WhatsApp</button></div><div data-copybox="${gi}"></div></div>`; }).join("")
     + `<div class="note">Cálculo: venda média por dia × ${horizonte()} dias (${eCfg.dias||7} do pedido${eCfg.prazo?` + ${eCfg.prazo} até a entrega`:""}) + estoque mínimo − estoque atual, arredondado para caixas fechadas.</div>`;
   $("ePed")._groups=gk.map(f=>[f,groups[f]]);
   // lista
-  if(!produtos.length) $("eList").innerHTML=`<div class="empty"><strong>Nenhuma cerveja cadastrada</strong>Use os atalhos ao cadastrar (Heineken 600ml, Brahma 600ml, long necks…).</div>`;
+  if(!A.length) $("eList").innerHTML=`<div class="empty"><strong>Nenhum produto cadastrado</strong>Toque em <b>+ Do catálogo</b> para escolher os produtos da Ambev, Itaipava, Heineken e Coca-Cola.</div>`;
   else $("eList").innerHTML=A.sort((x,y)=>({red:0,amb:1,ok:2,gray:3}[x.a.status]-{red:0,amb:1,ok:2,gray:3}[y.a.status])||x.p.nome.localeCompare(y.p.nome)).map(({p,a})=>{
     const lbl={red:"Comprar",amb:"Pedir logo",ok:"OK",gray:a.n?"Sem consumo":"Sem contagem"}[a.status];
     return `<button class="row" data-pid="${esc(p.id)}"><span class="stripe" style="background:${a.status==="red"?"var(--neg)":a.status==="amb"?"var(--accent)":a.status==="ok"?"var(--pos)":"var(--line)"}"></span>
-      <span class="main"><span class="t">${esc(p.nome)}</span><span class="s"><span>${esc(p.embalagem||"")}</span>${a.perDay?`<span>· vende ~${(a.perDay*7).toLocaleString("pt-BR",{maximumFractionDigits:0})}/sem${a.calc===null?" (informado)":""}</span>`:""}${a.diasRest!==null?`<span>· dura ~${Math.max(0,Math.floor(a.diasRest))} dias</span>`:""}${a.last?`<span>· contado ${ddmm(a.last)}</span>`:""}</span></span>
+      <span class="main"><span class="t">${esc(p.nome)}</span><span class="s"><span>${esc(p.embalagem||"")}</span>${eCat==="todas"&&catOf(p)!=="cerveja"?`<span>· ${esc(catName(catOf(p)))}</span>`:""}${a.perDay?`<span>· vende ~${(a.perDay*7).toLocaleString("pt-BR",{maximumFractionDigits:0})}/sem${a.calc===null?" (informado)":""}</span>`:""}${a.diasRest!==null?`<span>· dura ~${Math.max(0,Math.floor(a.diasRest))} dias</span>`:""}${a.last?`<span>· contado ${ddmm(a.last)}</span>`:""}</span></span>
       <span class="amt"><span class="num">${fmtCx(a.st,p.porCaixa)}</span><br><span class="badge ${"b-"+a.status}">${lbl}</span></span></button>`; }).join("");
   renderCompras();
 }
@@ -945,7 +993,7 @@ function compraCands(){
   const since=addDays(today(),-60), done=new Set(movs.map(m=>m.origem).filter(Boolean)), ign=new Set(eCfg.ign||[]), out=[];
   for(const it of state.items){ if(it.pendente || !Array.isArray(it.itens) || it.data<since) continue;
     it.itens.forEach((x,i)=>{ const key=`${it.id}:${i}`; if(done.has(key)||ign.has(key)) return;
-      const p=matchProd(x.nome); if(!p && !/cerv|chop|beer|long ?neck|heineken|brahma|skol|amstel|spaten|stella|corona|budweiser|original|eisenbahn|itaipava|devassa|petra|imperio|bohemia|antarctica/.test(norm(x.nome))) return;
+      const p=matchProd(x.nome); if(!p && !/cerv|chop|beer|long ?neck|heineken|brahma|skol|amstel|spaten|stella|corona|budweiser|original|eisenbahn|itaipava|devassa|petra|imperio|bohemia|antarctica|antartica|refri|coca|guarana|pepsi|fanta|sprite|kuat|sukita|soda|tonica|schweppes|h2oh|agua|energ|isoton|gatorade|powerade|monster|suco/.test(norm(x.nome))) return;
       out.push({key,it,x,p}); }); }
   return out.sort((a,b)=>b.it.data.localeCompare(a.it.data)).slice(0,40);
 }
@@ -990,8 +1038,8 @@ let pEditing=null;
 function openProd(p){
   if(!db){ showStatus("Entre na sua conta do claude.ai para usar o estoque.",true); return; }
   if(!canWrite){ showStatus("Seu acesso é só de leitura.",true); return; }
-  pEditing=p||null; $("pTitle").textContent=p?p.nome:"Cadastrar cerveja";
-  $("pPresets").hidden=!!p; $("pPresets").innerHTML=PRESETS.filter(([n])=>!produtos.some(q=>norm(q.nome)===norm(n))).map(([n],i)=>`<button type="button" class="chip" data-pre="${i}">${esc(n)}</button>`).join("");
+  pEditing=p||null; $("pTitle").textContent=p?p.nome:"Cadastrar produto";
+  $("pCatBtnWrap").hidden=!!p; $("pCat").innerHTML=CATS.map(c=>`<option value="${c[0]}">${c[1]}</option>`).join(""); $("pCat").value=p?catOf(p):(eCat!=="todas"?eCat:"cerveja");
   $("pNome").value=p?.nome||""; $("pEmb").value=p?.embalagem||"Garrafa 600ml"; $("pCx").value=p?.porCaixa||24; $("pMin").value=p?.minimo??"";
   $("pSem").value=p?.consumoSemana||""; $("pForn").value=p?.fornecedor||""; $("pCusto").value=p?.custoUnit?fmt2(p.custoUnit):""; $("pChave").value=p?.chaves||"";
   $("pFornList").innerHTML=[...new Set([...produtos.map(q=>q.fornecedor),...state.items.filter(i=>i.tipo==="variavel").map(i=>i.fornecedor)].filter(Boolean))].slice(0,30).map(f=>`<option value="${esc(f)}">`).join("");
@@ -1003,12 +1051,11 @@ function renderHist(){
   const ms=movs.filter(m=>m.produtoId===pEditing.id).sort(movOrder).reverse().slice(0,20), cx=pEditing.porCaixa;
   $("pHist").innerHTML=ms.length?ms.map(m=>`<div><span class="num">${ddmm(m.data)}</span><span>${{contagem:"Contagem",entrada:"Entrada",saida:"Saída / perda"}[m.tipo]||m.tipo}${m.obs?` <span class="note">· ${esc(m.obs)}</span>`:""}</span><span class="num">${m.tipo==="saida"?"−":m.tipo==="entrada"?"+":"="} ${fmtCx(m.qtd,cx)}</span><button type="button" data-delm="${esc(m.id)}" aria-label="Apagar movimento">×</button></div>`).join(""):`<div class="note">Sem movimentos ainda.</div>`;
 }
-$("pPresets").addEventListener("click", e=>{ const b=e.target.closest("[data-pre]"); if(!b) return; const [n,emb,cx]=PRESETS[Number(b.dataset.pre)];
-  $("pNome").value=n; $("pEmb").value=emb; $("pCx").value=cx; $("pChave").value=norm(n).replace(/\s*(long neck)\s*/," long neck ").replace(/ml$/,"").trim(); });
-$("pEmb").addEventListener("change", ()=>{ const m={"Garrafa 600ml":24,"Garrafa 1L":12,"Long neck":24,"Lata 350ml":12,"Lata 473ml":12,"Barril (litros)":1}; if(m[$("pEmb").value]&&!pEditing) $("pCx").value=m[$("pEmb").value]; });
+$("pCatBtn").onclick=()=>{ $("scrim4").hidden=true; openCatalog(); };
+$("pEmb").addEventListener("change", ()=>{ const m={"Garrafa 600ml":24,"Garrafa 1L":12,"Long neck":24,"Garrafa 355ml":24,"Vidro 290ml (KS)":24,"Lata 269ml":6,"Lata 350ml":12,"Lata 473ml":12,"Pet 200ml":12,"Pet 500ml":12,"Pet 600ml":12,"Pet 1L":6,"Pet 1,5L":6,"Pet 2L":6,"Barril (litros)":1}; if(m[$("pEmb").value]&&!pEditing) $("pCx").value=m[$("pEmb").value]; });
 $("pForm").addEventListener("submit", async e=>{
   e.preventDefault(); const nome=$("pNome").value.trim().slice(0,80); if(!nome){ $("pNote").textContent="Informe o nome da cerveja."; $("pNome").focus(); return; }
-  const doc={nome,embalagem:$("pEmb").value,porCaixa:Math.max(1,Math.round(Number($("pCx").value)||1)),minimo:Math.max(0,Math.round(Number($("pMin").value)||0)),
+  const doc={nome,categoria:$("pCat").value,embalagem:$("pEmb").value,porCaixa:Math.max(1,Math.round(Number($("pCx").value)||1)),minimo:Math.max(0,Math.round(Number($("pMin").value)||0)),
     consumoSemana:Math.max(0,Number($("pSem").value)||0),fornecedor:$("pForn").value.trim().slice(0,80),custoUnit:Math.max(0,num($("pCusto").value)),
     chaves:$("pChave").value.trim().slice(0,120),criadoEm:pEditing?.criadoEm||Date.now(),atualizadoEm:Date.now()};
   const b=$("pSave"); b.disabled=true;
@@ -1034,6 +1081,37 @@ $("scrim4").addEventListener("click", e=>{ if(e.target===$("scrim4")) $("scrim4"
 $("eAddProd").onclick=()=>openProd(null);
 $("eList").addEventListener("click", e=>{ const b=e.target.closest("[data-pid]"); if(b) openProd(produtos.find(p=>p.id===b.dataset.pid)); });
 
+// catálogo
+let kForn=Object.keys(CATALOGO)[0], kSel=new Set();
+function openCatalog(){
+  if(!db){ showStatus("Entre na sua conta do claude.ai para usar o estoque.",true); return; }
+  if(!canWrite){ showStatus("Seu acesso é só de leitura.",true); return; }
+  kSel=new Set(); $("kNote").textContent=""; renderCatalog(); $("scrim9").hidden=false; }
+function renderCatalog(){
+  $("kForn").innerHTML=Object.keys(CATALOGO).map(f=>`<button type="button" class="chip" data-kf="${esc(f)}" aria-pressed="${f===kForn}">${esc(f)}</button>`).join("");
+  const have=new Set(produtos.map(p=>norm(p.nome)));
+  const items=CATALOGO[kForn].map((x,i)=>({...x,i}));
+  $("kList").innerHTML=CATS.map(([c,,pl])=>{ const g=items.filter(x=>x.categoria===c); if(!g.length) return "";
+    return `<div class="kgrp"><h4>${pl}</h4>${g.map(x=>{ const ja=have.has(norm(x.nome)), key=kForn+"|"+x.i;
+      return `<label class="kitem"><input type="checkbox" data-k="${esc(key)}"${ja?" disabled checked":kSel.has(key)?" checked":""}><span>${esc(x.nome)}<br><span class="note">${esc(x.embalagem)} · cx ${x.porCaixa}</span></span><span class="note">${ja?"já cadastrado":""}</span></label>`; }).join("")}</div>`; }).join("");
+  $("kSave").textContent = kSel.size ? `Cadastrar selecionados (${kSel.size})` : "Cadastrar selecionados";
+}
+$("kForn").addEventListener("click", e=>{ const b=e.target.closest("[data-kf]"); if(!b) return; kForn=b.dataset.kf; renderCatalog(); });
+$("kList").addEventListener("change", e=>{ const c=e.target.closest("[data-k]"); if(!c) return; c.checked?kSel.add(c.dataset.k):kSel.delete(c.dataset.k); $("kSave").textContent = kSel.size ? `Cadastrar selecionados (${kSel.size})` : "Cadastrar selecionados"; });
+$("kSave").onclick=async ()=>{
+  if(!kSel.size){ $("kNote").textContent="Marque pelo menos um produto."; return; }
+  const b=$("kSave"); b.disabled=true; let n=0;
+  try{ for(const key of kSel){ const [f,i]=[key.slice(0,key.lastIndexOf("|")),Number(key.slice(key.lastIndexOf("|")+1))], x=CATALOGO[f][i];
+      if(produtos.some(p=>norm(p.nome)===norm(x.nome))) continue;
+      await db.collection("estoque").doc().set({nome:x.nome,categoria:x.categoria,embalagem:x.embalagem,porCaixa:x.porCaixa,minimo:0,consumoSemana:0,fornecedor:f.startsWith("Grupo Petrópolis")?"Grupo Petrópolis":f,custoUnit:0,chaves:x.chaves,criadoEm:Date.now()+n,atualizadoEm:Date.now()}); n++; }
+    $("scrim9").hidden=true; showStatus(`${n} produto(s) cadastrado(s). Agora faça a contagem para registrar quanto tem de cada um.`); setTimeout(()=>showStatus(""),6000); }
+  catch(err){ $("kNote").textContent="Não foi possível cadastrar: "+(err?.message||err?.code); }
+  finally{ b.disabled=false; } };
+$("kCancel").onclick=()=>{ $("scrim9").hidden=true; };
+$("scrim9").addEventListener("click", e=>{ if(e.target===$("scrim9")) $("scrim9").hidden=true; });
+$("eCatalog").onclick=openCatalog;
+$("eCats").addEventListener("click", e=>{ const b=e.target.closest("[data-ecat]"); if(!b) return; eCat=b.dataset.ecat; renderEstoque(); });
+
 // contagem
 function openCount(){
   if(!db){ showStatus("Entre na sua conta do claude.ai para usar o estoque.",true); return; }
@@ -1041,7 +1119,7 @@ function openCount(){
   if(!produtos.length){ openProd(null); return; }
   $("cData").value=today(); $("cNote").textContent="";
   $("cRows").innerHTML=`<div class="cnt"><span class="h" style="text-align:left">Cerveja</span><span class="h">Caixas</span><span class="h">Avulsas</span></div>`+
-    [...produtos].sort((a,b)=>a.nome.localeCompare(b.nome)).map(p=>{ const a=analyze(p); return `<div class="cnt" data-cp="${esc(p.id)}"><span><b>${esc(p.nome)}</b><br><span class="note">${p.porCaixa>1?`cx de ${p.porCaixa} · `:""}sistema: ${fmtCx(a.st,p.porCaixa)}</span></span>
+    [...produtos].sort((a,b)=>CATS.findIndex(c=>c[0]===catOf(a))-CATS.findIndex(c=>c[0]===catOf(b))||a.nome.localeCompare(b.nome)).map(p=>{ const a=analyze(p); return `<div class="cnt" data-cp="${esc(p.id)}"><span><b>${esc(p.nome)}</b><br><span class="note">${p.porCaixa>1?`cx de ${p.porCaixa} · `:""}sistema: ${fmtCx(a.st,p.porCaixa)}</span></span>
       <input type="number" min="0" inputmode="numeric" data-c aria-label="Caixas de ${esc(p.nome)}"${p.porCaixa>1?"":" disabled"}><input type="number" min="0" inputmode="numeric" data-u aria-label="Unidades avulsas de ${esc(p.nome)}"></div>`; }).join("");
   $("scrim5").hidden=false;
 }
@@ -1401,7 +1479,7 @@ Use ponto como separador decimal nos números.`,
 $("typeSeg").addEventListener("click", e=>{ const b=e.target.closest("button[data-t]"); if(b) setTipo(b.dataset.t); });
 $("cancelBtn").onclick=closeForm;
 $("scrim").addEventListener("click", e=>{ if(e.target===$("scrim")) closeForm(); });
-document.addEventListener("keydown", e=>{ if(e.key!=="Escape") return; if(!$("scrim").hidden) closeForm(); if(!$("scrim2").hidden) closeSaldo(); if(!$("scrim3").hidden) closeVendas(); $("scrim4").hidden=true; $("scrim5").hidden=true; $("scrim6").hidden=true; $("scrim7").hidden=true; $("scrim8").hidden=true; });
+document.addEventListener("keydown", e=>{ if(e.key!=="Escape") return; if(!$("scrim").hidden) closeForm(); if(!$("scrim2").hidden) closeSaldo(); if(!$("scrim3").hidden) closeVendas(); $("scrim4").hidden=true; $("scrim5").hidden=true; $("scrim6").hidden=true; $("scrim7").hidden=true; $("scrim8").hidden=true; $("scrim9").hidden=true; });
 
 let delArmed=false;
 $("delBtn").onclick=async ()=>{
@@ -1528,7 +1606,7 @@ render();
   const [d,a,s,dl,u] = await Promise.all(["db","assets","sample","downloads","user"].map(n=>window.claude.use(n).catch(()=>null)));
   db=d; assets=a; sample=s; downloads=dl;
   if(u){ try{ const c=await u.can("data.write"); if(c===false) canWrite=false; }catch{} }
-  if(!canWrite){ $("addBtn").hidden=true; $("vendasBtn").hidden=true; $("eCountBtn").hidden=true; $("eAddProd").hidden=true; $("fNew").hidden=true; $("fAnt").hidden=true; $("fPay").hidden=true; $("copyFixos").hidden=true; }
+  if(!canWrite){ $("addBtn").hidden=true; $("vendasBtn").hidden=true; $("eCountBtn").hidden=true; $("eAddProd").hidden=true; $("eCatalog").hidden=true; $("fNew").hidden=true; $("fAnt").hidden=true; $("fPay").hidden=true; $("copyFixos").hidden=true; }
   if(sample){ try{ const l=await sample.limits(); aiImages=!!l?.images; aiMax=l?.images?.maxCount||3; }catch{} }
   if(!db){ showStatus("Entre na sua conta do claude.ai para ver e salvar os lançamentos.",true); state.loaded=true; render(); return; }
   const timer=setTimeout(()=>showStatus("Não consegui buscar os lançamentos ainda. Verifique a conexão."),10000);
