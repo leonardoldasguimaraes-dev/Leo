@@ -342,6 +342,11 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="list" id="pendList"></div>
   </section>
 
+  <section class="sec" id="fiaSumSec" hidden>
+    <div class="sechead"><h2>Fiados a receber</h2><span class="note">Controle à parte · não entra no caixa</span></div>
+    <div class="card sec" id="fiaSum"></div>
+  </section>
+
   <section class="sec">
     <div class="sechead">
       <h2>Lançamentos</h2>
@@ -1175,6 +1180,12 @@ function renderFiados(){
   const tile=(l,v,c="")=>`<div class="tile"><span class="label">${l}</span><span class="v num"${c}>${v}</span></div>`;
   $("fTiles").innerHTML=tile("Total a receber",brl.format(total),total?' style="color:var(--neg)"':"")+tile(`Fiado até ${ymLabel(shiftYm(ym,-1),true)}`,brl.format(ant))+tile(`Fiado novo em ${ymLabel(ym,true)}`,brl.format(novos))+tile(`Recebido em ${ymLabel(ym,true)}`,brl.format(rec),rec?' style="color:var(--pos)"':"");
   $("fCliList").innerHTML=cs.map(c=>`<option value="${esc(c.nome)}">`).join("");
+  $("fiaSumSec").hidden=!devendo.length;
+  if(devendo.length){ const top=[...devendo].sort((a,b)=>b.saldo-a.saldo).slice(0,3), antN=devendo.filter(c=>c.ant>0.009).length;
+    $("fiaSum").innerHTML=`<div class="fiahead"><span><span class="label">Total a receber</span><br><span class="num" style="font-size:24px;color:var(--neg)">${brl.format(total)}</span></span><span class="note">${devendo.length} cliente(s)${antN?` · ${antN} do mês anterior`:""}${rec?` · recebido em ${ymLabel(ym,true)}: ${brl.format(rec)}`:""}</span></div>
+      <div class="detl">${top.map(c=>`<div><span>${esc(c.nome)}${c.ant>0.009?` <span class="badge b-red">mês anterior</span>`:""}</span><span class="num">${brl.format(c.saldo)}</span></div>`).join("")}</div>
+      <div class="tools"><button type="button" class="btn primary" id="fiaGo">Abrir Fiados</button></div>`;
+    $("fiaGo").onclick=()=>{ try{ history.replaceState(null,"","#fiados"); }catch{} setTab("fia"); window.scrollTo({top:0}); }; }
   const q=ckey($("fQ").value);
   let rows=(fShowAll?cs:devendo).filter(c=>!q||c.key.includes(q)).sort((a,b)=>b.saldo-a.saldo||a.nome.localeCompare(b.nome));
   if(!cs.length){ $("fList").innerHTML=`<div class="empty"><strong>Nenhum fiado lançado</strong>Comece pelos fiados do mês anterior: toque em <b>+ Fiado do mês anterior</b> e lance o total que cada cliente deve. Depois use <b>+ Novo fiado</b> no dia a dia.</div>`; return; }
