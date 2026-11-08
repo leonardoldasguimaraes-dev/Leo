@@ -352,6 +352,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="field"><label for="cTel">Telefone / WhatsApp</label>
       <div class="inl"><input id="cTel" type="tel" inputmode="tel" placeholder="(11) 98765-4321" autocomplete="off" style="flex:1;min-width:0"><button type="button" class="btn" id="cTelSave">Salvar</button></div>
       <span class="note" id="cTelNote"></span></div>
+    <a class="btn" id="cWaHi" target="_blank" rel="noopener" hidden>Avisar que salvei o número</a>
     <div class="tools"><a class="btn primary" id="cWa" target="_blank" rel="noopener" hidden>Cobrar no WhatsApp</a><button type="button" class="btn" id="cPay">Receber pagamento</button><button type="button" class="btn" id="cAdd">+ Fiado</button><button type="button" class="btn" id="cCopy">Copiar cobrança</button></div>
     <div id="cCopyBox"></div>
     <div class="label">Histórico</div>
@@ -974,8 +975,10 @@ const telOk=d=>/^55\d{10,11}$/.test(d);
 function fmtTel(d){ d=String(d||""); const n=d.startsWith("55")?d.slice(2):d; return n.length===11?`(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`:n.length===10?`(${n.slice(0,2)}) ${n.slice(2,6)}-${n.slice(6)}`:d; }
 const telOf=k=>clientesTel[k]?.tel||"";
 async function saveTel(nome, tel){ const d=telDigits(tel); await db.collection("clientes").doc(cid(ckey(nome))).set({nome, tel:d, atualizadoEm:Date.now()}); clientesTel[ckey(nome)]={nome,tel:d}; }
+const saudacao=()=>{ const h=new Date().getHours(); return h<12?"Bom dia":h<18?"Boa tarde":"Boa noite"; };
+function avisoText(){ return `${saudacao()}! Aqui é o Léo do Simpatia. Estou adicionando seu número aqui, só para a gente ter um controle melhor. Obrigado!`; }
 function cobrancaText(c){
-  const h=new Date().getHours(), saud=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
+  const saud=saudacao();
   return `${saud}, meu amigo!\nFechei sua continha aqui, ficou em ${brl.format(Math.max(0,c.saldo))}.\nObrigado, boa semana e fica com Deus!`;
 }
 const thisMonth=()=>ymOf(today());
@@ -1041,8 +1044,11 @@ $("fForm").addEventListener("submit", async e=>{
     const ref=db.collection("fiados").doc(), now=Date.now(), doc={cliente:nome,tipo:fMode,valor,data,desc:$("fDesc2").value.trim().slice(0,120),criadoEm:now};
     if(fMode==="pagamento"){ doc.forma=$("fForma").value; }
     await ref.set(doc);
-    const tv=$("fTel").value.trim(); if(tv && telOk(telDigits(tv)) && telDigits(tv)!==telOf(ckey(nome))) await saveTel(nome,tv).catch(()=>{});
+    const tv=$("fTel").value.trim(); let telNovo=false;
+    if(tv && telOk(telDigits(tv)) && telDigits(tv)!==telOf(ckey(nome))){ await saveTel(nome,tv).then(()=>{telNovo=true;}).catch(()=>{}); }
     $("scrim6").hidden=true;
+    if(telNovo){ fOpenKey=ckey(nome); $("cCopyBox").innerHTML=""; const n=$("cTelNote"); n.dataset.msg="1"; n.dataset.novo="1";
+      n.textContent="Telefone salvo. Toque em “Avisar que salvei o número” para mandar a mensagem para o cliente."; setTimeout(()=>{ renderClient(); $("scrim7").hidden=false; },50); }
     const after=(existing?existing.saldo:0)+(fMode==="pagamento"?-valor:valor);
     showStatus(`${fMode==="pagamento"?"Pagamento":"Fiado"} de ${brl.format(valor)} lançado para ${nome}. Saldo: ${brl.format(Math.max(0,after))}.`); setTimeout(()=>showStatus(""),4000);
   }catch(err){ $("fNote").textContent="Não foi possível salvar: "+(err?.message||err?.code); }
@@ -1055,7 +1061,7 @@ $("fAnt").onclick=()=>openFiado("compra","",{anterior:true});
 $("fPay").onclick=()=>openFiado("pagamento");
 $("fQ").addEventListener("input", renderFiados);
 $("fShowAll").onclick=()=>{ fShowAll=!fShowAll; $("fShowAll").setAttribute("aria-pressed",fShowAll); renderFiados(); };
-$("fList").addEventListener("click", e=>{ const b=e.target.closest("[data-ck]"); if(!b) return; fOpenKey=b.dataset.ck; $("cCopyBox").innerHTML=""; renderClient(); $("scrim7").hidden=false; });
+$("fList").addEventListener("click", e=>{ const b=e.target.closest("[data-ck]"); if(!b) return; fOpenKey=b.dataset.ck; $("cCopyBox").innerHTML=""; $("cTelNote").dataset.msg=""; $("cTelNote").dataset.novo=""; renderClient(); $("scrim7").hidden=false; });
 function renderClient(){
   const c=fClients().find(x=>x.key===fOpenKey); if(!c){ $("scrim7").hidden=true; return; }
   $("cName").textContent=c.nome; $("cSaldo").textContent=brl.format(Math.max(0,c.saldo)); $("cSaldo").style.color=c.saldo>0.009?"var(--neg)":"var(--pos)";
@@ -1063,6 +1069,8 @@ function renderClient(){
   $("cPay").hidden=!(c.saldo>0.009&&canWrite); $("cAdd").hidden=!canWrite;
   const tel=telOf(c.key); if(document.activeElement!==$("cTel")) $("cTel").value=fmtTel(tel);
   $("cTel").disabled=!canWrite; $("cTelSave").hidden=!canWrite;
+  const hi=$("cWaHi"); hi.hidden=!telOk(tel); if(!hi.hidden) hi.href=`https://wa.me/${tel}?text=${encodeURIComponent(avisoText())}`;
+  hi.classList.toggle("primary", !!$("cTelNote").dataset.novo);
   const wa=$("cWa"); wa.hidden=!(telOk(tel)&&c.saldo>0.009); if(!wa.hidden) wa.href=`https://wa.me/${tel}?text=${encodeURIComponent(cobrancaText(c))}`;
   if(!$("cTelNote").dataset.msg) $("cTelNote").textContent = telOk(tel) ? "" : "Salve o telefone para cobrar direto no WhatsApp.";
   $("cHist").innerHTML=[...c.hist].reverse().map(f=>`<div><span class="num">${ddmm(f.data)}</span><span>${f.tipo==="pagamento"?`Pagamento${f.forma?` · ${esc(f.forma)}`:""}`:"Fiado"}${f.desc?` <span class="note">· ${esc(f.desc)}</span>`:""}</span><span class="num" style="color:${f.tipo==="pagamento"?"var(--pos)":"var(--neg)"}">${f.tipo==="pagamento"?"−":"+"} ${brl.format(f.valor)}</span>${canWrite?`<button type="button" data-delf="${esc(f.id)}" aria-label="Apagar">×</button>`:"<span></span>"}</div>`).join("");
@@ -1079,7 +1087,9 @@ $("cCopy").onclick=async ()=>{ const c=fClients().find(x=>x.key===fOpenKey); if(
   catch{ $("cCopyBox").innerHTML=`<textarea class="copybox" rows="7" readonly>${esc(txt)}</textarea>`; $("cCopyBox").firstChild.select(); } };
 $("cTelSave").onclick=async ()=>{ const c=fClients().find(x=>x.key===fOpenKey); if(!c||!db) return; const v=$("cTel").value.trim(), n=$("cTelNote");
   if(v && !telOk(telDigits(v))){ n.dataset.msg="1"; n.textContent="Telefone inválido. Use DDD + número, ex.: (11) 98765-4321."; return; }
-  try{ await saveTel(c.nome, v); n.dataset.msg="1"; n.textContent=v?"Telefone salvo.":"Telefone removido."; setTimeout(()=>{n.dataset.msg="";renderClient();},2500); renderClient(); }
+  try{ const novo=!!v && telDigits(v)!==telOf(c.key); await saveTel(c.nome, v); n.dataset.msg="1"; n.dataset.novo=novo?"1":"";
+    n.textContent=!v?"Telefone removido.":novo?"Telefone salvo. Toque em “Avisar que salvei o número” para mandar a mensagem para o cliente.":"Telefone salvo.";
+    if(!novo) setTimeout(()=>{n.dataset.msg="";renderClient();},2500); renderClient(); }
   catch(err){ n.dataset.msg="1"; n.textContent="Não foi possível salvar: "+(err?.message||err?.code); } };
 $("cClose").onclick=()=>{ $("scrim7").hidden=true; };
 $("scrim7").addEventListener("click", e=>{ if(e.target===$("scrim7")) $("scrim7").hidden=true; });
