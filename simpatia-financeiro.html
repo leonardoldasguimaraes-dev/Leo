@@ -261,7 +261,8 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 
   <section class="sec">
     <div class="sechead"><h2>Próximo pedido</h2>
-      <div class="inl"><label for="eDias" class="note">Pedido para</label><input id="eDias" type="number" min="1" max="60" value="7" inputmode="numeric"><span class="note">dias</span></div>
+      <div class="inl"><label for="eDias" class="note">Pedido para</label><input id="eDias" type="number" min="1" max="60" value="7" inputmode="numeric"><span class="note">dias ·</span>
+        <label for="ePrazo" class="note">entrega em</label><input id="ePrazo" type="number" min="0" max="30" value="0" inputmode="numeric"><span class="note">dias</span></div>
     </div>
     <div class="card ped" id="ePed"></div>
   </section>
@@ -791,7 +792,9 @@ $("vDays").addEventListener("click", e=>{ const b=e.target.closest("[data-day]")
   openVendas(ex[0]||null, b.dataset.day); });
 
 /* ---------- estoque de cerveja ---------- */
-let produtos=[], movs=[], eCfg={dias:7, ign:[]};
+let produtos=[], movs=[], eCfg={dias:7, prazo:0, ign:[]};
+const saveECfg=()=>{ if(db&&canWrite) return db.doc("config/estoque").set({dias:Number(eCfg.dias)||7,prazo:Number(eCfg.prazo)||0,ign:eCfg.ign||[]}).catch(()=>{}); };
+const horizonte=()=>(Number(eCfg.dias)||7)+(Number(eCfg.prazo)||0);
 const PRESETS=[["Heineken 600ml","Garrafa 600ml",24],["Brahma 600ml","Garrafa 600ml",24],["Original 600ml","Garrafa 600ml",24],["Amstel 600ml","Garrafa 600ml",24],["Spaten 600ml","Garrafa 600ml",24],["Skol 600ml","Garrafa 600ml",24],["Heineken long neck","Long neck",24],["Stella long neck","Long neck",24],["Corona long neck","Long neck",24],["Budweiser long neck","Long neck",24],["Skol lata 350ml","Lata 350ml",12],["Brahma lata 350ml","Lata 350ml",12]];
 const CASE_UN=/^(cx|cxa|caixa|fd|fardo|pct|pc|pac|eng|engr|engradado|dz)$/i;
 const addDays=(d,k)=>{ const t=new Date(d+"T12:00:00"); t.setDate(t.getDate()+k); return `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`; };
@@ -809,7 +812,7 @@ function analyze(p){
   }
   const calc = days>=1 ? cons/days : null;
   const perDay = calc ?? (p.consumoSemana>0 ? p.consumoSemana/7 : null);
-  const dias = Number(eCfg.dias)||7, cx=p.porCaixa||1, min=p.minimo||0;
+  const dias = horizonte(), cx=p.porCaixa||1, min=p.minimo||0;
   let need=0; if(perDay!==null) need=perDay*dias+min-st; else need=min>0? min*2-st : 0;
   const caixas = need>0 ? Math.ceil(need/cx) : 0;
   const diasRest = perDay ? st/perDay : null;
@@ -822,17 +825,17 @@ function renderEstoque(){
   const totUn=A.reduce((s,x)=>s+Math.max(0,x.a.st),0), valor=A.reduce((s,x)=>s+Math.max(0,x.a.st)*(x.p.custoUnit||0),0), pedir=A.filter(x=>x.a.caixas>0).length;
   const tile=(l,v,c="")=>`<div class="tile"><span class="label">${l}</span><span class="v num"${c}>${v}</span></div>`;
   $("eTiles").innerHTML=tile("Cervejas",produtos.length)+tile("Unidades em estoque",Math.round(totUn).toLocaleString("pt-BR"))+tile("Valor em estoque",brl.format(valor))+tile("Itens para pedir",pedir,pedir?' style="color:var(--neg)"':"");
-  if(document.activeElement!==$("eDias")) $("eDias").value=eCfg.dias||7;
+  if(document.activeElement!==$("eDias")) $("eDias").value=eCfg.dias||7; if(document.activeElement!==$("ePrazo")) $("ePrazo").value=eCfg.prazo||0;
   // pedido
   const groups={};
   for(const x of A) if(x.a.caixas>0){ const f=x.p.fornecedor||"Sem fornecedor"; (groups[f] ||= []).push(x); }
   const gk=Object.keys(groups).sort();
   if(!produtos.length) $("ePed").innerHTML=`<div class="empty"><strong>Cadastre suas cervejas</strong>Toque em <b>+ Cadastrar cerveja</b>. Depois faça uma contagem do estoque, e o app sugere o pedido.</div>`;
-  else if(!gk.length) $("ePed").innerHTML=`<div class="note">Nada para pedir agora: o estoque cobre os próximos ${eCfg.dias||7} dias. ${A.some(x=>x.a.perDay===null)?"Algumas cervejas ainda não têm consumo calculado: faça contagens em dias diferentes ou informe a venda média por semana.":""}</div>`;
+  else if(!gk.length) $("ePed").innerHTML=`<div class="note">Nada para pedir agora: o estoque cobre os próximos ${horizonte()} dias. ${A.some(x=>x.a.perDay===null)?"Algumas cervejas ainda não têm consumo calculado: faça contagens em dias diferentes ou informe a venda média por semana.":""}</div>`;
   else $("ePed").innerHTML=gk.map((f,gi)=>{ const its=groups[f], cost=its.reduce((s,x)=>s+x.a.caixas*(x.p.porCaixa||1)*(x.p.custoUnit||0),0);
     return `<div class="pedgrp"><h4><span>${esc(f)}</span><span class="note num">${cost?"≈ "+brl.format(cost):""}</span></h4>${its.map(x=>`<div class="pedline"><span class="num">${x.a.caixas} cx</span><span>${esc(x.p.nome)} <span class="note">· tem ${fmtCx(x.a.st,x.p.porCaixa)}${x.a.perDay?` · vende ~${(x.a.perDay*7).toLocaleString("pt-BR",{maximumFractionDigits:0})}/sem`:""}</span></span><span class="badge ${x.a.status==="red"?"b-red":"b-amb"}">${x.a.status==="red"?"Abaixo do mínimo":"Acaba em "+Math.max(0,Math.floor(x.a.diasRest??0))+"d"}</span></div>`).join("")}
       <div class="tools"><button type="button" class="btn" data-copy="${gi}">Copiar pedido para WhatsApp</button></div><div data-copybox="${gi}"></div></div>`; }).join("")
-    + `<div class="note">Cálculo: venda média por dia × ${eCfg.dias||7} dias + estoque mínimo − estoque atual, arredondado para caixas fechadas.</div>`;
+    + `<div class="note">Cálculo: venda média por dia × ${horizonte()} dias (${eCfg.dias||7} do pedido${eCfg.prazo?` + ${eCfg.prazo} até a entrega`:""}) + estoque mínimo − estoque atual, arredondado para caixas fechadas.</div>`;
   $("ePed")._groups=gk.map(f=>[f,groups[f]]);
   // lista
   if(!produtos.length) $("eList").innerHTML=`<div class="empty"><strong>Nenhuma cerveja cadastrada</strong>Use os atalhos ao cadastrar (Heineken 600ml, Brahma 600ml, long necks…).</div>`;
@@ -871,13 +874,13 @@ $("eComp").addEventListener("change", e=>{ const sel=e.target.closest("[data-sel
   if(c&&p) row.querySelector("[data-q]").value=unitsFor(c.x,p); });
 $("eComp").addEventListener("click", async e=>{
   const row=e.target.closest("[data-key]"); if(!row||!db||!canWrite) return; const key=row.dataset.key;
-  if(e.target.closest("[data-ign]")){ const ign=[...(eCfg.ign||[]),key].slice(-500); eCfg.ign=ign; await db.doc("config/estoque").set({dias:Number(eCfg.dias)||7,ign}).catch(()=>{}); renderCompras(); return; }
+  if(e.target.closest("[data-ign]")){ const ign=[...(eCfg.ign||[]),key].slice(-500); eCfg.ign=ign; await saveECfg(); renderCompras(); return; }
   if(!e.target.closest("[data-in]")) return;
   const c=compraCands().find(z=>z.key===key), p=produtos.find(q=>q.id===row.querySelector("[data-sel]").value), q=Math.round(Number(row.querySelector("[data-q]").value));
   if(!p){ showStatus("Escolha a qual cerveja do estoque esse item pertence.",true); return; }
   if(!(q>0)){ showStatus("Informe a quantidade em unidades.",true); return; }
   try{
-    await db.collection("movimentos").doc().set({produtoId:p.id,tipo:"entrada",qtd:q,data:c.it.data,origem:key,obs:`NF ${c.it.fornecedor||""}`.trim(),criadoEm:Date.now()});
+    await db.collection("movimentos").doc().set({produtoId:p.id,tipo:"entrada",qtd:q,data:today()>c.it.data?today():c.it.data,origem:key,obs:`NF ${c.it.fornecedor||""}`.trim(),criadoEm:Date.now()});
     const cu=c.x.vTotal&&q?Math.round(c.x.vTotal/q*100)/100:0, upd={atualizadoEm:Date.now()}; if(cu) upd.custoUnit=cu; if(!p.fornecedor&&c.it.fornecedor) upd.fornecedor=c.it.fornecedor;
     await db.collection("estoque").doc(p.id).update(upd);
     showStatus(`Entrada de ${q} unid. de ${p.nome} registrada.`); setTimeout(()=>showStatus(""),3500);
@@ -891,7 +894,8 @@ $("ePed").addEventListener("click", async e=>{
 });
 let eDiasT=null;
 $("eDias").addEventListener("input", ()=>{ const d=Math.max(1,Math.min(60,Number($("eDias").value)||7)); eCfg.dias=d; renderEstoque();
-  clearTimeout(eDiasT); eDiasT=setTimeout(()=>{ if(db&&canWrite) db.doc("config/estoque").set({dias:d,ign:eCfg.ign||[]}).catch(()=>{}); },800); });
+  clearTimeout(eDiasT); eDiasT=setTimeout(saveECfg,800); });
+$("ePrazo").addEventListener("input", ()=>{ eCfg.prazo=Math.max(0,Math.min(30,Number($("ePrazo").value)||0)); renderEstoque(); clearTimeout(eDiasT); eDiasT=setTimeout(saveECfg,800); });
 
 // cadastro de cerveja
 let pEditing=null;
@@ -1410,7 +1414,7 @@ render();
   db.collection("clientes").onSnapshot(sn=>{ const m={}; for(const x of sn.docs){ const v=x.data(); if(v.nome) m[ckey(v.nome)]={nome:v.nome,tel:v.tel||""}; } clientesTel=m; renderFiados(); }, ()=>{});
   db.collection("fiados").onSnapshot(sn=>{ fiados=sn.docs.map(x=>({id:x.id,...x.data()})).filter(f=>f.cliente&&typeof f.valor==="number"&&typeof f.data==="string"); renderFiados(); }, ()=>{});
   db.collection("movimentos").onSnapshot(sn=>{ movs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.produtoId&&typeof m.qtd==="number"&&typeof m.data==="string"); renderEstoque(); if(!$("scrim4").hidden) renderHist(); }, ()=>{});
-  db.doc("config/estoque").onSnapshot(d=>{ const v=d.exists?d.data():{}; eCfg={dias:Number(v.dias)||7, ign:Array.isArray(v.ign)?v.ign:[]}; renderEstoque(); }, ()=>{});
+  db.doc("config/estoque").onSnapshot(d=>{ const v=d.exists?d.data():{}; eCfg={dias:Number(v.dias)||7, prazo:Number(v.prazo)||0, ign:Array.isArray(v.ign)?v.ign:[]}; renderEstoque(); }, ()=>{});
   db.doc("config/saldo").onSnapshot(d=>{
     const v=d.exists?d.data():null;
     saldo = v && typeof v.valor==="number" && /^\d{4}-\d{2}-\d{2}$/.test(v.data||"") ? {valor:v.valor,data:v.data,obs:v.obs||""} : null;
