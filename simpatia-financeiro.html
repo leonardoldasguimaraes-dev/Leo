@@ -166,7 +166,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 .day.fut{opacity:.45}
 .vbox{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .vbox.cash{border-color:color-mix(in srgb,var(--pos) 45%,var(--line));background:color-mix(in srgb,var(--pos) 7%,var(--surface))}
-.vbox.cash input{font-family:var(--mono);font-size:24px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 11px;width:100%}
+.vbox > input{font-family:var(--mono);font-size:24px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 11px;width:100%}
 .vh{font-family:var(--display);font-weight:700;font-size:16px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .grid3 .field input{padding:9px 8px}
@@ -417,7 +417,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     </div>
 
     <div class="vbox">
-      <div class="vh">Maquininha</div>
+      <div class="vh">Maquininha Cielo</div>
       <div class="grid3">
         <div class="field"><label for="vDeb">Débito</label><input id="vDeb" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
         <div class="field"><label for="vCre">Crédito</label><input id="vCre" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
@@ -431,13 +431,18 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
       <div id="vAttach"></div>
     </div>
 
+    <div class="vbox">
+      <label for="vVou" class="vh">Alelo (alimentação / refeição)</label>
+      <span class="note">Total vendido no cartão Alelo no dia.</span>
+      <input id="vVou" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off">
+    </div>
+
     <div class="vtotal"><span><span class="label">Total vendido no dia</span><br><span class="num" id="vTotal">R$ 0,00</span></span><span class="note" id="vLiq"></span></div>
 
     <details id="vMore" class="vmore">
-      <summary>Mais opções (voucher, taxas, nome da maquininha, observação)</summary>
+      <summary>Mais opções (outros, taxas, nome da maquininha, observação)</summary>
       <div class="sec" style="padding-top:10px">
         <div class="grid2">
-          <div class="field"><label for="vVou">Voucher / VR</label><input id="vVou" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
           <div class="field"><label for="vOut">Outros</label><input id="vOut" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
           <div class="field"><label for="vTax">Taxas da maquininha</label><input id="vTax" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
           <div class="field"><label for="vMaq">Nome da maquininha</label><input id="vMaq" list="maqList" placeholder="Ex.: Stone, Cielo" autocomplete="off">
@@ -662,7 +667,7 @@ function renderProducts(){
 }
 
 /* ---------- vendas do dia ---------- */
-const VF=[["debito","vDeb","Débito"],["credito","vCre","Crédito"],["pix","vPix","Pix"],["voucher","vVou","Voucher"],["dinheiro","vDin","Dinheiro"],["outros","vOut","Outros"]];
+const VF=[["debito","vDeb","Débito"],["credito","vCre","Crédito"],["pix","vPix","Pix"],["voucher","vVou","Alelo"],["dinheiro","vDin","Dinheiro"],["outros","vOut","Outros"]];
 const fmt2=v=>v? v.toLocaleString("pt-BR",{minimumFractionDigits:2}) : "";
 const vNum=id=>{ const n=parseMoney($(id).value); return isFinite(n)&&n>0?n:0; };
 function kShort(v){ return v>=1000 ? (v/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})+"k" : Math.round(v).toString(); }
@@ -692,11 +697,11 @@ function openVendas(it, date){
   $("vTitle").textContent = it ? "Editar vendas do dia" : "Vendas do dia";
   $("vData").value = it?.data || date || today();
   const lastMaq=[...state.items].filter(x=>x.vendas?.maquina).sort((a,b)=>b.data.localeCompare(a.data))[0]?.vendas.maquina||"";
-  $("vMaq").value = it ? (v.maquina||"") : lastMaq;
+  $("vMaq").value = it ? (v.maquina||"") : (lastMaq||"Cielo");
   for(const [k,id] of VF) $(id).value=fmt2(v[k]||0);
   $("vTax").value=fmt2(v.taxas||0); $("vObs").value=it?.obs||"";
   $("vDel").hidden=!it; $("vFile").value=""; $("vNoteF").textContent="";
-  $("vMore").open=!!(v.voucher||v.outros||v.taxas||it?.obs);
+  $("vMore").open=!!(v.outros||v.taxas||it?.obs);
   vRenderAttach(); vCalc(); $("scrim3").hidden=false;
 }
 function closeVendas(){ $("scrim3").hidden=true; if(vPending?.url) URL.revokeObjectURL(vPending.url); vPending=null; }
@@ -728,14 +733,14 @@ $("vAi").addEventListener("click", async ()=>{
     const f=vPending.file, imgs=f.type.startsWith("image/")?[f]:await pdfToImages(f,Math.max(1,Math.min(3,aiMax)));
     const r=await sample.json(`As imagens são o relatório/resumo de vendas do dia de uma maquininha de cartão (ou do sistema de caixa) de um bar no Brasil.
 Responda SOMENTE com um objeto JSON: {"data":"AAAA-MM-DD" ou null, "maquina": nome da empresa da maquininha (Stone, Cielo, Rede, Getnet, PagSeguro, Mercado Pago, SumUp, InfinitePay, Ton...) ou null,
-"debito": total vendido no débito, "credito": total no crédito (somar à vista e parcelado), "pix": total em Pix, "voucher": total em voucher/vale-refeição/alimentação, "dinheiro": total em dinheiro se aparecer, "outros": outros meios,
+"debito": total vendido no débito, "credito": total no crédito (somar à vista e parcelado), "pix": total em Pix, "voucher": total em Alelo/voucher/vale-refeição/alimentação, "dinheiro": total em dinheiro se aparecer, "outros": outros meios,
 "taxas": total de taxas/descontos da maquininha se aparecer (valor bruto menos líquido), "total": total bruto vendido}.
 Use números com ponto decimal e 0 quando o meio não aparecer. Use valores BRUTOS de venda, não o líquido. Ignore vendas canceladas/estornadas.`,{images:imgs,modelTier:"default"});
     if(r&&typeof r==="object"){
       if(typeof r.data==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(r.data)) $("vData").value=r.data;
       if(r.maquina) $("vMaq").value=String(r.maquina).slice(0,40);
       for(const [k,id] of VF) $(id).value=fmt2(num(r[k]));
-      $("vTax").value=fmt2(num(r.taxas)); if(num(r.voucher)||num(r.outros)||num(r.taxas)) $("vMore").open=true;
+      $("vTax").value=fmt2(num(r.taxas)); if(num(r.outros)||num(r.taxas)) $("vMore").open=true;
       const {total}=vCalc(), t=num(r.total);
       $("vNoteF").textContent = t && Math.abs(t-total)>0.05 ? `Atenção: o relatório mostra total de ${brl.format(t)}, mas a soma das formas deu ${brl.format(total)}. Confira os valores.` : "Valores preenchidos pela leitura do relatório. Confira antes de salvar.";
     }
