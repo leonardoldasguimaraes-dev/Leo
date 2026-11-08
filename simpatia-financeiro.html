@@ -757,9 +757,10 @@ function renderEstoque(){
 }
 function matchProd(nome){
   const k=norm(nome);
+  let best=null, bs=0;
   for(const p of produtos){ const alts=(p.chaves||p.nome).split(",").map(x=>norm(x)).filter(Boolean);
-    if(alts.some(a=>a.split(" ").every(w=>k.includes(w)))) return p; }
-  return null;
+    for(const a of alts){ const ws=a.split(" "); if(ws.every(w=>k.includes(w)) && ws.length>bs){ best=p; bs=ws.length; } } }
+  return best;
 }
 function compraCands(){
   const since=addDays(today(),-60), done=new Set(movs.map(m=>m.origem).filter(Boolean)), ign=new Set(eCfg.ign||[]), out=[];
