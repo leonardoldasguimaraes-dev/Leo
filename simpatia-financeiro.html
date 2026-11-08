@@ -333,7 +333,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
   </section>
 
   <section class="sec" id="pendSec" hidden>
-    <div class="sechead"><h2>Aguardando entrada</h2><span class="note">Ainda não contam no balanço do mês</span></div>
+    <div class="sechead"><h2>Pendências</h2><span class="note" id="pendNote"></span></div>
     <div class="list" id="pendList"></div>
   </section>
 
@@ -357,6 +357,24 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 </main>
 
 <div class="fabs" id="fiaFab"><button class="fab" id="fNew"><span>+</span> Novo fiado</button></div>
+
+<div class="scrim" id="scrim8" hidden>
+  <form class="sheet" id="payForm" novalidate>
+    <h3>Confirmar pagamento</h3>
+    <div class="note" id="payInfo"></div>
+    <div class="grid2">
+      <div class="field"><label for="payData">Data do pagamento</label><input id="payData" type="date"></div>
+      <div class="field"><label for="payForma">Forma</label><select id="payForma"><option>Pix</option><option>Boleto</option><option>Transferência</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option></select></div>
+    </div>
+    <div class="attach">
+      <div class="label">Comprovante</div>
+      <div id="payAttach"></div>
+      <div class="tools"><label class="btn" for="payFile" id="payFileLbl">Anexar comprovante (foto ou PDF)</label><input id="payFile" type="file" accept="image/*,application/pdf" hidden></div>
+    </div>
+    <div class="note" id="payNote"></div>
+    <div class="actions"><div class="r"><button type="button" class="btn" id="payCancel">Cancelar</button><button type="submit" class="btn primary" id="paySave">Confirmar pagamento</button></div></div>
+  </form>
+</div>
 
 <div class="scrim" id="scrim6" hidden>
   <form class="sheet" id="fForm" novalidate>
@@ -546,6 +564,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
       </div>
     </div>
     <div class="field"><label for="fObs">Observação</label><textarea id="fObs" rows="2"></textarea></div>
+    <label class="chk"><input type="checkbox" id="fApagar"><span>Ainda não foi pago (conta a pagar)<br><span class="note">Aparece em Pendências até você confirmar o pagamento.</span></span></label>
     <label class="chk"><input type="checkbox" id="fPend"><span>Ainda não entrou (pendente)<br><span class="note">Fica guardado, mas só conta no balanço do mês depois que você confirmar a entrada.</span></span></label>
 
     <div class="attach">
@@ -652,13 +671,17 @@ function renderList(){
   const counts={todos:0,entrada:0,fixo:0,variavel:0,despesa:0,notas:0};
   const month=state.items.filter(it=>ymOf(it.data)===state.ym);
   for(const it of month){ counts.todos++; counts[it.tipo]++; if(it.nota) counts.notas++; }
-  const pend=state.items.filter(it=>it.pendente).sort((a,b)=>a.data.localeCompare(b.data));
+  const pend=state.items.filter(it=>it.pendente||it.pago===false).sort((a,b)=>a.data.localeCompare(b.data));
   $("pendSec").hidden=!pend.length;
-  $("pendList").innerHTML=pend.map(it=>{ const T=TYPES[it.tipo];
+  const apagar=pend.filter(it=>it.pago===false).reduce((t,it)=>t+it.valor,0);
+  $("pendNote").textContent=apagar?`A pagar: ${brl.format(apagar)}`:"";
+  const ok=canWrite&&db, hoje=today();
+  $("pendList").innerHTML=pend.map(it=>{ const T=TYPES[it.tipo], venc=it.pago===false&&it.data<hoje?"b-red":"b-amb";
     return `<div class="row" style="cursor:default"><span class="stripe" style="background:var(--accent)"></span><span class="main"><span class="t">${esc(it.descricao||it.categoria||T.label)}</span>
       <span class="s"><span class="num">${ddmm(it.data)}</span><span class="tag" style="color:${T.color}">${T.label}</span>${it.fornecedor?`<span>${esc(it.fornecedor)}</span>`:""}${it.itens?.length?`<span>· ${it.itens.length} produto(s)</span>`:""}</span>
-      ${canWrite&&db?`<span class="inl" style="margin-top:6px"><button type="button" class="btn primary" data-conf="${esc(it.id)}">Confirmar que entrou</button><button type="button" class="btn" data-pedit="${esc(it.id)}">Abrir</button></span>`:""}</span>
-      <span class="amt num">${it.tipo==="entrada"?"+":"−"} ${brl.format(it.valor)}<br><span class="badge b-amb">Pendente</span></span></div>`; }).join("");
+      <span class="s" style="margin-top:4px">${it.pendente?`<span class="badge b-amb">Mercadoria: aguardando</span>`:(it.itens?.length?`<span class="badge b-ok">Mercadoria: entrou</span>`:"")}${it.pago===false?`<span class="badge ${venc}">${venc==="b-red"?"Vencido":"A pagar"} · vence ${ddmm(it.data)}</span>`:`<span class="badge b-ok">Pago</span>`}</span>
+      ${ok?`<span class="inl" style="margin-top:6px">${it.pendente?`<button type="button" class="btn primary" data-conf="${esc(it.id)}">Confirmar entrada</button>`:""}${it.pago===false?`<button type="button" class="btn primary" data-pay="${esc(it.id)}">Confirmar pagamento</button>`:""}<button type="button" class="btn" data-pedit="${esc(it.id)}">Abrir</button></span>`:""}</span>
+      <span class="amt num">${it.tipo==="entrada"?"+":"−"} ${brl.format(it.valor)}</span></div>`; }).join("");
   const F=[["todos","Todos"],["entrada","Entradas"],["fixo","Fixos"],["variavel","Variáveis"],["despesa","Despesas"],["notas","Com nota"]];
   $("filters").innerHTML=F.map(([k,l])=>`<button class="chip" data-f="${k}" aria-pressed="${state.filter===k}">${l} <span class="num">${counts[k]}</span></button>`).join("");
   let rows = month.filter(it=> state.filter==="todos" || (state.filter==="notas"? !!it.nota : it.tipo===state.filter));
@@ -670,7 +693,7 @@ function renderList(){
     return `<button class="row" data-id="${esc(it.id)}"><span class="stripe" style="background:${T.color}"></span>
       <span class="main"><span class="t">${esc(it.descricao||it.categoria||T.label)}</span>
       <span class="s"><span class="num">${d}/${m}</span><span class="tag" style="color:${T.color}">${T.label}</span>${it.categoria?`<span>${esc(it.categoria)}</span>`:""}${it.fornecedor?`<span>· ${esc(it.fornecedor)}</span>`:""}${it.nota?`<span class="clip">📎 nota</span>`:""}</span></span>
-      <span class="amt num" style="color:${it.pendente?"var(--muted)":it.tipo==="entrada"?"var(--pos)":"var(--ink)"}">${it.tipo==="entrada"?"+":"−"} ${brl.format(it.valor)}${it.pendente?`<br><span class="badge b-amb">Pendente</span>`:""}</span></button>`; }).join("");
+      <span class="amt num" style="color:${it.pendente?"var(--muted)":it.tipo==="entrada"?"var(--pos)":"var(--ink)"}">${it.tipo==="entrada"?"+":"−"} ${brl.format(it.valor)}${it.pendente?`<br><span class="badge b-amb">Pendente</span>`:""}${it.pago===false?`<br><span class="badge b-amb">A pagar</span>`:""}</span></button>`; }).join("");
 }
 
 const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim();
@@ -1255,10 +1278,11 @@ function openForm(it){
   $("fDesc").value = it?.descricao||""; $("fCat").value=it?.categoria||"";
   const defDate = ymOf(today())===state.ym ? today() : state.ym+"-01";
   $("fData").value = it?.data || defDate; $("fForn").value=it?.fornecedor||"";
-  $("fPag").value = it?.pagamento||"Pix"; $("fObs").value=it?.obs||""; $("fPend").checked=!!it?.pendente;
+  $("fPag").value = it?.pagamento||"Pix"; $("fObs").value=it?.obs||""; $("fPend").checked=!!it?.pendente; $("fApagar").checked=it?.pago===false;
   $("delBtn").hidden=!it; $("fFile").value="";
   formItens=(it?.itens||[]).map(x=>({...x})); renderItems();
-  renderAttach(); $("scrim").hidden=false; setTimeout(()=>$("fValor").focus(),50);
+  renderAttach(); $("attachNote").innerHTML = it?.pago===true&&it?.pagoEm ? `Pago em ${ddmm(it.pagoEm)}${it.pagamento?` via ${esc(it.pagamento)}`:""}${it.comprovante?` · <a href="/_blob/${esc(it.comprovante.id)}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">ver comprovante</a>`:""}` : "";
+  $("scrim").hidden=false; setTimeout(()=>$("fValor").focus(),50);
 }
 function closeForm(){ $("scrim").hidden=true; if(pendingFile?.url) URL.revokeObjectURL(pendingFile.url); pendingFile=null; }
 function renderAttach(){
@@ -1377,7 +1401,7 @@ Use ponto como separador decimal nos números.`,
 $("typeSeg").addEventListener("click", e=>{ const b=e.target.closest("button[data-t]"); if(b) setTipo(b.dataset.t); });
 $("cancelBtn").onclick=closeForm;
 $("scrim").addEventListener("click", e=>{ if(e.target===$("scrim")) closeForm(); });
-document.addEventListener("keydown", e=>{ if(e.key!=="Escape") return; if(!$("scrim").hidden) closeForm(); if(!$("scrim2").hidden) closeSaldo(); if(!$("scrim3").hidden) closeVendas(); $("scrim4").hidden=true; $("scrim5").hidden=true; $("scrim6").hidden=true; $("scrim7").hidden=true; });
+document.addEventListener("keydown", e=>{ if(e.key!=="Escape") return; if(!$("scrim").hidden) closeForm(); if(!$("scrim2").hidden) closeSaldo(); if(!$("scrim3").hidden) closeVendas(); $("scrim4").hidden=true; $("scrim5").hidden=true; $("scrim6").hidden=true; $("scrim7").hidden=true; $("scrim8").hidden=true; });
 
 let delArmed=false;
 $("delBtn").onclick=async ()=>{
@@ -1405,7 +1429,7 @@ $("form").addEventListener("submit", async e=>{
     }
     const doc={tipo:formTipo,valor,data,mes:ymOf(data),descricao:$("fDesc").value.trim().slice(0,120),
       categoria:$("fCat").value.trim().slice(0,60),fornecedor:$("fForn").value.trim().slice(0,100),
-      pagamento:$("fPag").value,obs:$("fObs").value.trim().slice(0,500),nota:nota||null,itens:formItens,pendente:$("fPend").checked,
+      pagamento:$("fPag").value,obs:$("fObs").value.trim().slice(0,500),nota:nota||null,itens:formItens,pendente:$("fPend").checked,pago:!$("fApagar").checked,pagoEm:editing?.pagoEm||null,comprovante:editing?.comprovante||null,
       criadoEm:editing?.criadoEm||Date.now(),atualizadoEm:Date.now()};
     const ref = editing ? db.collection("lancamentos").doc(editing.id) : db.collection("lancamentos").doc();
     await ref.set(doc);
@@ -1423,13 +1447,37 @@ $("form").addEventListener("submit", async e=>{
 $("addBtn").onclick=()=>{ if(!db){ showStatus("Abra este app no claude.ai com sua conta para lançar.",true); return; } if(!canWrite){showStatus("Seu acesso é só de leitura.",true);return;} openForm(); };
 $("pendList").addEventListener("click", async e=>{
   const ed=e.target.closest("[data-pedit]"); if(ed){ const it=state.items.find(x=>x.id===ed.dataset.pedit); if(it) openForm(it); return; }
+  const pb=e.target.closest("[data-pay]"); if(pb){ const it=state.items.find(x=>x.id===pb.dataset.pay); if(it) openPay(it); return; }
   const b=e.target.closest("[data-conf]"); if(!b||!db) return; const it=state.items.find(x=>x.id===b.dataset.conf); if(!it) return;
-  if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Toque de novo para confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Confirmar que entrou"; },3000); return; }
+  if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Toque de novo para confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Confirmar entrada"; },3000); return; }
   b.disabled=true;
   try{ await db.collection("lancamentos").doc(it.id).update({pendente:false,confirmadoEm:today(),atualizadoEm:Date.now()});
     showStatus(`${it.descricao||"Lançamento"} confirmado: ${brl.format(it.valor)} agora conta no balanço de ${ymLabel(ymOf(it.data))}.${it.itens?.length?" As cervejas já aparecem no Estoque para dar entrada.":""}`); setTimeout(()=>showStatus(""),6000); }
   catch(err){ b.disabled=false; showStatus("Não foi possível confirmar: "+(err?.message||err?.code),true); }
 });
+let payIt=null, payFile=null;
+function openPay(it){ payIt=it; payFile=null; $("payFile").value=""; $("payNote").textContent="";
+  $("payInfo").textContent=`${it.descricao||it.categoria||"Conta"} · ${brl.format(it.valor)} · vence ${ddmm(it.data)}`;
+  $("payData").value=today(); $("payForma").value=["Pix","Boleto","Transferência","Dinheiro","Cartão de débito","Cartão de crédito"].includes(it.pagamento)?it.pagamento:"Pix";
+  $("payAttach").innerHTML=""; $("payFileLbl").hidden=!assets; if(!assets) $("payAttach").innerHTML=`<div class="note">Anexos ficam disponíveis para quem pode editar este app.</div>`;
+  $("scrim8").hidden=false; }
+$("payFile").addEventListener("change", e=>{ const f=e.target.files[0]; if(!f) return;
+  if(f.size>20*1024*1024){ $("payNote").textContent="Arquivo maior que 20 MB."; return; }
+  if(payFile) URL.revokeObjectURL(payFile.url); payFile={file:f,url:URL.createObjectURL(f)};
+  $("payAttach").innerHTML=`<div class="file"><span>${esc(f.name)}</span></div>${f.type.startsWith("image/")?`<img class="preview" src="${payFile.url}" alt="Comprovante">`:""}`;
+  $("payFileLbl").textContent="Trocar comprovante"; });
+$("payForm").addEventListener("submit", async e=>{ e.preventDefault(); if(!payIt) return;
+  const data=$("payData").value; if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){ $("payNote").textContent="Informe a data do pagamento."; return; }
+  const b=$("paySave"); b.disabled=true; b.textContent="Salvando…";
+  try{ let comp=null;
+    if(payFile){ const f=payFile.file, up=await assets.upload(f, f.type?undefined:{type:"application/pdf"}); comp={id:up.id,nome:f.name.slice(0,120),tipo:up.contentType}; }
+    const upd={pago:true,pagoEm:data,pagamento:$("payForma").value,atualizadoEm:Date.now()}; if(comp) upd.comprovante=comp;
+    await db.collection("lancamentos").doc(payIt.id).update(upd);
+    $("scrim8").hidden=true; showStatus(`Pagamento de ${brl.format(payIt.valor)} confirmado (${payIt.descricao||"conta"}).`); setTimeout(()=>showStatus(""),5000); }
+  catch(err){ $("payNote").textContent="Não foi possível salvar: "+(err?.message||err?.code); }
+  finally{ b.disabled=false; b.textContent="Confirmar pagamento"; } });
+$("payCancel").onclick=()=>{ $("scrim8").hidden=true; };
+$("scrim8").addEventListener("click", e=>{ if(e.target===$("scrim8")) $("scrim8").hidden=true; });
 $("prevM").onclick=()=>{ state.ym=shiftYm(state.ym,-1); render(); };
 $("nextM").onclick=()=>{ state.ym=shiftYm(state.ym,1); render(); };
 $("filters").addEventListener("click", e=>{ const b=e.target.closest("[data-f]"); if(b){ state.filter=b.dataset.f; renderList(); }});
