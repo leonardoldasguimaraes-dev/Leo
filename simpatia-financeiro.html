@@ -971,7 +971,7 @@ const telOf=k=>clientesTel[k]?.tel||"";
 async function saveTel(nome, tel){ const d=telDigits(tel); await db.collection("clientes").doc(cid(ckey(nome))).set({nome, tel:d, atualizadoEm:Date.now()}); clientesTel[ckey(nome)]={nome,tel:d}; }
 function cobrancaText(c){
   const h=new Date().getHours(), saud=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
-  return `${saud}, meu amigo! Tudo bem?\nSomei aqui o valor do mês passado, ficou em ${brl.format(Math.max(0,c.saldo))}.\nObrigado e boa semana!`;
+  return `${saud}, meu amigo!\nFechei sua continha aqui, ficou em ${brl.format(Math.max(0,c.saldo))}.\nObrigado, boa semana e fica com Deus!`;
 }
 const thisMonth=()=>ymOf(today());
 const lastDayPrev=()=>{ const ym=shiftYm(thisMonth(),-1), [y,m]=ym.split("-").map(Number); return `${ym}-${pad(new Date(y,m,0).getDate())}`; };
