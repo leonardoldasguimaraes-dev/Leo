@@ -122,8 +122,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .tabs{display:flex;gap:4px;background:rgba(0,0,0,.18);padding:4px;border-radius:12px}
 .tabs button{flex:1;border:0;background:none;color:var(--brand-ink);opacity:.75;border-radius:9px;padding:9px 6px;font-weight:600;font-size:14px}
 .tabs button[aria-selected="true"]{background:var(--brand-ink);color:var(--brand);opacity:1}
-body.est .month, body.est .result, body.est .saldo, body.est #finMain, body.est #finFab{display:none}
-body:not(.est) #estMain, body:not(.est) #estFab{display:none}
+body.est .month, body.est .result, body.est .saldo, body.est #finMain, body.est #finFab,
+body.fia .month, body.fia .result, body.fia .saldo, body.fia #finMain, body.fia #finFab{display:none}
+body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:not(.fia) #fiaFab{display:none}
+.fiahead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.fiahead .num{font-size:26px}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:14px}
+.chk input{margin-top:3px;width:18px;height:18px}
 .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
 .b-red{background:color-mix(in srgb,var(--neg) 16%,transparent);color:var(--neg)}
 .b-amb{background:color-mix(in srgb,var(--accent) 20%,transparent);color:color-mix(in srgb,var(--accent) 70%,var(--ink))}
@@ -221,12 +226,25 @@ body:not(.est) #estMain, body:not(.est) #estFab{display:none}
     </div>
     <nav class="tabs" role="tablist" aria-label="Seções">
       <button role="tab" id="tabFin" data-tab="fin" aria-selected="true">Financeiro</button>
-      <button role="tab" id="tabEst" data-tab="est" aria-selected="false">Estoque de cerveja</button>
+      <button role="tab" id="tabEst" data-tab="est" aria-selected="false">Estoque</button>
+      <button role="tab" id="tabFia" data-tab="fia" aria-selected="false">Fiados</button>
     </nav>
   </div>
 </header>
 
 <div class="wrap" style="margin-top:18px"><div id="status" class="banner" hidden></div></div>
+
+<main class="wrap" id="fiaMain" style="margin-top:6px">
+  <div class="tiles" id="fTiles"></div>
+  <section class="sec">
+    <div class="sechead"><h2>Quem está devendo</h2>
+      <div class="tools"><button class="btn" id="fAnt">+ Fiado do mês anterior</button><button class="btn" id="fPay">Receber pagamento</button></div>
+    </div>
+    <div class="field"><input id="fQ" type="search" placeholder="Buscar cliente" aria-label="Buscar cliente" autocomplete="off"></div>
+    <div class="chips"><button class="chip" id="fShowAll" aria-pressed="false">Mostrar quem já pagou</button></div>
+    <div class="list" id="fList"></div>
+  </section>
+</main>
 
 <main class="wrap" id="estMain" style="margin-top:6px">
   <div class="tiles" id="eTiles"></div>
@@ -294,6 +312,40 @@ body:not(.est) #estMain, body:not(.est) #estFab{display:none}
     <div class="list" id="prodList"></div>
   </section>
 </main>
+
+<div class="fabs" id="fiaFab"><button class="fab" id="fNew"><span>+</span> Novo fiado</button></div>
+
+<div class="scrim" id="scrim6" hidden>
+  <form class="sheet" id="fForm" novalidate>
+    <h3 id="fTitle">Novo fiado</h3>
+    <div class="seg" style="grid-template-columns:1fr 1fr" id="fSeg" role="group" aria-label="Tipo">
+      <button type="button" data-m="compra" aria-pressed="true">Fiado (cliente deve)</button><button type="button" data-m="pagamento" aria-pressed="false">Pagamento</button>
+    </div>
+    <div class="field"><label for="fCli">Cliente</label><input id="fCli" list="fCliList" placeholder="Nome do cliente" autocomplete="off"><datalist id="fCliList"></datalist></div>
+    <div class="grid2">
+      <div class="field"><label for="fVal">Valor (R$)</label><input id="fVal" class="money" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="fDt">Data</label><input id="fDt" type="date"><button type="button" class="chip" id="fDtAnt" style="align-self:flex-start">Mês anterior</button></div>
+    </div>
+    <div class="field" id="fFormaF" hidden><label for="fForma">Forma de pagamento</label>
+      <select id="fForma"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência</option></select></div>
+    <div class="field"><label for="fDesc2">Descrição</label><input id="fDesc2" placeholder="Ex.: 4 Heineken + porção" autocomplete="off"></div>
+    <label class="chk" id="fLancF" hidden><input type="checkbox" id="fLanc" checked><span>Lançar como entrada no Financeiro<br><span class="note">Desmarque se o pagamento foi na maquininha e já entrou nas Vendas do dia.</span></span></label>
+    <div class="note" id="fNote"></div>
+    <div class="actions"><div class="r"><button type="button" class="btn" id="fCancel">Cancelar</button><button type="submit" class="btn primary" id="fSave">Salvar</button></div></div>
+  </form>
+</div>
+
+<div class="scrim" id="scrim7" hidden>
+  <div class="sheet">
+    <div class="fiahead"><h3 id="cName">Cliente</h3><span class="num" id="cSaldo"></span></div>
+    <div class="note" id="cInfo"></div>
+    <div class="tools"><button type="button" class="btn primary" id="cPay">Receber pagamento</button><button type="button" class="btn" id="cAdd">+ Fiado</button><button type="button" class="btn" id="cCopy">Copiar cobrança</button></div>
+    <div id="cCopyBox"></div>
+    <div class="label">Histórico</div>
+    <div class="hist" id="cHist"></div>
+    <div class="actions"><div class="r"><button type="button" class="btn" id="cClose">Fechar</button></div></div>
+  </div>
+</div>
 
 <div class="fabs" id="estFab"><button class="fab" id="eCountBtn">Fazer contagem</button></div>
 
@@ -451,7 +503,7 @@ body:not(.est) #estMain, body:not(.est) #estFab{display:none}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 const TYPES = {
-  entrada:  {label:"Entrada", plural:"Entradas",       color:"var(--pos)", cats:["Vendas do dia","Vendas no balcão","Vendas cartão","Vendas Pix","iFood / delivery","Eventos","Couvert","Outras entradas"]},
+  entrada:  {label:"Entrada", plural:"Entradas",       color:"var(--pos)", cats:["Vendas do dia","Vendas no balcão","Vendas cartão","Vendas Pix","iFood / delivery","Eventos","Couvert","Recebimento de fiado","Outras entradas"]},
   fixo:     {label:"Custo fixo", plural:"Custos fixos",    color:"var(--fix)", cats:["Aluguel","Salários","Pró-labore","Energia","Água","Internet / telefone","Contador","Sistema / maquininha","Impostos (Simples)","Seguro","Encargos"]},
   variavel: {label:"Custo variável", plural:"Custos variáveis",color:"var(--var)", cats:["Bebidas","Cervejas","Destilados","Alimentos / cozinha","Gelo","Descartáveis","Taxas de cartão","Comissões","Freelancers","Gás"]},
   despesa:  {label:"Despesa", plural:"Despesas",       color:"var(--accent)", cats:["Manutenção","Limpeza","Marketing","Equipamentos","Músicos / eventos","Transporte","Diversos"]},
@@ -879,11 +931,117 @@ $("cCancel").onclick=()=>{ $("scrim5").hidden=true; };
 $("scrim5").addEventListener("click", e=>{ if(e.target===$("scrim5")) $("scrim5").hidden=true; });
 $("eCountBtn").onclick=openCount;
 
+/* ---------- fiados ---------- */
+let fiados=[], fMode="compra", fShowAll=false, fOpenKey=null;
+const ckey=n=>norm(n).replace(/[^a-z0-9 ]/g,"").trim();
+const thisMonth=()=>ymOf(today());
+const lastDayPrev=()=>{ const ym=shiftYm(thisMonth(),-1), [y,m]=ym.split("-").map(Number); return `${ym}-${pad(new Date(y,m,0).getDate())}`; };
+function fClients(){
+  const map=new Map(), start=thisMonth()+"-01";
+  for(const f of [...fiados].sort((a,b)=>a.data.localeCompare(b.data)||(a.criadoEm||0)-(b.criadoEm||0))){
+    const k=ckey(f.cliente); if(!k) continue;
+    const c=map.get(k)||{key:k,nome:f.cliente,saldo:0,ant:0,hist:[],aberto:null,ult:null};
+    const v=f.tipo==="pagamento"?-f.valor:f.valor; c.saldo+=v; if(f.data<start) c.ant+=v;
+    if(f.tipo!=="pagamento" && c.saldo>0.009 && !c.aberto) c.aberto=f.data; if(c.saldo<=0.009) c.aberto=null;
+    c.ult=f.data; c.nome=f.cliente; c.hist.push(f); map.set(k,c);
+  }
+  return [...map.values()];
+}
+function renderFiados(){
+  const cs=fClients(), devendo=cs.filter(c=>c.saldo>0.009), ym=thisMonth();
+  const total=devendo.reduce((s,c)=>s+c.saldo,0), ant=cs.reduce((s,c)=>s+Math.max(0,c.ant),0);
+  const rec=fiados.filter(f=>f.tipo==="pagamento"&&ymOf(f.data)===ym).reduce((s,f)=>s+f.valor,0);
+  const novos=fiados.filter(f=>f.tipo!=="pagamento"&&ymOf(f.data)===ym).reduce((s,f)=>s+f.valor,0);
+  const tile=(l,v,c="")=>`<div class="tile"><span class="label">${l}</span><span class="v num"${c}>${v}</span></div>`;
+  $("fTiles").innerHTML=tile("Total a receber",brl.format(total),total?' style="color:var(--neg)"':"")+tile(`Fiado até ${ymLabel(shiftYm(ym,-1),true)}`,brl.format(ant))+tile(`Fiado novo em ${ymLabel(ym,true)}`,brl.format(novos))+tile(`Recebido em ${ymLabel(ym,true)}`,brl.format(rec),rec?' style="color:var(--pos)"':"");
+  $("fCliList").innerHTML=cs.map(c=>`<option value="${esc(c.nome)}">`).join("");
+  const q=ckey($("fQ").value);
+  let rows=(fShowAll?cs:devendo).filter(c=>!q||c.key.includes(q)).sort((a,b)=>b.saldo-a.saldo||a.nome.localeCompare(b.nome));
+  if(!cs.length){ $("fList").innerHTML=`<div class="empty"><strong>Nenhum fiado lançado</strong>Comece pelos fiados do mês anterior: toque em <b>+ Fiado do mês anterior</b> e lance o total que cada cliente deve. Depois use <b>+ Novo fiado</b> no dia a dia.</div>`; return; }
+  if(!rows.length){ $("fList").innerHTML=`<div class="empty"><strong>${q?"Nenhum cliente com esse nome":"Ninguém devendo"}</strong>${q?"":"Todos os fiados estão pagos."}</div>`; return; }
+  $("fList").innerHTML=rows.map(c=>{ const dias=c.aberto?dayDiff(c.aberto,today()):0, st=c.saldo<=0.009?"ok":c.ant>0.009?"red":dias>15?"amb":"gray";
+    const lbl={ok:"Pago",red:"Do mês anterior",amb:`${dias} dias`,gray:"Este mês"}[st];
+    return `<button class="row" data-ck="${esc(c.key)}"><span class="stripe" style="background:${st==="red"?"var(--neg)":st==="amb"?"var(--accent)":st==="ok"?"var(--pos)":"var(--line)"}"></span>
+    <span class="main"><span class="t">${esc(c.nome)}</span><span class="s">${c.aberto?`<span>devendo desde ${ddmm(c.aberto)}</span>`:""}<span>· último mov. ${ddmm(c.ult)}</span></span></span>
+    <span class="amt"><span class="num" style="color:${c.saldo>0.009?"var(--neg)":"var(--pos)"}">${brl.format(Math.max(0,c.saldo))}</span><br><span class="badge b-${st}">${lbl}</span></span></button>`; }).join("");
+  if(!$("scrim7").hidden) renderClient();
+}
+function setFMode(m){
+  fMode=m; [...$("fSeg").children].forEach(b=>b.setAttribute("aria-pressed", b.dataset.m===m));
+  $("fFormaF").hidden=m!=="pagamento"; $("fLancF").hidden=m!=="pagamento"; $("fDtAnt").hidden=m==="pagamento";
+  $("fTitle").textContent=m==="pagamento"?"Receber pagamento":"Novo fiado";
+}
+function openFiado(mode, cliente, opts={}){
+  if(!db){ showStatus("Entre na sua conta do claude.ai para lançar fiados.",true); return; }
+  if(!canWrite){ showStatus("Seu acesso é só de leitura.",true); return; }
+  setFMode(mode); $("fCli").value=cliente||""; $("fNote").textContent="";
+  const c=cliente?fClients().find(x=>x.key===ckey(cliente)):null;
+  $("fVal").value = mode==="pagamento"&&c&&c.saldo>0 ? fmt2(c.saldo) : "";
+  $("fDt").value = opts.anterior ? lastDayPrev() : today();
+  $("fDesc2").value = opts.anterior ? `Fiado de ${ymLabel(shiftYm(thisMonth(),-1))}` : "";
+  $("fLanc").checked=true; $("scrim6").hidden=false; setTimeout(()=>$(cliente?"fVal":"fCli").focus(),50);
+}
+$("fSeg").addEventListener("click", e=>{ const b=e.target.closest("[data-m]"); if(b) setFMode(b.dataset.m); });
+$("fDtAnt").onclick=()=>{ $("fDt").value=lastDayPrev(); if(!$("fDesc2").value) $("fDesc2").value=`Fiado de ${ymLabel(shiftYm(thisMonth(),-1))}`; };
+$("fForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const cli=$("fCli").value.trim().replace(/\s+/g," ").slice(0,60), valor=parseMoney($("fVal").value), data=$("fDt").value;
+  if(!cli){ $("fNote").textContent="Informe o nome do cliente."; $("fCli").focus(); return; }
+  if(!(valor>0)){ $("fNote").textContent="Informe um valor maior que zero."; $("fVal").focus(); return; }
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){ $("fNote").textContent="Informe a data."; return; }
+  const existing=fClients().find(c=>c.key===ckey(cli)), nome=existing?existing.nome:cli;
+  const b=$("fSave"); b.disabled=true; b.textContent="Salvando…";
+  try{
+    const ref=db.collection("fiados").doc(), now=Date.now(), doc={cliente:nome,tipo:fMode,valor,data,desc:$("fDesc2").value.trim().slice(0,120),criadoEm:now};
+    if(fMode==="pagamento"){ doc.forma=$("fForma").value;
+      if($("fLanc").checked){ const lref=db.collection("lancamentos").doc();
+        await lref.set({tipo:"entrada",categoria:"Recebimento de fiado",descricao:`Fiado · ${nome}`,valor,data,mes:ymOf(data),fornecedor:nome,pagamento:doc.forma,obs:doc.desc,nota:null,fiadoId:ref.id,criadoEm:now,atualizadoEm:now});
+        doc.lancId=lref.id; } }
+    await ref.set(doc);
+    $("scrim6").hidden=true;
+    const after=(existing?existing.saldo:0)+(fMode==="pagamento"?-valor:valor);
+    showStatus(`${fMode==="pagamento"?"Pagamento":"Fiado"} de ${brl.format(valor)} lançado para ${nome}. Saldo: ${brl.format(Math.max(0,after))}.`); setTimeout(()=>showStatus(""),4000);
+  }catch(err){ $("fNote").textContent="Não foi possível salvar: "+(err?.message||err?.code); }
+  finally{ b.disabled=false; b.textContent="Salvar"; }
+});
+$("fCancel").onclick=()=>{ $("scrim6").hidden=true; };
+$("scrim6").addEventListener("click", e=>{ if(e.target===$("scrim6")) $("scrim6").hidden=true; });
+$("fNew").onclick=()=>openFiado("compra");
+$("fAnt").onclick=()=>openFiado("compra","",{anterior:true});
+$("fPay").onclick=()=>openFiado("pagamento");
+$("fQ").addEventListener("input", renderFiados);
+$("fShowAll").onclick=()=>{ fShowAll=!fShowAll; $("fShowAll").setAttribute("aria-pressed",fShowAll); renderFiados(); };
+$("fList").addEventListener("click", e=>{ const b=e.target.closest("[data-ck]"); if(!b) return; fOpenKey=b.dataset.ck; $("cCopyBox").innerHTML=""; renderClient(); $("scrim7").hidden=false; });
+function renderClient(){
+  const c=fClients().find(x=>x.key===fOpenKey); if(!c){ $("scrim7").hidden=true; return; }
+  $("cName").textContent=c.nome; $("cSaldo").textContent=brl.format(Math.max(0,c.saldo)); $("cSaldo").style.color=c.saldo>0.009?"var(--neg)":"var(--pos)";
+  $("cInfo").textContent = c.saldo>0.009 ? `Devendo desde ${c.aberto?c.aberto.split("-").reverse().join("/"):"—"}${c.ant>0.009?` · ${brl.format(c.ant)} vem de antes de ${ymLabel(thisMonth())}`:""}` : "Sem saldo devedor.";
+  $("cPay").hidden=!(c.saldo>0.009&&canWrite); $("cAdd").hidden=!canWrite;
+  $("cHist").innerHTML=[...c.hist].reverse().map(f=>`<div><span class="num">${ddmm(f.data)}</span><span>${f.tipo==="pagamento"?`Pagamento${f.forma?` · ${esc(f.forma)}`:""}`:"Fiado"}${f.desc?` <span class="note">· ${esc(f.desc)}</span>`:""}</span><span class="num" style="color:${f.tipo==="pagamento"?"var(--pos)":"var(--neg)"}">${f.tipo==="pagamento"?"−":"+"} ${brl.format(f.valor)}</span>${canWrite?`<button type="button" data-delf="${esc(f.id)}" aria-label="Apagar">×</button>`:"<span></span>"}</div>`).join("");
+}
+$("cHist").addEventListener("click", async e=>{ const b=e.target.closest("[data-delf]"); if(!b) return;
+  if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="apagar?"; setTimeout(()=>{b.dataset.armed="";b.textContent="×";},3000); return; }
+  const f=fiados.find(x=>x.id===b.dataset.delf); if(!f) return;
+  try{ if(f.lancId) await db.collection("lancamentos").doc(f.lancId).delete(); await db.collection("fiados").doc(f.id).delete(); }catch(err){ showStatus("Não foi possível apagar: "+(err?.message||err?.code),true); } });
+$("cPay").onclick=()=>{ const c=fClients().find(x=>x.key===fOpenKey); $("scrim7").hidden=true; openFiado("pagamento",c?.nome); };
+$("cAdd").onclick=()=>{ const c=fClients().find(x=>x.key===fOpenKey); $("scrim7").hidden=true; openFiado("compra",c?.nome); };
+$("cCopy").onclick=async ()=>{ const c=fClients().find(x=>x.key===fOpenKey); if(!c) return;
+  const abertos=c.hist.filter(f=>f.tipo!=="pagamento"&&(!c.aberto||f.data>=c.aberto));
+  const txt=`Olá, ${c.nome.split(" ")[0]}! Tudo bem? Aqui é do Bar Simpatia.\nSeu fiado está em ${brl.format(Math.max(0,c.saldo))}`+(c.aberto?` (desde ${ddmm(c.aberto)})`:"")+`.\n`+abertos.slice(-8).map(f=>`- ${ddmm(f.data)}: ${brl.format(f.valor)}${f.desc?` (${f.desc})`:""}`).join("\n")+`\nPode pagar por Pix ou no balcão. Obrigado!`;
+  try{ await navigator.clipboard.writeText(txt); $("cCopy").textContent="Copiado!"; setTimeout(()=>$("cCopy").textContent="Copiar cobrança",2500); }
+  catch{ $("cCopyBox").innerHTML=`<textarea class="copybox" rows="7" readonly>${esc(txt)}</textarea>`; $("cCopyBox").firstChild.select(); } };
+$("cClose").onclick=()=>{ $("scrim7").hidden=true; };
+$("scrim7").addEventListener("click", e=>{ if(e.target===$("scrim7")) $("scrim7").hidden=true; });
+
 // abas
-function setTab(t){ document.body.classList.toggle("est", t==="est"); $("tabFin").setAttribute("aria-selected", t!=="est"); $("tabEst").setAttribute("aria-selected", t==="est"); if(t==="est") renderEstoque(); }
-document.querySelector(".tabs").addEventListener("click", e=>{ const b=e.target.closest("[data-tab]"); if(!b) return; const t=b.dataset.tab; try{ history.replaceState(null,"",t==="est"?"#estoque":"#"); }catch{} setTab(t); });
-window.addEventListener("hashchange", ()=>setTab(location.hash==="#estoque"?"est":"fin"));
-setTab(location.hash==="#estoque"?"est":"fin");
+const TAB_HASH={fin:"",est:"#estoque",fia:"#fiados"};
+function tabFromHash(){ return location.hash==="#estoque"?"est":location.hash==="#fiados"?"fia":"fin"; }
+function setTab(t){ document.body.classList.toggle("est", t==="est"); document.body.classList.toggle("fia", t==="fia");
+  $("tabFin").setAttribute("aria-selected", t==="fin"); $("tabEst").setAttribute("aria-selected", t==="est"); $("tabFia").setAttribute("aria-selected", t==="fia");
+  if(t==="est") renderEstoque(); if(t==="fia") renderFiados(); }
+document.querySelector(".tabs").addEventListener("click", e=>{ const b=e.target.closest("[data-tab]"); if(!b) return; const t=b.dataset.tab; try{ history.replaceState(null,"",TAB_HASH[t]||"#"); }catch{} setTab(t); });
+window.addEventListener("hashchange", ()=>setTab(tabFromHash()));
+setTab(tabFromHash());
 
 /* ---------- saldo ---------- */
 let saldo=null;
@@ -1080,7 +1238,7 @@ Use ponto como separador decimal nos números.`,
 $("typeSeg").addEventListener("click", e=>{ const b=e.target.closest("button[data-t]"); if(b) setTipo(b.dataset.t); });
 $("cancelBtn").onclick=closeForm;
 $("scrim").addEventListener("click", e=>{ if(e.target===$("scrim")) closeForm(); });
-document.addEventListener("keydown", e=>{ if(e.key!=="Escape") return; if(!$("scrim").hidden) closeForm(); if(!$("scrim2").hidden) closeSaldo(); if(!$("scrim3").hidden) closeVendas(); $("scrim4").hidden=true; $("scrim5").hidden=true; });
+document.addEventListener("keydown", e=>{ if(e.key!=="Escape") return; if(!$("scrim").hidden) closeForm(); if(!$("scrim2").hidden) closeSaldo(); if(!$("scrim3").hidden) closeVendas(); $("scrim4").hidden=true; $("scrim5").hidden=true; $("scrim6").hidden=true; $("scrim7").hidden=true; });
 
 let delArmed=false;
 $("delBtn").onclick=async ()=>{
@@ -1174,11 +1332,12 @@ render();
   const [d,a,s,dl,u] = await Promise.all(["db","assets","sample","downloads","user"].map(n=>window.claude.use(n).catch(()=>null)));
   db=d; assets=a; sample=s; downloads=dl;
   if(u){ try{ const c=await u.can("data.write"); if(c===false) canWrite=false; }catch{} }
-  if(!canWrite){ $("addBtn").hidden=true; $("vendasBtn").hidden=true; $("eCountBtn").hidden=true; $("eAddProd").hidden=true; $("copyFixos").hidden=true; }
+  if(!canWrite){ $("addBtn").hidden=true; $("vendasBtn").hidden=true; $("eCountBtn").hidden=true; $("eAddProd").hidden=true; $("fNew").hidden=true; $("fAnt").hidden=true; $("fPay").hidden=true; $("copyFixos").hidden=true; }
   if(sample){ try{ const l=await sample.limits(); aiImages=!!l?.images; aiMax=l?.images?.maxCount||3; }catch{} }
   if(!db){ showStatus("Entre na sua conta do claude.ai para ver e salvar os lançamentos.",true); state.loaded=true; render(); return; }
   const timer=setTimeout(()=>showStatus("Não consegui buscar os lançamentos ainda. Verifique a conexão."),10000);
   db.collection("estoque").onSnapshot(sn=>{ produtos=sn.docs.map(x=>({id:x.id,...x.data()})).filter(p=>p.nome); renderEstoque(); }, ()=>{});
+  db.collection("fiados").onSnapshot(sn=>{ fiados=sn.docs.map(x=>({id:x.id,...x.data()})).filter(f=>f.cliente&&typeof f.valor==="number"&&typeof f.data==="string"); renderFiados(); }, ()=>{});
   db.collection("movimentos").onSnapshot(sn=>{ movs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.produtoId&&typeof m.qtd==="number"&&typeof m.data==="string"); renderEstoque(); if(!$("scrim4").hidden) renderHist(); }, ()=>{});
   db.doc("config/estoque").onSnapshot(d=>{ const v=d.exists?d.data():{}; eCfg={dias:Number(v.dias)||7, ign:Array.isArray(v.ign)?v.ign:[]}; renderEstoque(); }, ()=>{});
   db.doc("config/saldo").onSnapshot(d=>{
