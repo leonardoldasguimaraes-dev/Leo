@@ -329,7 +329,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="field" id="fFormaF" hidden><label for="fForma">Forma de pagamento</label>
       <select id="fForma"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência</option></select></div>
     <div class="field"><label for="fDesc2">Descrição</label><input id="fDesc2" placeholder="Ex.: 4 Heineken + porção" autocomplete="off"></div>
-    <label class="chk" id="fLancF" hidden><input type="checkbox" id="fLanc" checked><span>Lançar como entrada no Financeiro<br><span class="note">Desmarque se o pagamento foi na maquininha e já entrou nas Vendas do dia.</span></span></label>
+    <div class="note">O fiado é um controle à parte: não entra no caixa, no resultado nem no saldo do Financeiro.</div>
     <div class="note" id="fNote"></div>
     <div class="actions"><div class="r"><button type="button" class="btn" id="fCancel">Cancelar</button><button type="submit" class="btn primary" id="fSave">Salvar</button></div></div>
   </form>
@@ -503,7 +503,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 const TYPES = {
-  entrada:  {label:"Entrada", plural:"Entradas",       color:"var(--pos)", cats:["Vendas do dia","Vendas no balcão","Vendas cartão","Vendas Pix","iFood / delivery","Eventos","Couvert","Recebimento de fiado","Outras entradas"]},
+  entrada:  {label:"Entrada", plural:"Entradas",       color:"var(--pos)", cats:["Vendas do dia","Vendas no balcão","Vendas cartão","Vendas Pix","iFood / delivery","Eventos","Couvert","Outras entradas"]},
   fixo:     {label:"Custo fixo", plural:"Custos fixos",    color:"var(--fix)", cats:["Aluguel","Salários","Pró-labore","Energia","Água","Internet / telefone","Contador","Sistema / maquininha","Impostos (Simples)","Seguro","Encargos"]},
   variavel: {label:"Custo variável", plural:"Custos variáveis",color:"var(--var)", cats:["Bebidas","Cervejas","Destilados","Alimentos / cozinha","Gelo","Descartáveis","Taxas de cartão","Comissões","Freelancers","Gás"]},
   despesa:  {label:"Despesa", plural:"Despesas",       color:"var(--accent)", cats:["Manutenção","Limpeza","Marketing","Equipamentos","Músicos / eventos","Transporte","Diversos"]},
@@ -968,7 +968,7 @@ function renderFiados(){
 }
 function setFMode(m){
   fMode=m; [...$("fSeg").children].forEach(b=>b.setAttribute("aria-pressed", b.dataset.m===m));
-  $("fFormaF").hidden=m!=="pagamento"; $("fLancF").hidden=m!=="pagamento"; $("fDtAnt").hidden=m==="pagamento";
+  $("fFormaF").hidden=m!=="pagamento"; $("fDtAnt").hidden=m==="pagamento";
   $("fTitle").textContent=m==="pagamento"?"Receber pagamento":"Novo fiado";
 }
 function openFiado(mode, cliente, opts={}){
@@ -979,7 +979,7 @@ function openFiado(mode, cliente, opts={}){
   $("fVal").value = mode==="pagamento"&&c&&c.saldo>0 ? fmt2(c.saldo) : "";
   $("fDt").value = opts.anterior ? lastDayPrev() : today();
   $("fDesc2").value = opts.anterior ? `Fiado de ${ymLabel(shiftYm(thisMonth(),-1))}` : "";
-  $("fLanc").checked=true; $("scrim6").hidden=false; setTimeout(()=>$(cliente?"fVal":"fCli").focus(),50);
+  $("scrim6").hidden=false; setTimeout(()=>$(cliente?"fVal":"fCli").focus(),50);
 }
 $("fSeg").addEventListener("click", e=>{ const b=e.target.closest("[data-m]"); if(b) setFMode(b.dataset.m); });
 $("fDtAnt").onclick=()=>{ $("fDt").value=lastDayPrev(); if(!$("fDesc2").value) $("fDesc2").value=`Fiado de ${ymLabel(shiftYm(thisMonth(),-1))}`; };
@@ -993,10 +993,7 @@ $("fForm").addEventListener("submit", async e=>{
   const b=$("fSave"); b.disabled=true; b.textContent="Salvando…";
   try{
     const ref=db.collection("fiados").doc(), now=Date.now(), doc={cliente:nome,tipo:fMode,valor,data,desc:$("fDesc2").value.trim().slice(0,120),criadoEm:now};
-    if(fMode==="pagamento"){ doc.forma=$("fForma").value;
-      if($("fLanc").checked){ const lref=db.collection("lancamentos").doc();
-        await lref.set({tipo:"entrada",categoria:"Recebimento de fiado",descricao:`Fiado · ${nome}`,valor,data,mes:ymOf(data),fornecedor:nome,pagamento:doc.forma,obs:doc.desc,nota:null,fiadoId:ref.id,criadoEm:now,atualizadoEm:now});
-        doc.lancId=lref.id; } }
+    if(fMode==="pagamento"){ doc.forma=$("fForma").value; }
     await ref.set(doc);
     $("scrim6").hidden=true;
     const after=(existing?existing.saldo:0)+(fMode==="pagamento"?-valor:valor);
