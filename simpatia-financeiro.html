@@ -518,7 +518,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
       <div class="field"><label for="fDt">Data</label><input id="fDt" type="date"><button type="button" class="chip" id="fDtAnt" style="align-self:flex-start">Mês anterior</button></div>
     </div>
     <div class="field" id="fFormaF" hidden><label for="fForma">Forma de pagamento</label>
-      <select id="fForma"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência</option></select></div>
+      <select id="fForma"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência</option></select><span class="note" id="fFormaNote"></span></div>
     <div class="field"><label for="fDesc2">Descrição</label><input id="fDesc2" placeholder="Ex.: 4 Heineken + porção" autocomplete="off"></div>
     <div class="note">O fiado é um controle à parte: não entra no caixa, no resultado nem no saldo do Financeiro.</div>
     <div class="note" id="fNote"></div>
@@ -651,6 +651,8 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
         <div class="field"><label for="vPix">Pix</label><input id="vPix" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
         <div class="field"><label for="vVou">Voucher</label><input id="vVou" class="vmoney" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
       </div>
+      <div class="field"><label for="vFia">Desse cartão / Pix, quanto foi pagamento de fiado?</label><input id="vFia" class="vfia" inputmode="decimal" placeholder="0,00" autocomplete="off">
+        <span class="note">Não é venda de produto do dia: é cliente pagando fiado. Entra no caixa, mas fica separado na conferência das garrafas.</span></div>
       <div class="tools">
         <label class="btn" for="vFile" id="vFileLbl">Anexar foto do relatório</label>
         <input id="vFile" type="file" accept="image/*,application/pdf" hidden>
@@ -981,9 +983,9 @@ const vNum=id=>{ const n=parseMoney($(id).value); return isFinite(n)&&n>0?n:0; }
 function kShort(v){ return v>=1000 ? (v/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})+"k" : Math.round(v).toString(); }
 function renderVendas(){
   const reps=state.items.filter(it=>it.vendas && ymOf(it.data)===state.ym);
-  const byDay={}, det={}, tot={debito:0,credito:0,pix:0,voucher:0,alelo:0,dinheiro:0,outros:0,taxas:0,total:0};
+  const byDay={}, det={}, tot={debito:0,credito:0,pix:0,voucher:0,alelo:0,dinheiro:0,outros:0,taxas:0,fiado:0,total:0};
   for(const r of reps){ byDay[r.data]=(byDay[r.data]||0)+r.valor; tot.total+=r.valor; tot.taxas+=r.vendas.taxas||0;
-    const d=(det[r.data] ||= {total:0,taxas:0,docs:[]}); d.total+=r.valor; d.taxas+=r.vendas.taxas||0; d.docs.push(r);
+    const d=(det[r.data] ||= {total:0,taxas:0,fiado:0,docs:[]}); d.total+=r.valor; d.taxas+=r.vendas.taxas||0; d.fiado+=r.vendas.fiado||0; tot.fiado+=r.vendas.fiado||0; d.docs.push(r);
     for(const [k] of VF){ tot[k]+=r.vendas[k]||0; d[k]=(d[k]||0)+(r.vendas[k]||0); } }
   const dias=Object.keys(byDay).length;
   let best=null; for(const [d,v] of Object.entries(byDay)) if(!best||v>best[1]) best=[d,v];
@@ -992,6 +994,7 @@ function renderVendas(){
   const cartT=tot.total-tot.dinheiro;
   $("vSum").innerHTML = cell("Total vendido",brl.format(tot.total),' style="color:var(--pos)"') + cell("Dinheiro",`${brl.format(tot.dinheiro)}${tot.total?` <span class="note">${Math.round(tot.dinheiro/tot.total*100)}%</span>`:""}`) +
     cell("Cartão / Pix",`${brl.format(cartT)}${tot.total?` <span class="note">${Math.round(cartT/tot.total*100)}%</span>`:""}`) +
+    (tot.fiado?cell("Pagto de fiado (no cartão)",`${brl.format(tot.fiado)} <span class="note">não é venda</span>`):"") +
     cell("Média por dia",dias?brl.format(tot.total/dias):"—") + cell("Melhor dia",best?`${best[0].slice(8)}/${best[0].slice(5,7)} · ${kShort(best[1])}`:"—") +
     (tot.taxas>0?cell("Taxas",`${brl.format(tot.taxas)} <span class="note">${(tot.taxas/tot.total*100).toLocaleString("pt-BR",{maximumFractionDigits:1})}%</span>`):"");
   const [y,m]=state.ym.split("-").map(Number), n=new Date(y,m,0).getDate(), off=new Date(y,m-1,1).getDay(), hoje=today();
@@ -1006,6 +1009,7 @@ function renderVendas(){
   if(!vSel){ $("vDet").innerHTML=""; }
   else $("vDet").innerHTML=`<div class="dethead"><h3>${dayLabel(vSel)}</h3><span class="num">${D?brl.format(D.total):"R$ 0,00"}</span></div>`+
     (D?`<div class="detgrid">${VF.filter(([k])=>k!=="outros"||D.outros).map(([k,,l])=>`<div><span class="label">${l}</span><span class="num${D[k]?"":" zero"}">${D[k]?brl.format(D[k]):"–"}</span></div>`).join("")}</div>`+
+      (D.fiado?`<div class="banner">Inclui <b>${brl.format(D.fiado)}</b> de pagamento de fiado no cartão/Pix. Venda de produto do dia: <b>${brl.format(D.total-D.fiado)}</b>.</div>`:"")+
       (D.taxas?`<div class="note">Taxas da maquininha: ${brl.format(D.taxas)} · líquido ${brl.format(D.total-D.taxas)}</div>`:"")+
       (D.docs.filter(r=>r.vendas.dinheiro>0).length>1?`<div class="banner err">Atenção: este dia tem dinheiro em ${D.docs.filter(r=>r.vendas.dinheiro>0).length} lançamentos. Se for o mesmo dinheiro, apague ou corrija um deles.</div>`:"")+
       `<div class="label">Lançamentos deste dia (${D.docs.length})</div><div class="detl">${D.docs.sort((a,b)=>(a.criadoEm||0)-(b.criadoEm||0)).map((r,i)=>`<div class="dl"><span><b>${i+1}. ${r.nota?"Relatório da maquininha":"Lançado à mão"}</b>${r.nota?` · <a href="/_blob/${esc(r.nota.id)}" target="_blank" rel="noopener">ver foto</a>`:""}<br><span class="note">${VF.filter(([k])=>r.vendas[k]).map(([k,,l])=>`${l} ${brl.format(r.vendas[k])}`).join(" · ")||"sem valores"} = <b>${brl.format(r.valor)}</b></span></span>${canWrite?`<button type="button" class="btn primary" data-ved="${esc(r.id)}">Editar</button>`:""}</div>`).join("")}</div>`
@@ -1027,7 +1031,7 @@ function openVendas(it, date){
   $("vData").value = it?.data || date || today();
   const lastMaq=[...state.items].filter(x=>x.vendas?.maquina).sort((a,b)=>b.data.localeCompare(a.data))[0]?.vendas.maquina||"";
   $("vMaq").value = it ? (v.maquina||"") : (lastMaq||"Sicoob");
-  for(const [k,id] of VF) $(id).value=fmt2(v[k]||0);
+  for(const [k,id] of VF) $(id).value=fmt2(v[k]||0); $("vFia").value=fmt2(v.fiado||0);
   $("vTax").value=fmt2(v.taxas||0); $("vObs").value=it?.obs||"";
   $("vDel").hidden=!it; $("vFile").value=""; $("vNoteF").textContent="";
   $("vMore").open=!!(v.outros||v.taxas||it?.obs);
@@ -1086,6 +1090,8 @@ $("vForm").addEventListener("submit", async e=>{
     let nota=vNota; const old=vEditing?.nota||null;
     if(vPending){ const f=vPending.file; const up=await assets.upload(f, f.type?undefined:{type:"application/pdf"}); nota={id:up.id,nome:f.name.slice(0,120),tipo:up.contentType,tamanho:up.sizeBytes}; }
     const vendas={maquina:maq,taxas:tax}; for(const [k,id] of VF) vendas[k]=vNum(id);
+    const cartaoTot=["debito","credito","pix","voucher","alelo","outros"].reduce((t,k)=>t+(vendas[k]||0),0);
+    vendas.fiado=Math.min(vNum("vFia"),cartaoTot);
     const ref=vEditing? db.collection("lancamentos").doc(vEditing.id) : db.collection("lancamentos").doc();
     const now=Date.now();
     const vdoc={tipo:"entrada",categoria:"Vendas do dia",descricao:"Vendas do dia"+(maq?` · ${maq}`:""),valor:Math.round(total*100)/100,data,mes:ymOf(data),
@@ -1520,7 +1526,7 @@ function renderFiados(){
   const funcTot=devendo.filter(c=>funcK(c.key)).reduce((s,c)=>s+c.saldo,0), funcMes=fiados.filter(f=>f.tipo==="compra"&&isF(f.cliente)&&ymOf(f.data)===ym).reduce((s,f)=>s+f.valor,0);
   const tile=(l,v,c="")=>`<div class="tile"><span class="label">${l}</span><span class="v num"${c}>${v}</span></div>`;
   $("fTiles").innerHTML=tile("Clientes: a receber",brl.format(total),total?' style="color:var(--neg)"':"")+tile(`Fiado até ${ymLabel(shiftYm(ym,-1),true)}`,brl.format(ant))+tile(`Fiado novo em ${ymLabel(ym,true)}`,brl.format(novos))+tile(`Recebido em ${ymLabel(ym,true)}`,brl.format(rec),rec?' style="color:var(--pos)"':"")+
-    `<div class="tile" style="grid-column:1/-1"><span class="label">Dinheiro do fiado guardado</span><span class="v num" style="color:var(--pos)">${brl.format(fiados.filter(f=>f.tipo==="pagamento").reduce((t,f)=>t+f.valor,0))}</span><span class="note">Total já recebido dos fiados de clientes. Fica separado: não entra no caixa nem nas vendas do bar.</span></div>`+
+    `<div class="tile" style="grid-column:1/-1"><span class="label">Envelope do fiado (dinheiro guardado)</span><span class="v num" style="color:var(--pos)">${brl.format(fiados.filter(f=>f.tipo==="pagamento"&&!isF(f.cliente)&&(!f.forma||f.forma==="Dinheiro")).reduce((t,f)=>t+f.valor,0))}</span><span class="note">Fiado pago em dinheiro: fica no envelope, separado do caixa. Pago no cartão ou Pix: ${brl.format(fiados.filter(f=>f.tipo==="pagamento"&&!isF(f.cliente)&&f.forma&&f.forma!=="Dinheiro").reduce((t,f)=>t+f.valor,0))}, que entra no caixa pela maquininha (marque em Vendas do dia, em "pagamento de fiado").</span></div>`+
     `<div class="tile" style="grid-column:1/-1"><span class="label">Consumo de funcionários (controle)</span><span class="v num">${brl.format(funcTot)}</span><span class="note">Saiu do bar e é descontado no salário pelo restaurante. Não entra no a receber do bar. Consumo novo em ${ymLabel(ym,true)}: ${brl.format(funcMes)}.</span></div>`;
   $("fCliList").innerHTML=cs.map(c=>`<option value="${esc(c.nome)}">`).join("");
 
@@ -1538,7 +1544,7 @@ function renderFiados(){
 }
 function setFMode(m){
   fMode=m; [...$("fSeg").children].forEach(b=>b.setAttribute("aria-pressed", b.dataset.m===m));
-  $("fFormaF").hidden=m!=="pagamento"; $("fDtAnt").hidden=m==="pagamento";
+  $("fFormaF").hidden=m!=="pagamento"; fFormaUpd(); $("fDtAnt").hidden=m==="pagamento";
   $("fTitle").textContent=m==="pagamento"?"Receber pagamento":"Novo fiado";
 }
 function openFiado(mode, cliente, opts={}){
@@ -1552,6 +1558,8 @@ function openFiado(mode, cliente, opts={}){
   $("scrim6").hidden=false; setTimeout(()=>$(cliente?"fVal":"fCli").focus(),50);
 }
 $("fCli").addEventListener("change", ()=>{ $("fFuncChk").checked=funcK(ckey($("fCli").value)); const t=telOf(ckey($("fCli").value)); if(t && !$("fTel").value) $("fTel").value=fmtTel(t); });
+function fFormaUpd(){ const v=$("fForma").value; $("fFormaNote").textContent = v==="Dinheiro" ? "Vai para o envelope do fiado, separado do caixa." : "Pago na maquininha: entra no caixa. No fim do dia, marque esse valor em Vendas do dia, no campo pagamento de fiado."; }
+$("fForma").addEventListener("change", fFormaUpd);
 $("fSeg").addEventListener("click", e=>{ const b=e.target.closest("[data-m]"); if(b) setFMode(b.dataset.m); });
 $("fDtAnt").onclick=()=>{ $("fDt").value=lastDayPrev(); if(!$("fDesc2").value) $("fDesc2").value=`Fiado de ${ymLabel(shiftYm(thisMonth(),-1))}`; };
 $("fForm").addEventListener("submit", async e=>{
