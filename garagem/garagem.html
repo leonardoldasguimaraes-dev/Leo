@@ -1,0 +1,503 @@
+<title>Garagem do Leo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=Share+Tech+Mono&display=swap">
+<style>
+/* Layout: one column, vehicle switcher on top, instrument panel card, actions, logbook below. */
+:root {
+  --bg: #eef0f2;
+  --surface: #ffffff;
+  --surface-2: #e4e7eb;
+  --fg: #1b1f24;
+  --muted: #5d6670;
+  --line: #d3d8de;
+  --accent: #c76a00;        /* fuel-warning amber */
+  --accent-ink: #ffffff;
+  --odo-bg: #1b1f24;
+  --odo-fg: #f3f4f6;
+  --fuel: #1f6fb2;
+  --maint: #7a4fb0;
+  --km: #4f6b55;
+  --warn-bg: #fff1dc;
+  --warn-fg: #8a4a00;
+  --ok: #2f7d4a;
+  --danger: #b3261e;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Share Tech Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111418; --surface: #1a1e23; --surface-2: #242a31; --fg: #eceff2; --muted: #9aa4ae; --line: #2f363e;
+    --accent: #f2a23a; --accent-ink: #1b1204; --odo-bg: #070809; --odo-fg: #f7d9a8;
+    --fuel: #6aaee8; --maint: #b796e6; --km: #93b59a; --warn-bg: #3a2a12; --warn-fg: #f6c27a; --ok: #6cc28c; --danger: #f08a80;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111418; --surface: #1a1e23; --surface-2: #242a31; --fg: #eceff2; --muted: #9aa4ae; --line: #2f363e;
+  --accent: #f2a23a; --accent-ink: #1b1204; --odo-bg: #070809; --odo-fg: #f7d9a8;
+  --fuel: #6aaee8; --maint: #b796e6; --km: #93b59a; --warn-bg: #3a2a12; --warn-fg: #f6c27a; --ok: #6cc28c; --danger: #f08a80;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px 48px;
+}
+.wrap { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-spacing: .02em; margin: 0; text-transform: uppercase; }
+.sub { color: var(--muted); font-size: .9rem; }
+
+/* Vehicle switcher */
+.switch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.switch button {
+  font: inherit; text-align: left; border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  border-radius: 10px; padding: 10px 10px 9px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-width: 0;
+}
+.switch button .n { font-family: var(--display); font-weight: 700; font-size: 1.15rem; text-transform: uppercase; letter-spacing: .03em; line-height: 1.1; overflow-wrap: anywhere; }
+.switch button .p { font-family: var(--mono); font-size: .8rem; color: var(--muted); }
+.switch button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.switch button:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Instrument panel */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.panel-head h2 { font-family: var(--display); font-size: 1.5rem; font-weight: 700; margin: 0; line-height: 1.1; text-transform: uppercase; letter-spacing: .02em; text-wrap: balance; }
+.plate { display: inline-block; margin-top: 6px; font-family: var(--mono); font-size: .95rem; letter-spacing: .12em; border: 2px solid var(--fg); border-radius: 4px; padding: 1px 8px; background: var(--surface); }
+.plate.empty { border-style: dashed; color: var(--muted); border-color: var(--muted); letter-spacing: .02em; font-family: var(--body); font-size: .85rem; }
+.label { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 600; }
+.odo { display: flex; flex-direction: column; gap: 6px; }
+.odo-digits { display: flex; gap: 3px; align-items: stretch; }
+.odo-digits span { font-family: var(--mono); font-size: 2rem; line-height: 1; background: var(--odo-bg); color: var(--odo-fg); padding: 8px 0; width: 1.35em; text-align: center; border-radius: 4px; }
+.odo-digits small { align-self: flex-end; margin-left: 6px; font-family: var(--display); font-weight: 600; font-size: 1.1rem; color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
+.stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stat b { font-family: var(--display); font-weight: 600; font-size: 1.35rem; font-variant-numeric: tabular-nums; line-height: 1.15; overflow-wrap: anywhere; }
+.alert { background: var(--warn-bg); color: var(--warn-fg); border-radius: 10px; padding: 10px 12px; font-size: .92rem; font-weight: 500; }
+
+/* Actions */
+.actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.btn { font: inherit; font-weight: 600; border-radius: 10px; padding: 12px 8px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--muted); padding: 6px 8px; font-weight: 500; }
+.btn.danger { color: var(--danger); }
+
+/* Logbook */
+.log h3 { font-family: var(--display); font-size: 1.2rem; text-transform: uppercase; letter-spacing: .05em; margin: 4px 0 8px; }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.chip { font: inherit; font-size: .85rem; border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.chip[aria-pressed="true"] { color: var(--fg); border-color: var(--fg); }
+.entries { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.entry { display: grid; grid-template-columns: 4px minmax(0, 1fr) auto; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.entry .bar { border-radius: 2px; }
+.entry.fuel .bar { background: var(--fuel); } .entry.maint .bar { background: var(--maint); } .entry.km .bar { background: var(--km); }
+.entry .t { font-weight: 600; overflow-wrap: anywhere; }
+.entry .m { color: var(--muted); font-size: .88rem; overflow-wrap: anywhere; }
+.entry .r { text-align: right; font-variant-numeric: tabular-nums; }
+.entry .r b { font-family: var(--display); font-size: 1.15rem; font-weight: 600; display: block; }
+.entry .r span { color: var(--muted); font-size: .85rem; }
+.empty-state { color: var(--muted); padding: 18px 0; }
+
+/* Maintenance plan */
+.plan h3 { font-family: var(--display); font-size: 1.2rem; text-transform: uppercase; letter-spacing: .05em; margin: 4px 0 8px; }
+.plan-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.plan-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.plan-item .t { font-weight: 600; overflow-wrap: anywhere; }
+.plan-item .m { color: var(--muted); font-size: .86rem; overflow-wrap: anywhere; }
+.pill { font-size: .8rem; font-weight: 600; border-radius: 999px; padding: 3px 10px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pill.ok { color: var(--ok); border: 1px solid currentColor; }
+.pill.warn { background: var(--warn-bg); color: var(--warn-fg); }
+.pill.late { background: var(--danger); color: var(--surface); }
+.pill.none { color: var(--muted); border: 1px dashed var(--line); }
+.chip.on { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+
+/* Sheet */
+.backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / .45); z-index: 20; }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; background: var(--surface); color: var(--fg);
+  border-radius: 16px 16px 0 0; max-height: 92%; overflow-y: auto;
+  padding: 18px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.sheet-inner { max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.sheet h4 { font-family: var(--display); font-size: 1.4rem; text-transform: uppercase; letter-spacing: .03em; margin: 0; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field label { font-size: .8rem; color: var(--muted); font-weight: 600; }
+.field input, .field select, .field textarea {
+  font: inherit; font-size: 16px; padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); width: 100%; min-width: 0;
+}
+.check { display: flex; gap: 8px; align-items: center; font-size: .95rem; }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+.quick { display: flex; flex-wrap: wrap; gap: 6px; }
+.hint { color: var(--muted); font-size: .85rem; }
+.err { color: var(--danger); font-size: .9rem; min-height: 1em; }
+.sheet-actions { display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+.sheet-actions .right { display: flex; gap: 8px; margin-left: auto; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 8px 16px; border-radius: 999px; font-weight: 500; z-index: 30; }
+.notice { background: var(--surface-2); border-radius: 10px; padding: 12px; color: var(--muted); }
+@media (max-width: 380px) { .odo-digits span { font-size: 1.6rem; } .stat b { font-size: 1.15rem; } }
+@media (prefers-reduced-motion: no-preference) { .sheet { animation: up .18s ease-out; } @keyframes up { from { transform: translateY(24px); opacity: .6; } } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Garagem</h1>
+    <span class="sub" id="sync">Carregando…</span>
+  </header>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <nav class="switch" id="switch" aria-label="Escolher veículo"></nav>
+
+  <section class="panel" id="panel" aria-live="polite">
+    <div class="empty-state">Os veículos aparecem aqui assim que os dados carregarem.</div>
+  </section>
+
+  <div class="actions" id="actions" hidden>
+    <button class="btn primary" id="aFuel" type="button">Abastecer</button>
+    <button class="btn" id="aMaint" type="button">Manutenção</button>
+    <button class="btn" id="aKm" type="button">Anotar km</button>
+  </div>
+
+  <section class="plan" id="plan" hidden>
+    <h3>Plano de manutenção</h3>
+    <ul class="plan-list" id="planList"></ul>
+  </section>
+
+  <section class="log" id="log" hidden>
+    <h3>Histórico</h3>
+    <div class="filters" id="filters">
+      <button class="chip" data-f="all" aria-pressed="true" type="button">Tudo</button>
+      <button class="chip" data-f="fuel" aria-pressed="false" type="button">Abastecimentos</button>
+      <button class="chip" data-f="maint" aria-pressed="false" type="button">Manutenções</button>
+      <button class="chip" data-f="km" aria-pressed="false" type="button">Km</button>
+    </div>
+    <ul class="entries" id="entries"></ul>
+  </section>
+</div>
+
+<div class="backdrop" id="backdrop" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+  <form class="sheet-inner" id="form" novalidate>
+    <h4 id="sheetTitle">Novo registro</h4>
+    <div id="formBody"></div>
+    <div class="err" id="formErr"></div>
+    <div class="sheet-actions">
+      <button class="btn danger" type="button" id="delBtn" hidden>Apagar</button>
+      <div class="right">
+        <button class="btn" type="button" id="cancelBtn">Cancelar</button>
+        <button class="btn primary" type="submit" id="saveBtn">Salvar</button>
+      </div>
+    </div>
+  </form>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+  const n1 = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const n2 = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const n3 = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+  const nInt = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+
+  const state = { db: null, vehicles: [], records: [], plans: [], current: null, filter: "all", editing: null, loaded: { v: false, r: false, p: false } };
+  try { state.current = localStorage.getItem("garagem.current"); } catch (e) {}
+  try { state.filter = localStorage.getItem("garagem.filter") || "all"; } catch (e) {}
+
+  const num = (v) => {
+    if (v === null || v === undefined || v === "") return null;
+    if (typeof v === "number") return isFinite(v) ? v : null;
+    let s = String(v).trim().replace(/[R$\s]/g, "");
+    if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+    const x = parseFloat(s);
+    return isFinite(x) ? x : null;
+  };
+  const today = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+  const fmtDate = (s) => { if (!s) return "—"; const [y, m, d] = s.split("-"); return d + "/" + m + "/" + y; };
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), 2200); }
+
+  // ---------- derived data ----------
+  function recsFor(vid) {
+    return state.records.filter((r) => r.veiculo === vid).sort((a, b) => (a.data === b.data ? (num(a.km) || 0) - (num(b.km) || 0) : a.data < b.data ? -1 : 1));
+  }
+  function currentKm(v, recs) {
+    let k = num(v.kmInicial) || 0;
+    recs.forEach((r) => { const x = num(r.km); if (x !== null && x > k) k = x; });
+    return k;
+  }
+  // Consumption: between two full-tank fill-ups, km driven / litres added after the first one.
+  function consumption(recs) {
+    const fuel = recs.filter((r) => r.tipo === "abastecimento" && num(r.km) !== null).sort((a, b) => num(a.km) - num(b.km));
+    const out = new Map();
+    let lastFull = null, litres = 0;
+    fuel.forEach((r) => {
+      const L = num(r.litros) || 0;
+      if (lastFull) litres += L;
+      if (r.tanqueCheio !== false) {
+        if (lastFull && litres > 0) {
+          const km = num(r.km) - num(lastFull.km);
+          if (km > 0) out.set(r.id, { kmL: km / litres, km });
+        }
+        lastFull = r; litres = 0;
+      }
+    });
+    return out;
+  }
+  function total(r) {
+    const t = num(r.total);
+    if (t !== null) return t;
+    const L = num(r.litros), p = num(r.precoLitro);
+    return L !== null && p !== null ? L * p : 0;
+  }
+
+  const addMonths = (s, m) => { const [y, mo, d] = s.split("-").map(Number); const dt = new Date(y, mo - 1 + m, d); return dt; };
+  const dayDiff = (dt) => { const t = new Date(); t.setHours(0, 0, 0, 0); return Math.round((dt - t) / 86400000); };
+  function plansFor(vid) { return state.plans.filter((p) => p.veiculo === vid).sort((a, b) => (a.ordem || 0) - (b.ordem || 0)); }
+  // Status of one plan item from the latest maintenance record that covers it.
+  function planStatus(p, recs, km) {
+    const nm = (p.nome || "").toLowerCase();
+    const done = recs.filter((r) => r.tipo === "manutencao" && ((Array.isArray(r.itens) && r.itens.includes(p.id)) || (r.servico || "").toLowerCase() === nm));
+    let last = done[done.length - 1] || null;
+    if (!last && num(p.baseKm) !== null) last = { km: num(p.baseKm), data: p.baseData || "", base: true };
+    if (!last) return { p, last: null, level: "none", text: "sem registro" };
+    const iKm = num(p.intervaloKm), iM = num(p.intervaloMeses);
+    let kmLeft = null, daysLeft = null;
+    if (iKm && num(last.km) !== null) kmLeft = num(last.km) + iKm - km;
+    if (iM && last.data) daysLeft = dayDiff(addMonths(last.data, iM));
+    const late = (kmLeft !== null && kmLeft < 0) || (daysLeft !== null && daysLeft < 0);
+    const warn = (kmLeft !== null && kmLeft <= Math.max(300, iKm * 0.1)) || (daysLeft !== null && daysLeft <= 30);
+    let text;
+    if (late) text = kmLeft !== null && kmLeft < 0 ? "vencido há " + nInt.format(-kmLeft) + " km" : "vencido há " + -daysLeft + " dias";
+    else {
+      const parts = [];
+      if (kmLeft !== null) parts.push(nInt.format(kmLeft) + " km");
+      if (daysLeft !== null && (kmLeft === null || daysLeft <= 60)) parts.push(daysLeft + " dias");
+      text = "faltam " + parts.join(" ou ");
+    }
+    return { p, last, kmLeft, daysLeft, level: late ? "late" : warn ? "warn" : "ok", text };
+  }
+  const intervalText = (p) => {
+    const a = [];
+    if (num(p.intervaloKm)) a.push(nInt.format(num(p.intervaloKm)) + " km");
+    if (num(p.intervaloMeses)) a.push(num(p.intervaloMeses) % 12 === 0 ? (num(p.intervaloMeses) / 12 === 1 ? "1 ano" : num(p.intervaloMeses) / 12 + " anos") : num(p.intervaloMeses) + " meses");
+    return a.length ? "A cada " + a.join(" ou ") : "";
+  };
+
+  // ---------- render ----------
+  function render() {
+    const vs = state.vehicles;
+    const sw = $("switch");
+    if (!vs.length) {
+      sw.innerHTML = "";
+      $("actions").hidden = true; $("log").hidden = true;
+      $("panel").innerHTML = '<div class="empty-state">' + (state.loaded.v ? "Nenhum veículo cadastrado ainda. Peça ao Claude para cadastrar seus veículos." : "Os veículos aparecem aqui assim que os dados carregarem.") + "</div>";
+      return;
+    }
+    if (!vs.find((v) => v.id === state.current)) state.current = vs[0].id;
+    sw.innerHTML = vs.map((v) => '<button type="button" data-v="' + esc(v.id) + '" aria-pressed="' + (v.id === state.current) + '"><span class="n">' + esc(v.apelido || v.nome) + '</span><span class="p">' + esc(v.placa || "sem placa") + "</span></button>").join("");
+
+    const v = vs.find((x) => x.id === state.current);
+    const recs = recsFor(v.id);
+    const km = currentKm(v, recs);
+    const cons = consumption(recs);
+    const consVals = [...cons.values()];
+    const avg = consVals.length ? consVals.reduce((s, c) => s + c.km, 0) / consVals.reduce((s, c) => s + c.km / c.kmL, 0) : null;
+    const ym = today().slice(0, 7), yr = today().slice(0, 4);
+    const fuelMonth = recs.filter((r) => r.tipo === "abastecimento" && (r.data || "").startsWith(ym)).reduce((s, r) => s + total(r), 0);
+    const maintYear = recs.filter((r) => r.tipo === "manutencao" && (r.data || "").startsWith(yr)).reduce((s, r) => s + (num(r.valor) || 0), 0);
+
+    // upcoming maintenance: latest record per service with a next-km target
+    const due = new Map();
+    recs.filter((r) => r.tipo === "manutencao" && num(r.proximaKm)).forEach((r) => due.set((r.servico || "").toLowerCase(), r));
+    const alerts = [...due.values()].map((r) => ({ r, left: num(r.proximaKm) - km })).filter((a) => a.left <= 1000).sort((a, b) => a.left - b.left);
+    const plans = plansFor(v.id);
+    const pst = plans.map((p) => planStatus(p, recs, km));
+    const planAlerts = pst.filter((s) => s.level === "late" || s.level === "warn");
+
+    const digits = String(Math.round(km)).padStart(6, "0").split("").map((d) => "<span>" + d + "</span>").join("");
+    $("panel").innerHTML =
+      '<div class="panel-head"><div><h2>' + esc(v.nome) + "</h2>" +
+      (v.placa ? '<span class="plate">' + esc(v.placa) + "</span>" : '<span class="plate empty">placa não informada</span>') +
+      '</div><button class="btn ghost" type="button" id="editV">Editar</button></div>' +
+      '<div class="odo"><span class="label">Hodômetro</span><div class="odo-digits" aria-label="' + nInt.format(km) + ' quilômetros">' + digits + "<small>km</small></div></div>" +
+      alerts.map((a) => '<div class="alert">' + esc(a.r.servico) + (a.left <= 0 ? ": venceu há " + nInt.format(-a.left) + " km" : ": faltam " + nInt.format(a.left) + " km") + " (previsto aos " + nInt.format(num(a.r.proximaKm)) + " km)</div>").join("") +
+      planAlerts.map((s) => '<div class="alert">' + esc(s.p.nome) + ": " + esc(s.text) + "</div>").join("") +
+      '<div class="stats">' +
+      '<div class="stat"><span class="label">Consumo médio</span><b>' + (avg ? n1.format(avg) + " km/L" : "—") + "</b></div>" +
+      '<div class="stat"><span class="label">Combustível no mês</span><b>' + brl.format(fuelMonth) + "</b></div>" +
+      '<div class="stat"><span class="label">Manutenção ' + yr + "</span><b>" + brl.format(maintYear) + "</b></div>" +
+      "</div>";
+    $("editV").onclick = () => openVehicle(v);
+    $("actions").hidden = false; $("log").hidden = false;
+
+    $("plan").hidden = !state.loaded.p;
+    $("planList").innerHTML = pst.length ? pst.map((s) => {
+      const lastTxt = s.last && s.last.base ? (s.p.baseTexto || "contando desde " + nInt.format(num(s.last.km)) + " km") : s.last ? "último aos " + (num(s.last.km) !== null ? nInt.format(num(s.last.km)) + " km" : "—") + " em " + fmtDate(s.last.data) : "";
+      const meta = [intervalText(s.p), lastTxt].filter(Boolean).join(" · ");
+      return '<li class="plan-item" data-p="' + esc(s.p.id) + '" tabindex="0"><div><div class="t">' + esc(s.p.nome) + '</div><div class="m">' + esc(meta) + (s.p.descricao ? "<br>" + esc(s.p.descricao) : "") + '</div></div><span class="pill ' + s.level + '">' + esc(s.text) + "</span></li>";
+    }).join("") : '<li class="empty-state">Nenhum plano cadastrado para este veículo ainda.</li>';
+
+    document.querySelectorAll("#filters .chip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.f === state.filter)));
+    const kind = { abastecimento: "fuel", manutencao: "maint", km: "km" };
+    const list = recs.slice().reverse().filter((r) => state.filter === "all" || kind[r.tipo] === state.filter);
+    $("entries").innerHTML = list.length ? list.map((r) => {
+      const k = kind[r.tipo] || "km";
+      let title, meta, right = "", rsub = "";
+      const kmTxt = num(r.km) !== null ? nInt.format(num(r.km)) + " km" : "";
+      if (r.tipo === "abastecimento") {
+        const L = num(r.litros), p = num(r.precoLitro), c = cons.get(r.id);
+        title = (r.combustivel || "Gasolina") + (L !== null ? " · " + n2.format(L) + " L" : "");
+        meta = [fmtDate(r.data), kmTxt, r.posto, p !== null ? "R$ " + n3.format(p) + "/L" : "", r.tanqueCheio === false ? "não encheu" : ""].filter(Boolean).join(" · ");
+        right = brl.format(total(r)); rsub = c ? n1.format(c.kmL) + " km/L" : "";
+      } else if (r.tipo === "manutencao") {
+        title = r.servico || "Manutenção";
+        meta = [fmtDate(r.data), kmTxt, r.oficina, r.proximaKm ? "próxima aos " + nInt.format(num(r.proximaKm)) + " km" : "", r.obs].filter(Boolean).join(" · ");
+        right = num(r.valor) !== null ? brl.format(num(r.valor)) : "";
+      } else {
+        title = "Quilometragem"; meta = fmtDate(r.data) + (r.obs ? " · " + r.obs : ""); right = kmTxt;
+      }
+      return '<li class="entry ' + k + '" data-id="' + esc(r.id) + '" tabindex="0"><span class="bar"></span><div><div class="t">' + esc(title) + '</div><div class="m">' + esc(meta) + '</div></div><div class="r"><b>' + esc(right) + "</b><span>" + esc(rsub) + "</span></div></li>";
+    }).join("") : '<li class="empty-state">' + (state.loaded.r ? "Nada registrado ainda. Use os botões acima para lançar o primeiro." : "Carregando histórico…") + "</li>";
+  }
+
+  // ---------- forms ----------
+  const F = (id, label, value, attrs) => '<div class="field"><label for="' + id + '">' + label + '</label><input id="' + id + '" value="' + esc(value ?? "") + '" ' + (attrs || "") + "></div>";
+
+  function openSheet(title, html, onSave, onDelete) {
+    $("sheetTitle").textContent = title;
+    $("formBody").innerHTML = html;
+    $("formErr").textContent = "";
+    $("delBtn").hidden = !onDelete; $("delBtn").textContent = "Apagar"; $("delBtn").dataset.armed = "";
+    state.editing = { onSave, onDelete };
+    $("sheet").hidden = false; $("backdrop").hidden = false;
+    const first = $("formBody").querySelector("input, select, textarea"); if (first) setTimeout(() => first.focus({ preventScroll: true }), 50);
+  }
+  function closeSheet() { $("sheet").hidden = true; $("backdrop").hidden = true; state.editing = null; }
+
+  function openRecord(tipo, rec, preItem) {
+    const v = state.vehicles.find((x) => x.id === state.current);
+    const r = rec || {};
+    const vPlans = plansFor(v.id);
+    const chosen = new Set(Array.isArray(r.itens) ? r.itens : preItem ? [preItem] : []);
+    const titles = { abastecimento: "Abastecimento", manutencao: "Manutenção", km: "Anotar quilometragem" };
+    let html = '<div class="hint">' + esc(v.nome) + "</div>" + '<div class="grid2">' + F("fData", "Data", r.data || today(), 'type="date"') + F("fKm", "Km no painel", r.km ?? "", 'inputmode="numeric" placeholder="' + nInt.format(currentKm(v, recsFor(v.id))) + '"') + "</div>";
+    if (tipo === "abastecimento") {
+      html += '<div class="grid2">' + F("fLitros", "Litros", r.litros ?? "", 'inputmode="decimal"') + F("fPreco", "Preço por litro (R$)", r.precoLitro ?? "", 'inputmode="decimal"') + "</div>" +
+        '<div class="grid2">' + F("fTotal", "Total pago (R$)", r.total ?? "", 'inputmode="decimal"') +
+        '<div class="field"><label for="fComb">Combustível</label><select id="fComb">' + ["Gasolina", "Gasolina aditivada", "Etanol", "Diesel"].map((c) => "<option" + ((r.combustivel || "Gasolina") === c ? " selected" : "") + ">" + c + "</option>").join("") + "</select></div></div>" +
+        F("fPosto", "Posto", r.posto, 'autocomplete="off"') +
+        '<label class="check"><input type="checkbox" id="fCheio"' + (r.tanqueCheio === false ? "" : " checked") + "> Enchi o tanque</label>" +
+        '<div class="hint">Preencha dois entre litros, preço e total. O terceiro é calculado.</div>';
+    } else if (tipo === "manutencao") {
+      const preName = !rec && preItem ? (vPlans.find((p) => p.id === preItem) || {}).nome : "";
+      html += F("fServ", "Serviço", r.servico || preName, 'autocomplete="off" placeholder="Ex.: Troca de óleo"') +
+        (vPlans.length
+          ? '<div class="hint">Itens do plano feitos nesta visita (toque para marcar):</div><div class="quick">' + vPlans.map((p) => '<button type="button" class="chip' + (chosen.has(p.id) ? " on" : "") + '" data-pl="' + esc(p.id) + '" aria-pressed="' + chosen.has(p.id) + '">' + esc(p.nome) + "</button>").join("") + "</div>"
+          : '<div class="quick">' + ["Troca de óleo", "Filtro de ar", "Pneus", "Freios", "Revisão", "Bateria", "Correia"].map((s) => '<button type="button" class="chip" data-s="' + s + '">' + s + "</button>").join("") + "</div>") +
+        '<div class="grid2">' + F("fValor", "Valor (R$)", r.valor ?? "", 'inputmode="decimal"') + F("fProx", "Próxima aos (km)", r.proximaKm ?? "", 'inputmode="numeric" placeholder="opcional"') + "</div>" +
+        F("fOfic", "Oficina", r.oficina, 'autocomplete="off"') +
+        '<div class="field"><label for="fObs">Observação</label><textarea id="fObs" rows="2">' + esc(r.obs || "") + "</textarea></div>";
+    } else {
+      html += '<div class="field"><label for="fObs">Observação</label><textarea id="fObs" rows="2">' + esc(r.obs || "") + "</textarea></div>";
+    }
+    openSheet(titles[tipo] + (rec ? " (editar)" : ""), html, async () => {
+      const data = { veiculo: v.id, tipo, data: $("fData").value || today(), km: num($("fKm").value) };
+      if (tipo === "km" && data.km === null) throw new Error("Informe a quilometragem do painel.");
+      if (tipo === "abastecimento") {
+        let L = num($("fLitros").value), p = num($("fPreco").value), t = num($("fTotal").value);
+        if (L === null && p !== null && t !== null && p > 0) L = +(t / p).toFixed(3);
+        if (p === null && L !== null && t !== null && L > 0) p = +(t / L).toFixed(3);
+        if (t === null && L !== null && p !== null) t = +(L * p).toFixed(2);
+        if (t === null) throw new Error("Informe o total pago, ou litros e preço por litro.");
+        Object.assign(data, { litros: L, precoLitro: p, total: t, combustivel: $("fComb").value, posto: $("fPosto").value.trim(), tanqueCheio: $("fCheio").checked });
+      } else if (tipo === "manutencao") {
+        let s = $("fServ").value.trim();
+        const itens = [...chosen];
+        if (!s && itens.length) s = itens.map((id) => (vPlans.find((p) => p.id === id) || {}).nome).filter(Boolean).join(" + ");
+        if (!s) throw new Error("Diga qual serviço foi feito.");
+        Object.assign(data, { servico: s, itens, valor: num($("fValor").value), proximaKm: num($("fProx").value), oficina: $("fOfic").value.trim(), obs: $("fObs").value.trim() });
+      } else { data.obs = $("fObs").value.trim(); }
+      const col = state.db.collection("registros");
+      if (rec) { await col.doc(rec.id).set({ ...data, criadoEm: rec.criadoEm || Date.now() }); toast("Registro atualizado"); }
+      else { await col.add({ ...data, criadoEm: Date.now() }); toast("Registro salvo"); }
+    }, rec ? async () => { await state.db.collection("registros").doc(rec.id).delete(); toast("Registro apagado"); } : null);
+    $("formBody").querySelectorAll("[data-s]").forEach((b) => (b.onclick = () => { $("fServ").value = b.dataset.s; }));
+    $("formBody").querySelectorAll("[data-pl]").forEach((b) => (b.onclick = () => {
+      const id = b.dataset.pl;
+      if (chosen.has(id)) chosen.delete(id); else chosen.add(id);
+      b.classList.toggle("on", chosen.has(id)); b.setAttribute("aria-pressed", String(chosen.has(id)));
+    }));
+  }
+
+  function openVehicle(v) {
+    const html = F("fNome", "Nome", v.nome) + '<div class="grid2">' + F("fApel", "Nome curto", v.apelido, 'placeholder="Ex.: Fit"') + F("fPlaca", "Placa", v.placa, 'autocapitalize="characters" placeholder="ABC1D23"') + "</div>" +
+      F("fKmIni", "Km inicial (antes dos registros)", v.kmInicial ?? "", 'inputmode="numeric"');
+    openSheet("Editar veículo", html, async () => {
+      const nome = $("fNome").value.trim(); if (!nome) throw new Error("O veículo precisa de um nome.");
+      await state.db.collection("veiculos").doc(v.id).update({ nome, apelido: $("fApel").value.trim(), placa: $("fPlaca").value.trim().toUpperCase(), kmInicial: num($("fKmIni").value) });
+      toast("Veículo atualizado");
+    }, null);
+  }
+
+  // ---------- events ----------
+  $("switch").addEventListener("click", (e) => { const b = e.target.closest("button[data-v]"); if (!b) return; state.current = b.dataset.v; try { localStorage.setItem("garagem.current", state.current); } catch (er) {} render(); });
+  $("filters").addEventListener("click", (e) => { const b = e.target.closest("[data-f]"); if (!b) return; state.filter = b.dataset.f; try { localStorage.setItem("garagem.filter", state.filter); } catch (er) {} render(); });
+  const openEntry = (el) => { const r = state.records.find((x) => x.id === el.dataset.id); if (r && state.db) openRecord(r.tipo, r); };
+  $("entries").addEventListener("click", (e) => { const li = e.target.closest(".entry"); if (li) openEntry(li); });
+  $("entries").addEventListener("keydown", (e) => { if (e.key === "Enter") { const li = e.target.closest(".entry"); if (li) openEntry(li); } });
+  const openPlan = (el) => { if (state.db) openRecord("manutencao", null, el.dataset.p); };
+  $("planList").addEventListener("click", (e) => { const li = e.target.closest(".plan-item"); if (li) openPlan(li); });
+  $("planList").addEventListener("keydown", (e) => { if (e.key === "Enter") { const li = e.target.closest(".plan-item"); if (li) openPlan(li); } });
+  $("aFuel").onclick = () => state.db && openRecord("abastecimento");
+  $("aMaint").onclick = () => state.db && openRecord("manutencao");
+  $("aKm").onclick = () => state.db && openRecord("km");
+  $("cancelBtn").onclick = closeSheet; $("backdrop").onclick = closeSheet;
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("sheet").hidden) closeSheet(); });
+  $("form").addEventListener("submit", async (e) => {
+    e.preventDefault(); if (!state.editing) return;
+    $("saveBtn").disabled = true;
+    try { await state.editing.onSave(); closeSheet(); }
+    catch (err) { $("formErr").textContent = err && err.code ? "Não deu para salvar (" + err.code + "). Tente de novo." : (err.message || "Não deu para salvar."); }
+    finally { $("saveBtn").disabled = false; }
+  });
+  $("delBtn").onclick = async () => {
+    const b = $("delBtn");
+    if (!b.dataset.armed) { b.dataset.armed = "1"; b.textContent = "Toque de novo para apagar"; setTimeout(() => { if (b.dataset.armed) { b.dataset.armed = ""; b.textContent = "Apagar"; } }, 3000); return; }
+    try { await state.editing.onDelete(); closeSheet(); } catch (err) { $("formErr").textContent = "Não deu para apagar. Tente de novo."; }
+  };
+
+  // ---------- data ----------
+  render();
+  const fail = (msg) => { $("sync").textContent = "Sem conexão"; const n = $("notice"); n.textContent = msg; n.hidden = false; };
+  const timer = setTimeout(() => { if (!state.loaded.v) fail("Os dados estão demorando para carregar. Verifique a internet e abra a página de novo."); }, 10000);
+  (async () => {
+    const db = window.claude && window.claude.use ? await window.claude.use("db") : null;
+    if (!db) { clearTimeout(timer); fail("Para ver e salvar os registros, abra esta página no claude.ai com a sua conta."); return; }
+    state.db = db;
+    db.collection("veiculos").orderBy("ordem").onSnapshot((snap) => {
+      clearTimeout(timer); state.loaded.v = true; $("notice").hidden = true;
+      state.vehicles = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      $("sync").textContent = "Salvo na nuvem";
+      render();
+    }, (err) => { clearTimeout(timer); fail("Não consegui carregar os veículos (" + err.code + ")."); });
+    db.collection("registros").limit(1000).onSnapshot((snap) => {
+      state.loaded.r = true;
+      state.records = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      render();
+    }, (err) => fail("Não consegui carregar o histórico (" + err.code + ")."));
+    db.collection("planos").limit(500).onSnapshot((snap) => {
+      state.loaded.p = true;
+      state.plans = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      render();
+    }, (err) => fail("Não consegui carregar o plano de manutenção (" + err.code + ")."));
+  })();
+})();
+</script>
