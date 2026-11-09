@@ -420,7 +420,7 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
   </section>
 
   <section class="sec" id="eCompSec">
-    <div class="sechead"><h2>Compras para dar entrada</h2><span class="note">Das notas fiscais lançadas nos últimos 60 dias</span></div>
+    <div class="sechead"><h2>Itens da nota sem cadastro</h2><span class="note">A nota já entra sozinha no estoque. Só aparece aqui o que não achei na sua lista: escolha a bebida ou toque em Ignorar.</span></div>
     <div class="list" id="eComp"></div>
   </section>
 </main>
@@ -1260,9 +1260,19 @@ function compraCands(){
   const since=addDays(today(),-60), done=new Set(movs.map(m=>m.origem).filter(Boolean)), ign=new Set(eCfg.ign||[]), out=[];
   for(const it of state.items){ if(it.pendente || !Array.isArray(it.itens) || it.data<since) continue;
     it.itens.forEach((x,i)=>{ const key=`${it.id}:${i}`; if(done.has(key)||ign.has(key)) return;
-      const p=matchProd(x.nome); if(!p && !/cerv|chop|beer|long ?neck|heineken|brahma|skol|amstel|spaten|stella|corona|budweiser|original|eisenbahn|itaipava|devassa|petra|imperio|bohemia|antarctica|antartica|refri|coca|guarana|pepsi|fanta|sprite|kuat|sukita|soda|tonica|schweppes|h2oh|agua|energ|isoton|gatorade|powerade|monster|suco/.test(norm(x.nome))) return;
+      const p=matchProd(x.nome); if(p) return; if(!/cerv|chop|beer|long ?neck|heineken|brahma|skol|amstel|spaten|stella|corona|budweiser|original|eisenbahn|itaipava|devassa|petra|imperio|bohemia|antarctica|antartica|refri|coca|guarana|pepsi|fanta|sprite|kuat|sukita|soda|tonica|schweppes|h2oh|agua|energ|isoton|gatorade|powerade|monster|suco/.test(norm(x.nome))) return;
       out.push({key,it,x,p}); }); }
   return out.sort((a,b)=>b.it.data.localeCompare(a.it.data)).slice(0,40);
+}
+// ao confirmar a nota, as bebidas entram sozinhas no estoque
+async function entradaNota(it){
+  const done=new Set(movs.map(m=>m.origem).filter(Boolean)), now=Date.now(); let n=0; const faltam=[];
+  for(const [i,x] of (it.itens||[]).entries()){ const key=`${it.id}:${i}`; if(done.has(key)) continue;
+    const p=matchProd(x.nome); if(!p){ faltam.push(x.nome); continue; } const q=unitsFor(x,p); if(!(q>0)) continue;
+    await db.collection("movimentos").doc().set({produtoId:p.id,tipo:"entrada",qtd:q,data:today(),origem:key,obs:`NF ${it.fornecedor||""}`.trim(),criadoEm:now+i});
+    const cu=x.vTotal?Math.round(x.vTotal/q*100)/100:0, upd={atualizadoEm:Date.now()}; if(cu) upd.custoUnit=cu; if(!p.fornecedor&&it.fornecedor) upd.fornecedor=it.fornecedor;
+    try{ await db.collection("estoque").doc(p.id).update(upd); }catch{} n++; }
+  return {n,faltam};
 }
 function unitsFor(x,p){ const cx=p?.porCaixa||1; return CASE_UN.test(String(x.un||"").trim()) ? Math.round((x.qtd||0)*cx) : Math.round(x.qtd||0); }
 function renderCompras(){
@@ -2153,7 +2163,8 @@ $("pendList").addEventListener("click", async e=>{
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Toque de novo para confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Confirmar entrada"; },3000); return; }
   b.disabled=true;
   try{ await db.collection("lancamentos").doc(it.id).update({pendente:false,confirmadoEm:today(),atualizadoEm:Date.now()}); logChange(it.id, it, {...it,pendente:false,confirmadoEm:today()}, "confirmou");
-    showStatus(`${it.descricao||"Lançamento"} confirmado: ${brl.format(it.valor)} agora conta no balanço de ${ymLabel(ymOf(it.data))}.${it.itens?.length?" As cervejas já aparecem no Estoque para dar entrada.":""}`); setTimeout(()=>showStatus(""),6000); }
+    let ent=""; if(it.itens?.length){ try{ const r=await entradaNota(it); ent=` ${r.n} bebida(s) entraram no estoque.${r.faltam.length?` ${r.faltam.length} item(ns) sem cadastro: veja no Estoque.`:""}`; }catch(err){ ent=" Não consegui dar entrada no estoque: "+(err?.message||err?.code); } }
+    showStatus(`${it.descricao||"Lançamento"} confirmado: ${brl.format(it.valor)} agora conta no balanço de ${ymLabel(ymOf(it.data))}.${ent}`); setTimeout(()=>showStatus(""),7000); }
   catch(err){ b.disabled=false; showStatus("Não foi possível confirmar: "+(err?.message||err?.code),true); }
 });
 let payIt=null, payFile=null;
