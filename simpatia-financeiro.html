@@ -256,6 +256,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 .cnt input{font:inherit;font-size:16px;font-family:var(--mono);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;text-align:right}
 .ctag{font-size:11px;font-weight:700;color:var(--pos)}
 .cnt .h{font-size:11px;color:var(--muted);text-align:center;font-weight:600}
+.cSplit{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:14px;padding:8px 10px;background:var(--sunk);border-radius:9px}
 .hist{display:flex;flex-direction:column;font-size:13px}
 .hist div{display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
 .hist div:first-child{border-top:0}
@@ -403,6 +404,8 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
     </div>
     <div class="field"><input id="fQ" type="search" placeholder="Buscar cliente" aria-label="Buscar cliente" autocomplete="off"></div>
     <div class="seg" id="fGrupo" style="grid-template-columns:1fr 1fr" role="group" aria-label="Grupo"><button type="button" data-g="cli" aria-pressed="true">Fiado comum</button><button type="button" data-g="func" aria-pressed="false">Fiado funcionário</button></div>
+    <div class="seg" id="fMes" style="grid-template-columns:1fr 1fr" role="group" aria-label="Mês"><button type="button" data-mes="ant" aria-pressed="false" id="fMesAnt">Mês anterior</button><button type="button" data-mes="mes" aria-pressed="true" id="fMesAtu">Este mês</button></div>
+    <div class="note" id="fMesNote"></div>
     <div class="chips"><button class="chip" id="fShowAll" aria-pressed="false">Mostrar também quem já pagou</button></div>
     <button type="button" class="btn primary" id="fAvisoFunc" style="align-self:flex-start">Aviso para todos os funcionários</button>
     <div class="list" id="fList"></div>
@@ -643,6 +646,7 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 <div class="scrim" id="scrim7" hidden>
   <div class="sheet">
     <div class="fiahead"><h3 id="cName">Cliente</h3><span class="num" id="cSaldo"></span></div>
+    <div class="cSplit" id="cSplit"></div>
     <div class="note" id="cInfo"></div>
     <div class="banner" id="cLib"></div>
     <div class="tools"><button type="button" class="btn" id="cFecha">Fechar o mês</button><label class="chk" style="align-items:center" id="cIsentoWrap"><input type="checkbox" id="cIsento"><span>Cliente antigo: sem acréscimo</span></label><label class="chk" style="align-items:center" id="cFuncWrap"><input type="checkbox" id="cFunc"><span>Funcionário (desconta no salário, +18%)</span></label></div>
@@ -1597,7 +1601,7 @@ $("qBtn").onclick=()=>{ const open=$("qBody").hidden; $("qBody").hidden=!open; $
 
 /* ---------- fiados ---------- */
 let fiaOwner=true, fGrupo="cli";
-let fiados=[], fMode="compra", fShowAll=false, fOpenKey=null;
+let fiados=[], fMode="compra", fShowAll=false, fOpenKey=null, fMes="mes";
 const ckey=n=>norm(n).replace(/[^a-z0-9 ]/g,"").trim();
 let clientesTel={};
 const cid=k=>(k.replace(/ /g,"-").slice(0,150))||"x";
@@ -1628,7 +1632,8 @@ function baseAcrescimo(c){
 function cobrancaText(c){
   const saud=saudacao(), lastPay=[...c.hist].reverse().find(f=>f.tipo==="pagamento");
   const acr=[...c.hist].reverse().find(f=>f.tipo==="acrescimo" && (!lastPay || (f.data>lastPay.data) || (f.data===lastPay.data && (f.criadoEm||0)>(lastPay.criadoEm||0))));
-  const tot=Math.max(0,c.saldo), mes=acr?Math.round(((acr.base||0)+acr.valor)*100)/100:0;
+  // cobrança = o que está fechado (mês anterior); se o mês atual já foi fechado com acréscimo, cobra tudo
+  const tot=acr&&acr.data>=thisMonth()+"-01"?Math.max(0,c.saldo):(c.oldRest??Math.max(0,c.saldo)), mes=acr?Math.round(((acr.base||0)+acr.valor)*100)/100:0;
   const pctTxt=Math.round((acr?.pct||taxaK(c.key))*100);
   if(funcK(c.key)) return `${saud}! Tudo bem?\nFechei sua conta do mês aqui no bar: ${brl.format(tot)}.\nEsse valor vai ser descontado no seu salário. Qualquer dúvida, fala comigo.\nObrigado!`;
   const linha = acr ? `Fechei sua continha aqui: ${brl.format(acr.base||0)} de fiado do mês + ${pctTxt}% do prazo de 30 dias = ${brl.format(mes)}.${tot-mes>0.009?` Somando com o que já estava em aberto, o total ficou em ${brl.format(tot)}.`:""}` : `Fechei sua continha aqui, ficou em ${brl.format(tot)}.`;
@@ -1658,6 +1663,9 @@ function fClients(){
     if(f.tipo!=="pagamento" && c.saldo>0.009 && !c.aberto) c.aberto=f.data; if(c.saldo<=0.009) c.aberto=null;
     c.ult=f.data; c.nome=f.cliente; c.hist.push(f); map.set(k,c);
   }
+  // separa: mês anterior (fechado) × mês atual. Pagamento abate primeiro o que é do mês anterior.
+  for(const c of map.values()){ let oldC=0,newC=0,pg=0; for(const f of c.hist){ if(f.tipo==="pagamento") pg+=f.valor; else if(f.data<start) oldC+=f.valor; else newC+=f.valor; }
+    c.oldC=oldC; c.newC=newC; c.pagos=pg; c.oldRest=Math.max(0,oldC-pg); c.newRest=Math.max(0,newC-Math.max(0,pg-oldC)); }
   return [...map.values()];
 }
 function renderFiados(){
@@ -1668,23 +1676,31 @@ function renderFiados(){
   const novos=fiados.filter(f=>f.tipo==="compra"&&!isF(f.cliente)&&ymOf(f.data)===ym).reduce((s,f)=>s+f.valor,0);
   const funcTot=devendo.filter(c=>funcK(c.key)).reduce((s,c)=>s+c.saldo,0), funcMes=fiados.filter(f=>f.tipo==="compra"&&isF(f.cliente)&&ymOf(f.data)===ym).reduce((s,f)=>s+f.valor,0);
   const tile=(l,v,c="")=>`<div class="tile"><span class="label">${l}</span><span class="v num"${c}>${v}</span></div>`;
-  $("fTiles").innerHTML=tile("Clientes: a receber",brl.format(total),total?' style="color:var(--neg)"':"")+tile(`Fiado até ${ymLabel(shiftYm(ym,-1),true)}`,brl.format(ant))+tile(`Fiado novo em ${ymLabel(ym,true)}`,brl.format(novos))+tile(`Recebido em ${ymLabel(ym,true)}`,brl.format(rec),rec?' style="color:var(--pos)"':"")+
+  $("fTiles").innerHTML=tile("Clientes: a receber",brl.format(total),total?' style="color:var(--neg)"':"")+tile(`${ymLabel(shiftYm(ym,-1),true)} (fechado): falta receber`,brl.format(cs.filter(c=>!funcK(c.key)).reduce((t,c)=>t+c.oldRest,0)))+tile(`Fiado de ${ymLabel(ym,true)} até hoje`,brl.format(novos))+tile(`Recebido em ${ymLabel(ym,true)}`,brl.format(rec),rec?' style="color:var(--pos)"':"")+
     `<div class="tile" style="grid-column:1/-1"><span class="label">Envelope do fiado (dinheiro guardado)</span><span class="v num" style="color:var(--pos)">${brl.format(fiados.filter(f=>f.tipo==="pagamento"&&!isF(f.cliente)&&(!f.forma||f.forma==="Dinheiro")).reduce((t,f)=>t+f.valor,0))}</span><span class="note">Fiado pago em dinheiro: fica no envelope, separado do caixa. Pago no cartão ou Pix: ${brl.format(fiados.filter(f=>f.tipo==="pagamento"&&!isF(f.cliente)&&f.forma&&f.forma!=="Dinheiro").reduce((t,f)=>t+f.valor,0))}, que entra no caixa pela maquininha (marque em Vendas do dia, em "pagamento de fiado").</span></div>`+
     `<div class="tile" style="grid-column:1/-1"><span class="label">Consumo de funcionários (controle)</span><span class="v num">${brl.format(funcTot)}</span><span class="note">Saiu do bar e é descontado no salário pelo restaurante. Não entra no a receber do bar. Consumo novo em ${ymLabel(ym,true)}: ${brl.format(funcMes)}.</span></div>`;
   $("fCliList").innerHTML=cs.map(c=>`<option value="${esc(c.nome)}">`).join("");
 
   const q=ckey($("fQ").value);
   $("fAvisoFunc").hidden = fGrupo!=="func"; $("fAnt").hidden = fGrupo==="func" || !fiaOwner;
-  let rows=(fShowAll?cs:devendo).filter(c=>(!q||c.key.includes(q))&&(fGrupo==="func"?funcK(c.key):!funcK(c.key))).sort((a,b)=>b.saldo-a.saldo||a.nome.localeCompare(b.nome));
+  const mAnt=ymLabel(shiftYm(ym,-1)).split(" ")[0], mAtu=ymLabel(ym).split(" ")[0];
+  $("fMesAnt").textContent=`${mAnt[0].toUpperCase()+mAnt.slice(1)} (fechado)`; $("fMesAtu").textContent=`${mAtu[0].toUpperCase()+mAtu.slice(1)} (este mês)`;
+  [...$("fMes").children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.mes===fMes));
+  const grp=cs.filter(c=>fGrupo==="func"?funcK(c.key):!funcK(c.key));
+  const somaAnt=grp.reduce((t,c)=>t+c.oldRest,0), somaAtu=grp.reduce((t,c)=>t+c.newC,0);
+  $("fMesNote").textContent = fMes==="ant" ? `Conta fechada até ${ddmm(addDays(ym+"-01",-1))}: falta receber ${brl.format(somaAnt)}. Pagamento abate primeiro este mês.` : `Fiado de ${mAtu} somado até hoje: ${brl.format(somaAtu)}. Fecha no fim do mês.`;
+  const amtOf=c=>fMes==="ant"?c.oldRest:c.newC;
+  let rows=grp.filter(c=>fMes==="ant"?(c.oldC>0.009&&(fShowAll||c.oldRest>0.009)):(c.newC>0.009)).filter(c=>!q||c.key.includes(q)).sort((a,b)=>amtOf(b)-amtOf(a)||a.nome.localeCompare(b.nome));
   if(!cs.length){ $("fList").innerHTML=`<div class="empty"><strong>Nenhum fiado lançado</strong>Comece pelos fiados do mês anterior: toque em <b>+ Fiado do mês anterior</b> e lance o total que cada cliente deve. Depois use <b>+ Novo fiado</b> no dia a dia.</div>`; return; }
-  if(!rows.length){ $("fList").innerHTML=`<div class="empty"><strong>${q?"Ninguém com esse nome":fGrupo==="func"?"Nenhum consumo de funcionário em aberto":"Nenhum cliente devendo"}</strong>${q?"":fGrupo==="func"?"Lance o consumo em <b>+ Novo fiado</b> marcando Funcionário.":"Todos os fiados estão pagos."}</div>`; return; }
+  if(!rows.length){ $("fList").innerHTML=`<div class="empty"><strong>${q?"Ninguém com esse nome":fMes==="ant"?"Nada a receber do mês anterior":"Nenhum fiado lançado este mês"}</strong>${q?"":fMes==="ant"?"Todos pagaram o mês fechado.":"Toque em <b>+ Novo fiado</b> para lançar."}</div>`; return; }
   $("fList").innerHTML=rows.map(c=>{ const dias=c.aberto?dayDiff(c.aberto,today()):0, st=c.saldo<=0.009?"ok":(c.ant-c.hist.filter(f=>f.tipo==="pagamento"&&f.data>=thisMonth()+"-01").reduce((t,f)=>t+f.valor,0))>0.009?"red":dias>15?"amb":"gray";
     const lbl={ok:"Pago",red:"Do mês anterior",amb:`${dias} dias`,gray:"Este mês"}[st];
     return `<div class="sw" data-sw="${esc(c.key)}"><button type="button" class="swdel" data-swdel="${esc(c.key)}">Excluir</button><button class="row" data-ck="${esc(c.key)}"><span class="stripe" style="background:${st==="red"?"var(--neg)":st==="amb"?"var(--accent)":st==="ok"?"var(--pos)":"var(--line)"}"></span>
     <span class="main"><span class="t">${esc(c.nome)}${funcK(c.key)?` <span class="badge b-gray">Funcionário</span>`:""}</span><span class="s">${c.aberto?`<span>devendo desde ${ddmm(c.aberto)}</span>`:""}${telOk(telOf(c.key))?`<span>· ${fmtTel(telOf(c.key))}</span>`:""}<span>· último mov. ${ddmm(c.ult)}</span></span></span>
-    <span class="amt"><span class="num" style="color:${c.saldo>0.009?"var(--neg)":"var(--pos)"}">${brl.format(Math.max(0,c.saldo))}</span><br><span class="badge b-${st}">${lbl}</span>${!isentoK(c.key)&&!funcK(c.key)&&liberacao(c).pode<=0.009?`<br><span class="badge b-red" style="margin-top:3px;display:inline-block">Sem fiado novo</span>`:""}</span></button></div>`; }).join("");
+    <span class="amt"><span class="num" style="color:${amtOf(c)>0.009?"var(--neg)":"var(--pos)"}">${brl.format(amtOf(c))}</span><br>${fMes==="ant"?(c.oldRest>0.009?`<span class="badge b-red">A receber</span>${c.oldRest<c.oldC-0.009?`<br><span class="note">pagou ${brl.format(c.oldC-c.oldRest)}</span>`:""}`:`<span class="badge b-ok">Pago</span>`):`<span class="badge b-gray">Em aberto</span>`}${!isentoK(c.key)&&!funcK(c.key)&&liberacao(c).pode<=0.009?`<br><span class="badge b-red" style="margin-top:3px;display:inline-block">Sem fiado novo</span>`:""}</span></button></div>`; }).join("");
   if(!$("scrim7").hidden) renderClient();
 }
+$("fMes").addEventListener("click", e=>{ const b=e.target.closest("[data-mes]"); if(!b) return; fMes=b.dataset.mes; renderFiados(); });
 function setFMode(m){
   fMode=m; [...$("fSeg").children].forEach(b=>b.setAttribute("aria-pressed", b.dataset.m===m));
   $("fFormaF").hidden=m!=="pagamento"; fFormaUpd(); $("fDtAnt").hidden=m==="pagamento";
@@ -1777,7 +1793,9 @@ $("fList").addEventListener("click", async e=>{ const d=e.target.closest("[data-
 $("fList").addEventListener("click", e=>{ if(Date.now()-swJust<350) return; const op=e.target.closest(".sw.open"); if(op){ swCloseAll(); return; } const b=e.target.closest("[data-ck]"); if(!b) return; fOpenKey=b.dataset.ck; $("cCopyBox").innerHTML=""; $("cTelNote").dataset.msg=""; $("cTelNote").dataset.novo=""; $("cTelNote").dataset.quitou=""; renderClient(); $("scrim7").hidden=false; });
 function renderClient(){
   const c=fClients().find(x=>x.key===fOpenKey); if(!c){ $("scrim7").hidden=true; return; }
-  $("cName").textContent=c.nome; $("cSaldo").textContent=brl.format(Math.max(0,c.saldo)); $("cSaldo").style.color=c.saldo>0.009?"var(--neg)":"var(--pos)";
+  $("cName").textContent=c.nome; $("cSaldo").textContent="";
+  { const ym=thisMonth(), mA=ymLabel(shiftYm(ym,-1)).split(" ")[0], mM=ymLabel(ym).split(" ")[0];
+    $("cSplit").innerHTML=`<span>${mA} (fechado): <b class="num" style="color:${c.oldRest>0.009?"var(--neg)":"var(--pos)"}">${c.oldRest>0.009?brl.format(c.oldRest):"pago"}</b></span><span>${mM} (até hoje): <b class="num">${brl.format(c.newRest)}</b></span>`; }
   const L=liberacao(c), isento=!!clientesTel[c.key]?.semAcrescimo;
   if(funcK(c.key)){ $("cLib").innerHTML=`<b>Funcionário: controle de consumo</b><br><span class="note">O que sai do bar fica anotado aqui e é descontado no salário pelo restaurante.${L.novo?` Consumo novo este mês: ${brl.format(L.novo)}.`:""}</span>`; $("cLib").className="banner"; }
   else { $("cLib").innerHTML=`<b>Pode pegar fiado agora: ${brl.format(L.pode)}</b><br><span class="note">${esc(L.motivo)}${L.novo?` · já pegou ${brl.format(L.novo)} este mês`:""}</span>`;
