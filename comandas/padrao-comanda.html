@@ -35,6 +35,13 @@ tr.sec td{background:#1F4D3A;color:#fff;font-weight:700;font-size:18px;text-tran
 .lbl{font-size:16px;color:#8A8270;text-transform:uppercase;letter-spacing:.06em}
 .canc{text-decoration:line-through;color:#7A8BB8}
 .tot{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;border-top:2px solid #CFC7B2;padding-top:8px}
+.cols{display:grid;grid-template-columns:1.55fr .85fr 1fr;gap:8px;margin-top:6px;padding-bottom:4px;border-bottom:1px solid #E6E0CF}
+.row3{display:grid;grid-template-columns:1.55fr .85fr 1fr;gap:8px;align-items:center;border-bottom:1px solid #E6E0CF;padding:3px 0}
+.row3 .hand{font-size:29px;white-space:nowrap}
+.row3 .sm{font-size:28px;text-align:right}
+.tally{display:inline-flex;gap:10px;align-items:center;height:40px}
+.tally svg{display:block}
+.legend{display:flex;align-items:center;gap:12px;font-size:19px;color:#5C6A62;margin-top:12px}
 .note{font-size:19px;color:#5C6A62;margin-top:14px;line-height:1.35}
 footer{margin-top:26px;font-size:18px;color:#5C6A62;display:flex;justify-content:space-between}
 </style></head><body><div class="page">
@@ -42,9 +49,9 @@ footer{margin-top:26px;font-size:18px;color:#5C6A62;display:flex;justify-content
 
 <div class="rules">
   <div class="rule"><b>1. Topo</b><span>MESA 1 a 6 ou BALCÃO + nome do cliente, a data e a inicial de quem atendeu.</span></div>
-  <div class="rule"><b>2. Na hora</b><span>Anote cada item assim que sair. Uma linha por item: <b style="display:inline;font-size:20px;color:#16201B">QTD + NOME</b>.</span></div>
-  <div class="rule"><b>3. Cancelou?</b><span>Risque com um traço e escreva CANC. Nunca rasgue nem jogue fora a comanda.</span></div>
-  <div class="rule"><b>4. Fechou</b><span>Escreva o TOTAL e a forma de pagamento com a sigla abaixo.</span></div>
+  <div class="rule"><b>2. Risquinho</b><span>Escreva o <b style="display:inline;font-size:20px;color:#16201B">NOME</b> uma vez. A cada pedido, um risquinho. No 5º, risque atravessado.</span></div>
+  <div class="rule"><b>3. Errou?</b><span>Faça um X em cima do risquinho errado. Nunca rasgue nem jogue fora a comanda.</span></div>
+  <div class="rule"><b>4. Fechou</b><span>Conte os risquinhos, multiplique pelo preço, some o TOTAL e escreva a forma de pagamento.</span></div>
 </div>
 
 <div class="grid">
@@ -100,18 +107,36 @@ footer{margin-top:26px;font-size:18px;color:#5C6A62;display:flex;justify-content
     <div class="thead"><span>Comanda Nº <span class="no">0127</span></span><span>Bar Simpatia</span></div>
     <div class="line"><span class="lbl">Mesa / Balcão</span><span class="hand">MESA 3</span></div>
     <div class="line"><span class="lbl">Data · Atend.</span><span class="hand">10/11 · L</span></div>
-    <div style="margin-top:8px">
-      <div class="line hand"><span>2 BRAHMA LT</span><span>26,00</span></div>
-      <div class="line hand"><span>1 ANTARC 600</span><span>11,00</span></div>
-      <div class="line hand"><span>1 HEINEKEN LN</span><span>10,00</span></div>
-      <div class="line hand"><span class="canc">1 SKOL LT</span><span class="canc">CANC</span></div>
-      <div class="line hand"><span>1 GUARANÁ ZERO</span><span>5,00</span></div>
-    </div>
-    <div class="tot"><span class="lbl">Total</span><span class="hand" style="font-size:46px">52,00</span></div>
-    <div class="tot" style="border-top:0;margin-top:0;padding-top:0"><span class="lbl">Pagto</span><span class="hand">PIX 30,00 + DIN 22,00</span></div>
+    <div class="cols lbl"><span>Produto</span><span>Risquinhos</span><span>Fechamento</span></div>
+    <div class="row3"><span class="hand">BRAHMA LT</span><span class="tally" data-n="7"></span><span class="hand sm">7×13 = 91,00</span></div>
+    <div class="row3"><span class="hand">ANTARC 600</span><span class="tally" data-n="3" data-x="1"></span><span class="hand sm">3×11 = 33,00</span></div>
+    <div class="row3"><span class="hand">HEINEKEN LN</span><span class="tally" data-n="1"></span><span class="hand sm">1×10 = 10,00</span></div>
+    <div class="row3"><span class="hand">GUARANÁ ZERO</span><span class="tally" data-n="2"></span><span class="hand sm">2×5 = 10,00</span></div>
+    <div class="row3"><span class="hand">BOL. CARNE</span><span class="tally" data-n="1"></span><span class="hand sm">1× ___</span></div>
+    <div class="tot"><span class="lbl">Total (bebidas)</span><span class="hand" style="font-size:46px">144,00</span></div>
+    <div class="tot" style="border-top:0;margin-top:0;padding-top:0"><span class="lbl">Pagto</span><span class="hand">PIX 100,00 + DIN 44,00</span></div>
   </div>
-  <p class="note">Pagou de duas formas? Escreva as duas com o valor de cada uma. No fim do dia, some as comandas por forma de pagamento e lance em <b>Vendas do dia</b>.</p>
+  <div class="legend"><span class="tally" data-n="5"></span><span>= 5 &nbsp;·&nbsp; quatro risquinhos e o 5º atravessado</span></div>
+  <div class="legend"><span class="tally" data-n="1" data-x="1"></span><span>= risquinho errado, não conta</span></div>
+  <p class="note">Na Antarctica 600 tem 4 risquinhos, mas um está com X: contam <b>3</b>. Pagou de duas formas? Escreva as duas com o valor de cada uma. No fim do dia, some as comandas por forma de pagamento e lance em <b>Vendas do dia</b>.</p>
 </div>
 </div>
 <footer><span>Preços de 09/11/2026 · confira a lousa se mudar</span><span>Cada garrafa vendida = um vasilhame vazio</span></footer>
-</div></body></html>
+</div>
+<script>
+const ink="#1B3A8C";
+function group(k,x){ const w=k===5?46:k*10+6, ln=[]; for(let i=0;i<Math.min(k,4);i++){ const X=6+i*10+(i%2); ln.push(`<path d="M${X} ${4+(i%2)} L${X+1} 36" stroke="${ink}" stroke-width="3.2" stroke-linecap="round" fill="none"/>`); }
+  if(k===5) ln.push(`<path d="M0 30 L46 10" stroke="${ink}" stroke-width="3.2" stroke-linecap="round" fill="none"/>`);
+  return {w,ln}; }
+document.querySelectorAll(".tally").forEach(el=>{ let n=+el.dataset.n, x=+(el.dataset.x||0), out="";
+  const total=n+x; let left=total;
+  while(left>0){ const k=Math.min(5,left); const g=group(k); let extra="";
+    if(left<=x+ (k===left?0:0) && x>0 && left===total-n+(0)){}
+    out+=`<svg width="${g.w}" height="40" viewBox="0 0 ${g.w} 40">${g.ln.join("")}${extra}</svg>`; left-=k; }
+  if(x){ // X over the last mark
+    const svgs=el.innerHTML; }
+  el.innerHTML=out;
+  if(x){ const last=el.lastElementChild, w=+last.getAttribute("width"), X=w-6- (total%5===0?0:0);
+    const cx=(total%5===0)?40:6+((total-1)%5)*10; last.insertAdjacentHTML("beforeend",`<path d="M${cx-7} 8 L${cx+8} 34 M${cx+8} 8 L${cx-7} 34" stroke="#B4382F" stroke-width="3" stroke-linecap="round"/>`); }
+});
+</script></body></html>
