@@ -1333,7 +1333,8 @@ function renderFiados(){
   const rec=fiados.filter(f=>f.tipo==="pagamento"&&ymOf(f.data)===ym).reduce((s,f)=>s+f.valor,0);
   const novos=fiados.filter(f=>f.tipo!=="pagamento"&&ymOf(f.data)===ym).reduce((s,f)=>s+f.valor,0);
   const tile=(l,v,c="")=>`<div class="tile"><span class="label">${l}</span><span class="v num"${c}>${v}</span></div>`;
-  $("fTiles").innerHTML=tile("Total a receber",brl.format(total),total?' style="color:var(--neg)"':"")+tile(`Fiado até ${ymLabel(shiftYm(ym,-1),true)}`,brl.format(ant))+tile(`Fiado novo em ${ymLabel(ym,true)}`,brl.format(novos))+tile(`Recebido em ${ymLabel(ym,true)}`,brl.format(rec),rec?' style="color:var(--pos)"':"");
+  $("fTiles").innerHTML=tile("Total a receber",brl.format(total),total?' style="color:var(--neg)"':"")+tile(`Fiado até ${ymLabel(shiftYm(ym,-1),true)}`,brl.format(ant))+tile(`Fiado novo em ${ymLabel(ym,true)}`,brl.format(novos))+tile(`Recebido em ${ymLabel(ym,true)}`,brl.format(rec),rec?' style="color:var(--pos)"':"")+
+    `<div class="tile" style="grid-column:1/-1"><span class="label">Dinheiro do fiado guardado</span><span class="v num" style="color:var(--pos)">${brl.format(fiados.filter(f=>f.tipo==="pagamento").reduce((t,f)=>t+f.valor,0))}</span><span class="note">Total já recebido dos fiados. Fica separado: não entra no caixa nem nas vendas do bar.</span></div>`;
   $("fCliList").innerHTML=cs.map(c=>`<option value="${esc(c.nome)}">`).join("");
 
   const q=ckey($("fQ").value);
@@ -1454,9 +1455,8 @@ const isCart=it=> it.vendas ? Math.max(0,it.valor-(it.vendas.dinheiro||0)) : (it
 function caixaInfo(){
   const ym=state.ym; let cart=0, din=0, dinTot=0;
   for(const it of state.items){ if(it.pendente||it.tipo!=="entrada") continue; const d=isDin(it); dinTot+=d; if(ymOf(it.data)===ym){ din+=d; cart+=isCart(it); } }
-  const fiaDin=fiados.filter(f=>f.tipo==="pagamento"&&f.forma==="Dinheiro").reduce((t,f)=>t+f.valor,0);
   const entTot=entregas.reduce((t,e)=>t+e.valor,0), entMes=entregas.filter(e=>ymOf(e.data)===ym).reduce((t,e)=>t+e.valor,0);
-  return {cart,din,mao:Math.round((dinTot+fiaDin-entTot)*100)/100,entMes,fiaDin};
+  return {cart,din,mao:Math.round((dinTot-entTot)*100)/100,entMes};
 }
 function renderCaixa(){
   const c=caixaInfo();
@@ -1824,7 +1824,7 @@ render();
   const timer=setTimeout(()=>showStatus("Não consegui buscar os lançamentos ainda. Verifique a conexão."),10000);
   db.collection("estoque").onSnapshot(sn=>{ produtos=sn.docs.map(x=>({id:x.id,...x.data()})).filter(p=>p.nome); renderEstoque(); }, ()=>{});
   db.collection("clientes").onSnapshot(sn=>{ const m={}; for(const x of sn.docs){ const v=x.data(); if(v.nome) m[ckey(v.nome)]={nome:v.nome,tel:v.tel||""}; } clientesTel=m; renderFiados(); }, ()=>{});
-  db.collection("fiados").onSnapshot(sn=>{ fiados=sn.docs.map(x=>({id:x.id,...x.data()})).filter(f=>f.cliente&&typeof f.valor==="number"&&typeof f.data==="string"); renderFiados(); renderCaixa(); }, ()=>{});
+  db.collection("fiados").onSnapshot(sn=>{ fiados=sn.docs.map(x=>({id:x.id,...x.data()})).filter(f=>f.cliente&&typeof f.valor==="number"&&typeof f.data==="string"); renderFiados(); }, ()=>{});
   db.collection("entregas").onSnapshot(sn=>{ entregas=sn.docs.map(x=>({id:x.id,...x.data()})).filter(e=>typeof e.valor==="number"&&typeof e.data==="string"); renderCaixa(); if(!$("scrim11").hidden) renderEntList(); }, ()=>{});
   db.collection("movimentos").onSnapshot(sn=>{ movs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.produtoId&&typeof m.qtd==="number"&&typeof m.data==="string"); renderEstoque(); if(!$("scrim4").hidden) renderHist(); }, ()=>{});
   db.doc("config/estoque").onSnapshot(d=>{ const v=d.exists?d.data():{}; eCfg={dias:Number(v.dias)||7, prazo:Number(v.prazo)||0, ign:Array.isArray(v.ign)?v.ign:[]}; renderEstoque(); }, ()=>{});
