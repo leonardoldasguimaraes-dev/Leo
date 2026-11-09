@@ -181,8 +181,10 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 .kitem input{width:20px;height:20px}
 .kgrp h4{margin:6px 0 2px;font-family:var(--display);font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .presets{display:flex;gap:6px;flex-wrap:wrap}
-.cnt{display:grid;grid-template-columns:1fr 72px 72px;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.cnt{display:grid;grid-template-columns:1fr 64px 64px 46px;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
 .cnt:first-child{border-top:0}
+.okbtn{width:42px;height:42px;border-radius:50%;border:0;background:#2F6FDB;color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(47,111,219,.35)}
+.okbtn:active{transform:scale(.94)}
 .cnt input{font:inherit;font-family:var(--mono);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;text-align:right}
 .cnt .h{font-size:11px;color:var(--muted);text-align:center;font-weight:600}
 .hist{display:flex;flex-direction:column;font-size:13px}
@@ -558,8 +560,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 <div class="scrim" id="scrim5" hidden>
   <form class="sheet" id="cForm" novalidate>
     <h3>Contagem de estoque</h3>
-    <div class="note">Digite e toque no <b>✓ azul</b> do teclado para salvar e voltar.</div>
-    <div class="note">Escolha o fornecedor e conte o que está no bar (freezer + depósito). Pode passar por várias abas antes de salvar: tudo o que você preencher é salvo junto. Deixe em branco o que não contou.</div>
+    <div class="note">Conte freezer + depósito. Digite e toque no <b style="color:#2F6FDB">✓ azul</b> ao lado para salvar e voltar. Tudo o que estiver preenchido, em todas as abas, é salvo junto.</div>
     <div class="field"><label for="cData">Data da contagem</label><input id="cData" type="date"></div>
     <div class="chips" id="cForns" role="group" aria-label="Fornecedor"></div>
     <div id="cRows"></div>
@@ -1270,9 +1271,9 @@ function openCount(){
   const fs=[...new Set(["Ambev","Coca-Cola","Heineken",...produtos.map(fornOf)])];
   if(!fs.includes(cForn)) cForn=fs.find(f=>produtos.some(p=>fornOf(p)===f))||fs[0];
   $("cForns").innerHTML=fs.map(f=>`<button type="button" class="chip" data-cf="${esc(f)}">${esc(f)} <span class="num">${produtos.filter(p=>fornOf(p)===f).length}</span></button>`).join("");
-  $("cRows").innerHTML=`<div class="cnt"><span class="h" style="text-align:left">Produto</span><span class="h">Caixas</span><span class="h">Avulsas</span></div><div class="empty" id="cEmpty" hidden></div>`+
+  $("cRows").innerHTML=`<div class="cnt"><span class="h" style="text-align:left">Produto</span><span class="h">Caixas</span><span class="h">Avulsas</span><span class="h">Salvar</span></div><div class="empty" id="cEmpty" hidden></div>`+
     [...produtos].sort((a,b)=>CATS.findIndex(c=>c[0]===catOf(a))-CATS.findIndex(c=>c[0]===catOf(b))||a.nome.localeCompare(b.nome)).map(p=>{ const a=analyze(p); return `<div class="cnt" data-cp="${esc(p.id)}" data-cforn="${esc(fornOf(p))}"><span><b>${esc(p.nome)}</b><br><span class="note">${p.porCaixa>1?`cx de ${p.porCaixa} · `:""}sistema: ${fmtCx(a.st,p.porCaixa)}</span></span>
-      <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" data-c aria-label="Caixas de ${esc(p.nome)}"${p.porCaixa>1?"":" disabled"}><input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" data-u aria-label="Unidades avulsas de ${esc(p.nome)}"></div>`; }).join("");
+      <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" data-c aria-label="Caixas de ${esc(p.nome)}"${p.porCaixa>1?"":" disabled"}><input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" data-u aria-label="Unidades avulsas de ${esc(p.nome)}"><button type="submit" class="okbtn" aria-label="Salvar contagem e voltar">✓</button></div>`; }).join("");
   showCForn(); $("scrim5").hidden=false;
 }
 $("cForm").addEventListener("submit", async e=>{
