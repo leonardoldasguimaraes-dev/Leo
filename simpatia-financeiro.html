@@ -495,7 +495,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="fiahead"><h3 id="cName">Cliente</h3><span class="num" id="cSaldo"></span></div>
     <div class="note" id="cInfo"></div>
     <div class="banner" id="cLib"></div>
-    <div class="tools"><button type="button" class="btn" id="cFecha">Fechar o mês (+18%)</button><label class="chk" style="align-items:center"><input type="checkbox" id="cIsento"><span>Cliente antigo: sem acréscimo</span></label></div>
+    <div class="tools"><button type="button" class="btn" id="cFecha">Fechar o mês</button><label class="chk" style="align-items:center"><input type="checkbox" id="cIsento"><span>Cliente antigo: sem acréscimo</span></label></div>
     <div class="field"><label for="cTel">Telefone / WhatsApp</label>
       <div class="inl"><input id="cTel" type="tel" inputmode="tel" placeholder="(11) 98765-4321" autocomplete="off" style="flex:1;min-width:0"><button type="button" class="btn" id="cTelSave">Salvar</button></div>
       <span class="note" id="cTelNote"></span></div>
@@ -1383,6 +1383,7 @@ $("qList").addEventListener("click", async e=>{ const b=e.target.closest("[data-
 $("qBtn").onclick=()=>{ const open=$("qBody").hidden; $("qBody").hidden=!open; $("qBtn").setAttribute("aria-expanded",open); renderQuebras(); };
 
 /* ---------- fiados ---------- */
+let fiaOwner=true;
 let fiados=[], fMode="compra", fShowAll=false, fOpenKey=null;
 const ckey=n=>norm(n).replace(/[^a-z0-9 ]/g,"").trim();
 let clientesTel={};
@@ -1396,7 +1397,7 @@ const saudacao=()=>{ const h=new Date().getHours(); return h<12?"Bom dia":h<18?"
 function avisoText(){ return `${saudacao()}! Aqui é o Léo do Simpatia. Estou adicionando seu número aqui, só para a gente ter um controle melhor. Obrigado!`; }
 function quitadoText(){ return `${saudacao()}, meu amigo! Recebi seu pagamento, sua continha aqui está quitada. Tá tudo certinho, tá joia! Obrigado pela confiança, boa semana e fica com Deus!`; }
 const isentoK=k=>!!clientesTel[k]?.semAcrescimo;
-const ACRESC=0.18, LIMITE_FIADO=200, LIB_PCT=0.3, ACR_INICIO="2026-11-01";
+const ACRESC=0.16, LIMITE_FIADO=200, LIB_PCT=0.3, ACR_INICIO="2026-11-01";
 function baseAcrescimo(c){
   const acrs=c.hist.filter(f=>f.tipo==="acrescimo"); const ate=acrs.reduce((m,f)=>f.ate&&f.ate>m?f.ate:m,"");
   const desde = ate || ACR_INICIO;
@@ -1407,7 +1408,7 @@ function cobrancaText(c){
   const saud=saudacao(), lastPay=[...c.hist].reverse().find(f=>f.tipo==="pagamento");
   const acr=[...c.hist].reverse().find(f=>f.tipo==="acrescimo" && (!lastPay || (f.data>lastPay.data) || (f.data===lastPay.data && (f.criadoEm||0)>(lastPay.criadoEm||0))));
   const tot=Math.max(0,c.saldo), mes=acr?Math.round(((acr.base||0)+acr.valor)*100)/100:0;
-  const linha = acr ? `Fechei sua continha aqui: ${brl.format(acr.base||0)} de fiado do mês + 18% do prazo de 30 dias = ${brl.format(mes)}.${tot-mes>0.009?` Somando com o que já estava em aberto, o total ficou em ${brl.format(tot)}.`:""}` : `Fechei sua continha aqui, ficou em ${brl.format(tot)}.`;
+  const linha = acr ? `Fechei sua continha aqui: ${brl.format(acr.base||0)} de fiado do mês + ${Math.round(ACRESC*100)}% do prazo de 30 dias = ${brl.format(mes)}.${tot-mes>0.009?` Somando com o que já estava em aberto, o total ficou em ${brl.format(tot)}.`:""}` : `Fechei sua continha aqui, ficou em ${brl.format(tot)}.`;
   return `${saud}, meu amigo!\n${linha}\nObrigado, boa semana e fica com Deus!`;
 }
 function liberacao(c){
@@ -1520,12 +1521,13 @@ function renderClient(){
   const L=liberacao(c), isento=!!clientesTel[c.key]?.semAcrescimo;
   $("cLib").innerHTML=`<b>Pode pegar fiado agora: ${brl.format(L.pode)}</b><br><span class="note">${esc(L.motivo)}${L.novo?` · já pegou ${brl.format(L.novo)} este mês`:""}</span>`;
   $("cLib").className = "banner" + (L.pode>0?"":" err");
-  $("cIsento").checked=isento; $("cIsento").disabled=!canWrite;
+  $("cIsento").checked=isento; $("cIsento").disabled=!(canWrite&&fiaOwner);
   const BA=baseAcrescimo(c);
-  $("cFecha").hidden=!(canWrite&&db&&BA.base>0.009&&!isento);
-  $("cFecha").textContent=`Fechar o mês: +18% sobre ${brl.format(BA.base)} de fiado novo = ${brl.format(Math.round(BA.base*ACRESC*100)/100)}`;
+  $("cFecha").hidden=!(canWrite&&fiaOwner&&db&&BA.base>0.009&&!isento);
+  $("cFecha").textContent=`Fechar o mês: +${Math.round(ACRESC*100)}% sobre ${brl.format(BA.base)} de fiado novo = ${brl.format(Math.round(BA.base*ACRESC*100)/100)}`;
   $("cInfo").textContent = c.saldo>0.009 ? `Devendo desde ${c.aberto?c.aberto.split("-").reverse().join("/"):"—"}${c.ant>0.009?` · ${brl.format(c.ant)} vem de antes de ${ymLabel(thisMonth())}`:""}` : "Sem saldo devedor.";
-  $("cPay").hidden=!(c.saldo>0.009&&canWrite); $("cAdd").hidden=!canWrite;
+  const W=canWrite&&fiaOwner;
+  $("cPay").hidden=!(c.saldo>0.009&&W); $("cAdd").hidden=!W;
   const tel=telOf(c.key); if(document.activeElement!==$("cTel")) $("cTel").value=fmtTel(tel);
   $("cTel").disabled=!canWrite; $("cTelSave").hidden=!canWrite;
   const hi=$("cWaHi"); hi.hidden=!telOk(tel); if(!hi.hidden) hi.href=`https://wa.me/${tel}?text=${encodeURIComponent(avisoText())}`;
@@ -1534,7 +1536,7 @@ function renderClient(){
   ok.classList.toggle("primary", !!$("cTelNote").dataset.quitou);
   const wa=$("cWa"); wa.hidden=!(telOk(tel)&&c.saldo>0.009); if(!wa.hidden) wa.href=`https://wa.me/${tel}?text=${encodeURIComponent(cobrancaText(c))}`;
   if(!$("cTelNote").dataset.msg) $("cTelNote").textContent = telOk(tel) ? "" : "Salve o telefone para cobrar direto no WhatsApp.";
-  $("cHist").innerHTML=[...c.hist].reverse().map(f=>`<div><span class="num">${ddmm(f.data)}</span><span>${f.tipo==="pagamento"?`Pagamento${f.forma?` · ${esc(f.forma)}`:""}`:f.tipo==="acrescimo"?"Acréscimo 18%":"Fiado"}${f.desc?` <span class="note">· ${esc(f.desc)}</span>`:""}</span><span class="num" style="color:${f.tipo==="pagamento"?"var(--pos)":"var(--neg)"}">${f.tipo==="pagamento"?"−":"+"} ${brl.format(f.valor)}</span>${canWrite?`<button type="button" data-delf="${esc(f.id)}" aria-label="Apagar">×</button>`:"<span></span>"}</div>`).join("");
+  $("cHist").innerHTML=[...c.hist].reverse().map(f=>`<div><span class="num">${ddmm(f.data)}</span><span>${f.tipo==="pagamento"?`Pagamento${f.forma?` · ${esc(f.forma)}`:""}`:f.tipo==="acrescimo"?"Acréscimo do prazo":"Fiado"}${f.desc?` <span class="note">· ${esc(f.desc)}</span>`:""}</span><span class="num" style="color:${f.tipo==="pagamento"?"var(--pos)":"var(--neg)"}">${f.tipo==="pagamento"?"−":"+"} ${brl.format(f.valor)}</span>${canWrite&&fiaOwner?`<button type="button" data-delf="${esc(f.id)}" aria-label="Apagar">×</button>`:"<span></span>"}</div>`).join("");
 }
 $("cHist").addEventListener("click", async e=>{ const b=e.target.closest("[data-delf]"); if(!b) return;
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="apagar?"; setTimeout(()=>{b.dataset.armed="";b.textContent="×";},3000); return; }
@@ -1545,8 +1547,8 @@ $("cAdd").onclick=()=>{ const c=fClients().find(x=>x.key===fOpenKey); $("scrim7"
 $("cFecha").onclick=async ()=>{ const c=fClients().find(x=>x.key===fOpenKey); if(!c||!db) return; const b=$("cFecha");
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Toque de novo para confirmar"; setTimeout(()=>{ b.dataset.armed=""; renderClient(); },3000); return; }
   b.dataset.armed=""; const BA=baseAcrescimo(c), base=BA.base, v=Math.round(base*ACRESC*100)/100; if(!(base>0)) return;
-  try{ await db.collection("fiados").doc().set({cliente:c.nome,tipo:"acrescimo",valor:v,base,ate:BA.ate,data:today(),desc:`18% do prazo sobre ${brl.format(base)} de fiado novo`,criadoEm:Date.now()});
-    showStatus(`Mês fechado para ${c.nome}: ${brl.format(base)} + 18% = ${brl.format(base+v)}.`); setTimeout(()=>showStatus(""),5000); }
+  try{ await db.collection("fiados").doc().set({cliente:c.nome,tipo:"acrescimo",valor:v,base,ate:BA.ate,data:today(),desc:`${Math.round(ACRESC*100)}% do prazo sobre ${brl.format(base)} de fiado novo`,criadoEm:Date.now()});
+    showStatus(`Mês fechado para ${c.nome}: ${brl.format(base)} + ${Math.round(ACRESC*100)}% = ${brl.format(base+v)}.`); setTimeout(()=>showStatus(""),5000); }
   catch(err){ showStatus("Não foi possível fechar: "+(err?.message||err?.code),true); } };
 $("cIsento").onchange=async ()=>{ const c=fClients().find(x=>x.key===fOpenKey); if(!c||!db) return; const v=$("cIsento").checked;
   try{ const cur=clientesTel[c.key]||{nome:c.nome,tel:""}; await db.collection("clientes").doc(cid(c.key)).set({nome:cur.nome||c.nome,tel:cur.tel||"",semAcrescimo:v,atualizadoEm:Date.now()}); clientesTel[c.key]={...cur,semAcrescimo:v}; renderClient(); }
@@ -2015,7 +2017,8 @@ render();
   if(!window.claude?.use){ showStatus("Abra este app pelo claude.ai para salvar seus lançamentos.",true); state.loaded=true; render(); return; }
   const [d,a,s,dl,u] = await Promise.all(["db","assets","sample","downloads","user"].map(n=>window.claude.use(n).catch(()=>null)));
   db=d; assets=a; sample=s; downloads=dl;
-  if(u){ try{ const c=await u.can("data.write"); if(c===false) canWrite=false; }catch{} }
+  if(u){ try{ const c=await u.can("data.write"); if(c===false) canWrite=false; }catch{} try{ const o=await u.isOwner(); if(o===false) fiaOwner=false; }catch{} }
+  if(!fiaOwner){ ["fNew","fAnt","fPay"].forEach(id=>$(id).hidden=true); }
   if(!canWrite){ $("entBtn").hidden=true; $("addBtn").hidden=true; $("vendasBtn").hidden=true; $("eCountBtn").hidden=true; $("eLossBtn").hidden=true; $("eAddProd").hidden=true; $("eCatalog").hidden=true; $("fNew").hidden=true; $("fAnt").hidden=true; $("fPay").hidden=true; $("copyFixos").hidden=true; }
   if(sample){ try{ const l=await sample.limits(); aiImages=!!l?.images; aiMax=l?.images?.maxCount||3; }catch{} }
   if(!db){ showStatus("Entre na sua conta do claude.ai para ver e salvar os lançamentos.",true); state.loaded=true; render(); return; }
