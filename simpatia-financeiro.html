@@ -244,6 +244,10 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 .hist div{display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
 .hist div:first-child{border-top:0}
 .hist button{border:0;background:none;color:var(--muted);font-size:15px}
+.hist .hval{font-size:13px;font-weight:600;padding:4px 2px}
+.hist .hedit{display:flex;gap:6px;align-items:center}
+.hist .hedit input{width:92px;font-size:16px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-family:var(--mono);text-align:right}
+.hist .hedit .btn{font-size:14px;padding:6px 10px}
 .copybox{width:100%;font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--bg);color:var(--ink)}
 .vsum{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px 10px}
 .vsum div{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -1718,9 +1722,24 @@ function renderClient(){
   ok.classList.toggle("primary", !!$("cTelNote").dataset.quitou);
   const wa=$("cWa"); wa.hidden=!(telOk(tel)&&c.saldo>0.009); if(!wa.hidden) wa.href=`https://wa.me/${tel}?text=${encodeURIComponent(cobrancaText(c))}`;
   if(!$("cTelNote").dataset.msg) $("cTelNote").textContent = telOk(tel) ? "" : "Salve o telefone para cobrar direto no WhatsApp.";
-  $("cHist").innerHTML=[...c.hist].reverse().map(f=>`<div><span class="num">${ddmm(f.data)}</span><span>${f.tipo==="pagamento"?`Pagamento${f.forma?` · ${esc(f.forma)}`:""}`:f.tipo==="acrescimo"?"Acréscimo do prazo":"Fiado"}${f.desc?` <span class="note">· ${esc(f.desc)}</span>`:""}</span><span class="num" style="color:${f.tipo==="pagamento"?"var(--pos)":"var(--neg)"}">${f.tipo==="pagamento"?"−":"+"} ${brl.format(f.valor)}</span>${canWrite&&fiaOwner?`<button type="button" data-delf="${esc(f.id)}" aria-label="Apagar">×</button>`:"<span></span>"}</div>`).join("");
+  $("cHist").innerHTML=[...c.hist].reverse().map(f=>`<div><span class="num">${ddmm(f.data)}</span><span>${f.tipo==="pagamento"?`Pagamento${f.forma?` · ${esc(f.forma)}`:""}`:f.tipo==="acrescimo"?"Acréscimo do prazo":"Fiado"}${f.desc?` <span class="note">· ${esc(f.desc)}</span>`:""}</span>${canWrite&&fiaOwner?`<button type="button" class="num hval" data-edf="${esc(f.id)}" aria-label="Editar valor" style="color:${f.tipo==="pagamento"?"var(--pos)":"var(--neg)"}">${f.tipo==="pagamento"?"−":"+"} ${brl.format(f.valor)} ✎</button>`:`<span class="num" style="color:${f.tipo==="pagamento"?"var(--pos)":"var(--neg)"}">${f.tipo==="pagamento"?"−":"+"} ${brl.format(f.valor)}</span>`}${canWrite&&fiaOwner?`<button type="button" data-delf="${esc(f.id)}" aria-label="Apagar">×</button>`:"<span></span>"}</div>`).join("");
 }
-$("cHist").addEventListener("click", async e=>{ const b=e.target.closest("[data-delf]"); if(!b) return;
+$("cHist").addEventListener("click", async e=>{
+  const ed=e.target.closest("[data-edf]");
+  if(ed){ const f=fiados.find(x=>x.id===ed.dataset.edf); if(!f) return;
+    const w=document.createElement("span"); w.className="hedit";
+    w.innerHTML=`<input type="text" inputmode="decimal" value="${String(f.valor.toFixed(2)).replace(".",",")}" aria-label="Novo valor"><button type="button" class="btn primary" data-oke="${esc(f.id)}">OK</button>`;
+    ed.replaceWith(w); const i=w.querySelector("input"); i.focus(); i.select(); return; }
+  const ok=e.target.closest("[data-oke]");
+  if(ok){ const f=fiados.find(x=>x.id===ok.dataset.oke); if(!f) return; const v=parseMoney(ok.previousElementSibling.value);
+    if(!(v>0)){ showStatus("Valor inválido. Para tirar o lançamento, use o ×.",true); return; }
+    ok.disabled=true;
+    try{ await db.collection("fiados").doc(f.id).update({valor:Math.round(v*100)/100,atualizadoEm:Date.now()});
+      if(f.lancId){ try{ await db.collection("lancamentos").doc(f.lancId).update({valor:Math.round(v*100)/100,atualizadoEm:Date.now()}); }catch{} }
+      showStatus(`Valor corrigido: ${brl.format(f.valor)} → ${brl.format(v)}.`); setTimeout(()=>showStatus(""),3500); }
+    catch(err){ ok.disabled=false; showStatus("Não foi possível salvar: "+(err?.message||err?.code),true); }
+    return; }
+  const b=e.target.closest("[data-delf]"); if(!b) return;
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="apagar?"; setTimeout(()=>{b.dataset.armed="";b.textContent="×";},3000); return; }
   const f=fiados.find(x=>x.id===b.dataset.delf); if(!f) return;
   try{ if(f.lancId) await db.collection("lancamentos").doc(f.lancId).delete(); await db.collection("fiados").doc(f.id).delete(); }catch(err){ showStatus("Não foi possível apagar: "+(err?.message||err?.code),true); } });
