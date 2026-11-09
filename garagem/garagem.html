@@ -102,6 +102,19 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
 .entry .r span { color: var(--muted); font-size: .85rem; }
 .empty-state { color: var(--muted); padding: 18px 0; }
 
+/* Maintenance plan */
+.plan h3 { font-family: var(--display); font-size: 1.2rem; text-transform: uppercase; letter-spacing: .05em; margin: 4px 0 8px; }
+.plan-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.plan-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.plan-item .t { font-weight: 600; overflow-wrap: anywhere; }
+.plan-item .m { color: var(--muted); font-size: .86rem; overflow-wrap: anywhere; }
+.pill { font-size: .8rem; font-weight: 600; border-radius: 999px; padding: 3px 10px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pill.ok { color: var(--ok); border: 1px solid currentColor; }
+.pill.warn { background: var(--warn-bg); color: var(--warn-fg); }
+.pill.late { background: var(--danger); color: var(--surface); }
+.pill.none { color: var(--muted); border: 1px dashed var(--line); }
+.chip.on { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+
 /* Sheet */
 .backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / .45); z-index: 20; }
 .sheet {
@@ -150,6 +163,11 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
     <button class="btn" id="aKm" type="button">Anotar km</button>
   </div>
 
+  <section class="plan" id="plan" hidden>
+    <h3>Plano de manutenção</h3>
+    <ul class="plan-list" id="planList"></ul>
+  </section>
+
   <section class="log" id="log" hidden>
     <h3>Histórico</h3>
     <div class="filters" id="filters">
@@ -188,7 +206,7 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
   const n3 = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
   const nInt = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 
-  const state = { db: null, vehicles: [], records: [], current: null, filter: "all", editing: null, loaded: { v: false, r: false } };
+  const state = { db: null, vehicles: [], records: [], plans: [], current: null, filter: "all", editing: null, loaded: { v: false, r: false, p: false } };
   try { state.current = localStorage.getItem("garagem.current"); } catch (e) {}
   try { state.filter = localStorage.getItem("garagem.filter") || "all"; } catch (e) {}
 
@@ -240,6 +258,38 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
     return L !== null && p !== null ? L * p : 0;
   }
 
+  const addMonths = (s, m) => { const [y, mo, d] = s.split("-").map(Number); const dt = new Date(y, mo - 1 + m, d); return dt; };
+  const dayDiff = (dt) => { const t = new Date(); t.setHours(0, 0, 0, 0); return Math.round((dt - t) / 86400000); };
+  function plansFor(vid) { return state.plans.filter((p) => p.veiculo === vid).sort((a, b) => (a.ordem || 0) - (b.ordem || 0)); }
+  // Status of one plan item from the latest maintenance record that covers it.
+  function planStatus(p, recs, km) {
+    const nm = (p.nome || "").toLowerCase();
+    const done = recs.filter((r) => r.tipo === "manutencao" && ((Array.isArray(r.itens) && r.itens.includes(p.id)) || (r.servico || "").toLowerCase() === nm));
+    const last = done[done.length - 1] || null;
+    if (!last) return { p, last: null, level: "none", text: "sem registro" };
+    const iKm = num(p.intervaloKm), iM = num(p.intervaloMeses);
+    let kmLeft = null, daysLeft = null;
+    if (iKm && num(last.km) !== null) kmLeft = num(last.km) + iKm - km;
+    if (iM && last.data) daysLeft = dayDiff(addMonths(last.data, iM));
+    const late = (kmLeft !== null && kmLeft < 0) || (daysLeft !== null && daysLeft < 0);
+    const warn = (kmLeft !== null && kmLeft <= Math.max(300, iKm * 0.1)) || (daysLeft !== null && daysLeft <= 30);
+    let text;
+    if (late) text = kmLeft !== null && kmLeft < 0 ? "vencido há " + nInt.format(-kmLeft) + " km" : "vencido há " + -daysLeft + " dias";
+    else {
+      const parts = [];
+      if (kmLeft !== null) parts.push(nInt.format(kmLeft) + " km");
+      if (daysLeft !== null && (kmLeft === null || daysLeft <= 60)) parts.push(daysLeft + " dias");
+      text = "faltam " + parts.join(" ou ");
+    }
+    return { p, last, kmLeft, daysLeft, level: late ? "late" : warn ? "warn" : "ok", text };
+  }
+  const intervalText = (p) => {
+    const a = [];
+    if (num(p.intervaloKm)) a.push(nInt.format(num(p.intervaloKm)) + " km");
+    if (num(p.intervaloMeses)) a.push(num(p.intervaloMeses) % 12 === 0 ? (num(p.intervaloMeses) / 12 === 1 ? "1 ano" : num(p.intervaloMeses) / 12 + " anos") : num(p.intervaloMeses) + " meses");
+    return a.length ? "A cada " + a.join(" ou ") : "";
+  };
+
   // ---------- render ----------
   function render() {
     const vs = state.vehicles;
@@ -267,6 +317,9 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
     const due = new Map();
     recs.filter((r) => r.tipo === "manutencao" && num(r.proximaKm)).forEach((r) => due.set((r.servico || "").toLowerCase(), r));
     const alerts = [...due.values()].map((r) => ({ r, left: num(r.proximaKm) - km })).filter((a) => a.left <= 1000).sort((a, b) => a.left - b.left);
+    const plans = plansFor(v.id);
+    const pst = plans.map((p) => planStatus(p, recs, km));
+    const planAlerts = pst.filter((s) => s.level === "late" || s.level === "warn");
 
     const digits = String(Math.round(km)).padStart(6, "0").split("").map((d) => "<span>" + d + "</span>").join("");
     $("panel").innerHTML =
@@ -275,6 +328,7 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
       '</div><button class="btn ghost" type="button" id="editV">Editar</button></div>' +
       '<div class="odo"><span class="label">Hodômetro</span><div class="odo-digits" aria-label="' + nInt.format(km) + ' quilômetros">' + digits + "<small>km</small></div></div>" +
       alerts.map((a) => '<div class="alert">' + esc(a.r.servico) + (a.left <= 0 ? ": venceu há " + nInt.format(-a.left) + " km" : ": faltam " + nInt.format(a.left) + " km") + " (previsto aos " + nInt.format(num(a.r.proximaKm)) + " km)</div>").join("") +
+      planAlerts.map((s) => '<div class="alert">' + esc(s.p.nome) + ": " + esc(s.text) + "</div>").join("") +
       '<div class="stats">' +
       '<div class="stat"><span class="label">Consumo médio</span><b>' + (avg ? n1.format(avg) + " km/L" : "—") + "</b></div>" +
       '<div class="stat"><span class="label">Combustível no mês</span><b>' + brl.format(fuelMonth) + "</b></div>" +
@@ -282,6 +336,13 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
       "</div>";
     $("editV").onclick = () => openVehicle(v);
     $("actions").hidden = false; $("log").hidden = false;
+
+    $("plan").hidden = !state.loaded.p;
+    $("planList").innerHTML = pst.length ? pst.map((s) => {
+      const lastTxt = s.last ? "último aos " + (num(s.last.km) !== null ? nInt.format(num(s.last.km)) + " km" : "—") + " em " + fmtDate(s.last.data) : "";
+      const meta = [intervalText(s.p), lastTxt].filter(Boolean).join(" · ");
+      return '<li class="plan-item" data-p="' + esc(s.p.id) + '" tabindex="0"><div><div class="t">' + esc(s.p.nome) + '</div><div class="m">' + esc(meta) + (s.p.descricao ? "<br>" + esc(s.p.descricao) : "") + '</div></div><span class="pill ' + s.level + '">' + esc(s.text) + "</span></li>";
+    }).join("") : '<li class="empty-state">Nenhum plano cadastrado para este veículo ainda.</li>';
 
     document.querySelectorAll("#filters .chip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.f === state.filter)));
     const kind = { abastecimento: "fuel", manutencao: "maint", km: "km" };
@@ -320,9 +381,11 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
   }
   function closeSheet() { $("sheet").hidden = true; $("backdrop").hidden = true; state.editing = null; }
 
-  function openRecord(tipo, rec) {
+  function openRecord(tipo, rec, preItem) {
     const v = state.vehicles.find((x) => x.id === state.current);
     const r = rec || {};
+    const vPlans = plansFor(v.id);
+    const chosen = new Set(Array.isArray(r.itens) ? r.itens : preItem ? [preItem] : []);
     const titles = { abastecimento: "Abastecimento", manutencao: "Manutenção", km: "Anotar quilometragem" };
     let html = '<div class="hint">' + esc(v.nome) + "</div>" + '<div class="grid2">' + F("fData", "Data", r.data || today(), 'type="date"') + F("fKm", "Km no painel", r.km ?? "", 'inputmode="numeric" placeholder="' + nInt.format(currentKm(v, recsFor(v.id))) + '"') + "</div>";
     if (tipo === "abastecimento") {
@@ -333,8 +396,11 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
         '<label class="check"><input type="checkbox" id="fCheio"' + (r.tanqueCheio === false ? "" : " checked") + "> Enchi o tanque</label>" +
         '<div class="hint">Preencha dois entre litros, preço e total. O terceiro é calculado.</div>';
     } else if (tipo === "manutencao") {
-      html += F("fServ", "Serviço", r.servico, 'autocomplete="off" placeholder="Ex.: Troca de óleo"') +
-        '<div class="quick">' + ["Troca de óleo", "Filtro de ar", "Pneus", "Freios", "Revisão", "Bateria", "Corrente/correia"].map((s) => '<button type="button" class="chip" data-s="' + s + '">' + s + "</button>").join("") + "</div>" +
+      const preName = !rec && preItem ? (vPlans.find((p) => p.id === preItem) || {}).nome : "";
+      html += F("fServ", "Serviço", r.servico || preName, 'autocomplete="off" placeholder="Ex.: Troca de óleo"') +
+        (vPlans.length
+          ? '<div class="hint">Itens do plano feitos nesta visita (toque para marcar):</div><div class="quick">' + vPlans.map((p) => '<button type="button" class="chip' + (chosen.has(p.id) ? " on" : "") + '" data-pl="' + esc(p.id) + '" aria-pressed="' + chosen.has(p.id) + '">' + esc(p.nome) + "</button>").join("") + "</div>"
+          : '<div class="quick">' + ["Troca de óleo", "Filtro de ar", "Pneus", "Freios", "Revisão", "Bateria", "Correia"].map((s) => '<button type="button" class="chip" data-s="' + s + '">' + s + "</button>").join("") + "</div>") +
         '<div class="grid2">' + F("fValor", "Valor (R$)", r.valor ?? "", 'inputmode="decimal"') + F("fProx", "Próxima aos (km)", r.proximaKm ?? "", 'inputmode="numeric" placeholder="opcional"') + "</div>" +
         F("fOfic", "Oficina", r.oficina, 'autocomplete="off"') +
         '<div class="field"><label for="fObs">Observação</label><textarea id="fObs" rows="2">' + esc(r.obs || "") + "</textarea></div>";
@@ -352,14 +418,22 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
         if (t === null) throw new Error("Informe o total pago, ou litros e preço por litro.");
         Object.assign(data, { litros: L, precoLitro: p, total: t, combustivel: $("fComb").value, posto: $("fPosto").value.trim(), tanqueCheio: $("fCheio").checked });
       } else if (tipo === "manutencao") {
-        const s = $("fServ").value.trim(); if (!s) throw new Error("Diga qual serviço foi feito.");
-        Object.assign(data, { servico: s, valor: num($("fValor").value), proximaKm: num($("fProx").value), oficina: $("fOfic").value.trim(), obs: $("fObs").value.trim() });
+        let s = $("fServ").value.trim();
+        const itens = [...chosen];
+        if (!s && itens.length) s = itens.map((id) => (vPlans.find((p) => p.id === id) || {}).nome).filter(Boolean).join(" + ");
+        if (!s) throw new Error("Diga qual serviço foi feito.");
+        Object.assign(data, { servico: s, itens, valor: num($("fValor").value), proximaKm: num($("fProx").value), oficina: $("fOfic").value.trim(), obs: $("fObs").value.trim() });
       } else { data.obs = $("fObs").value.trim(); }
       const col = state.db.collection("registros");
       if (rec) { await col.doc(rec.id).set({ ...data, criadoEm: rec.criadoEm || Date.now() }); toast("Registro atualizado"); }
       else { await col.add({ ...data, criadoEm: Date.now() }); toast("Registro salvo"); }
     }, rec ? async () => { await state.db.collection("registros").doc(rec.id).delete(); toast("Registro apagado"); } : null);
     $("formBody").querySelectorAll("[data-s]").forEach((b) => (b.onclick = () => { $("fServ").value = b.dataset.s; }));
+    $("formBody").querySelectorAll("[data-pl]").forEach((b) => (b.onclick = () => {
+      const id = b.dataset.pl;
+      if (chosen.has(id)) chosen.delete(id); else chosen.add(id);
+      b.classList.toggle("on", chosen.has(id)); b.setAttribute("aria-pressed", String(chosen.has(id)));
+    }));
   }
 
   function openVehicle(v) {
@@ -378,6 +452,9 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
   const openEntry = (el) => { const r = state.records.find((x) => x.id === el.dataset.id); if (r && state.db) openRecord(r.tipo, r); };
   $("entries").addEventListener("click", (e) => { const li = e.target.closest(".entry"); if (li) openEntry(li); });
   $("entries").addEventListener("keydown", (e) => { if (e.key === "Enter") { const li = e.target.closest(".entry"); if (li) openEntry(li); } });
+  const openPlan = (el) => { if (state.db) openRecord("manutencao", null, el.dataset.p); };
+  $("planList").addEventListener("click", (e) => { const li = e.target.closest(".plan-item"); if (li) openPlan(li); });
+  $("planList").addEventListener("keydown", (e) => { if (e.key === "Enter") { const li = e.target.closest(".plan-item"); if (li) openPlan(li); } });
   $("aFuel").onclick = () => state.db && openRecord("abastecimento");
   $("aMaint").onclick = () => state.db && openRecord("manutencao");
   $("aKm").onclick = () => state.db && openRecord("km");
@@ -415,6 +492,11 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
       state.records = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       render();
     }, (err) => fail("Não consegui carregar o histórico (" + err.code + ")."));
+    db.collection("planos").limit(500).onSnapshot((snap) => {
+      state.loaded.p = true;
+      state.plans = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      render();
+    }, (err) => fail("Não consegui carregar o plano de manutenção (" + err.code + ")."));
   })();
 })();
 </script>
