@@ -486,6 +486,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
       <div class="field"><label for="pSem">Venda média por semana (unid.)</label><input id="pSem" type="number" min="0" inputmode="numeric" placeholder="Opcional"><span class="note">Usada até o app ter contagens suficientes.</span></div>
       <div class="field"><label for="pForn">Fornecedor</label><input id="pForn" list="pFornList" autocomplete="off"><datalist id="pFornList"></datalist></div>
       <div class="field"><label for="pCusto">Custo por unidade (R$)</label><input id="pCusto" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="pVenda">Preço de venda (R$)</label><input id="pVenda" inputmode="decimal" placeholder="0,00" autocomplete="off"><span class="note" id="pMarg"></span></div>
     </div>
     <div class="field"><label for="pChave">Palavras para achar nas notas</label><input id="pChave" placeholder="Ex.: heineken 600" autocomplete="off"><span class="note">Separe alternativas com vírgula. Ex.: heineken 600, heinek 600</span></div>
     <div id="pMov" class="sec" hidden>
@@ -1014,7 +1015,11 @@ function renderEstoque(){
   const A=produtos.filter(p=>eCat==="todas"||catOf(p)===eCat).map(p=>({p,a:analyze(p)}));
   const totUn=A.reduce((s,x)=>s+Math.max(0,x.a.st),0), valor=A.reduce((s,x)=>s+Math.max(0,x.a.st)*(x.p.custoUnit||0),0), pedir=A.filter(x=>x.a.caixas>0).length;
   const tile=(l,v,c="")=>`<div class="tile"><span class="label">${l}</span><span class="v num"${c}>${v}</span></div>`;
-  $("eTiles").innerHTML=tile("Produtos",A.length)+tile("Unidades em estoque",Math.round(totUn).toLocaleString("pt-BR"))+tile("Valor em estoque",brl.format(valor))+tile("Itens para pedir",pedir,pedir?' style="color:var(--neg)"':"");
+  const vVenda=A.reduce((s,x)=>s+Math.max(0,x.a.st)*(x.p.precoVenda||0),0);
+  const lucroAmb=A.filter(x=>x.p.custoUnit&&x.p.precoVenda).reduce((t,x)=>t+Math.max(0,x.a.st)*(x.p.precoVenda-x.p.custoUnit),0);
+  const semCusto=A.filter(x=>x.a.st>0&&!x.p.custoUnit).length, semVenda=A.filter(x=>x.a.st>0&&!x.p.precoVenda).length;
+  $("eTiles").innerHTML=tile("Unidades em estoque",Math.round(totUn).toLocaleString("pt-BR"))+tile("Estoque a preço de custo",brl.format(valor)+(semCusto?"*":""))+tile("Estoque a preço de venda",brl.format(vVenda)+(semVenda?"*":""),' style="color:var(--pos)"')+tile("Itens para pedir",pedir,pedir?' style="color:var(--neg)"':"")+
+    ((semCusto||semVenda)?`<div class="tile" style="grid-column:1/-1"><span class="note">* ${[semCusto?`${semCusto} produto(s) sem preço de custo`:"",semVenda?`${semVenda} sem preço de venda`:""].filter(Boolean).join(" e ")} ficam fora desse valor. ${lucroAmb?`Lucro previsto nos produtos com os dois preços: <b>${brl.format(lucroAmb)}</b>.`:""}</span></div>`:(valor&&vVenda?`<div class="tile" style="grid-column:1/-1"><span class="note">Lucro previsto do estoque: <b>${brl.format(vVenda-valor)}</b> (${Math.round((vVenda-valor)/vVenda*100)}% de margem).</span></div>`:""));
   if(document.activeElement!==$("eDias")) $("eDias").value=eCfg.dias||7; if(document.activeElement!==$("ePrazo")) $("ePrazo").value=eCfg.prazo||0;
   // pedido
   const groups={};
@@ -1032,7 +1037,7 @@ function renderEstoque(){
   else $("eList").innerHTML=A.sort((x,y)=>({red:0,amb:1,ok:2,gray:3}[x.a.status]-{red:0,amb:1,ok:2,gray:3}[y.a.status])||x.p.nome.localeCompare(y.p.nome)).map(({p,a})=>{
     const lbl={red:"Comprar",amb:"Pedir logo",ok:"OK",gray:a.n?"Sem consumo":"Sem contagem"}[a.status];
     return `<button class="row" data-pid="${esc(p.id)}"><span class="stripe" style="background:${a.status==="red"?"var(--neg)":a.status==="amb"?"var(--accent)":a.status==="ok"?"var(--pos)":"var(--line)"}"></span>
-      <span class="main"><span class="t">${esc(p.nome)}</span><span class="s"><span>${esc(p.embalagem||"")}</span>${eCat==="todas"&&catOf(p)!=="cerveja"?`<span>· ${esc(catName(catOf(p)))}</span>`:""}${a.perDay?`<span>· vende ~${(a.perDay*7).toLocaleString("pt-BR",{maximumFractionDigits:0})}/sem${a.calc===null?" (informado)":""}</span>`:""}${a.diasRest!==null?`<span>· dura ~${Math.max(0,Math.floor(a.diasRest))} dias</span>`:""}${a.last?`<span>· contado ${ddmm(a.last)}</span>`:""}</span></span>
+      <span class="main"><span class="t">${esc(p.nome)}</span><span class="s">${p.precoVenda?`<span class="num">venda ${brl.format(p.precoVenda)}${p.custoUnit?` · custo ${brl.format(p.custoUnit)} · margem ${Math.round((p.precoVenda-p.custoUnit)/p.precoVenda*100)}%`:""}</span><span>·</span>`:""}<span>${esc(p.embalagem||"")}</span>${eCat==="todas"&&catOf(p)!=="cerveja"?`<span>· ${esc(catName(catOf(p)))}</span>`:""}${a.perDay?`<span>· vende ~${(a.perDay*7).toLocaleString("pt-BR",{maximumFractionDigits:0})}/sem${a.calc===null?" (informado)":""}</span>`:""}${a.diasRest!==null?`<span>· dura ~${Math.max(0,Math.floor(a.diasRest))} dias</span>`:""}${a.last?`<span>· contado ${ddmm(a.last)}</span>`:""}</span></span>
       <span class="amt"><span class="num">${fmtCx(a.st,p.porCaixa)}</span><br><span class="badge ${"b-"+a.status}">${lbl}</span></span></button>`; }).join("");
   renderCompras(); renderQuebras();
 }
@@ -1095,7 +1100,7 @@ function openProd(p){
   pEditing=p||null; $("pTitle").textContent=p?p.nome:"Cadastrar produto";
   $("pCatBtnWrap").hidden=!!p; $("pCat").innerHTML=CATS.map(c=>`<option value="${c[0]}">${c[1]}</option>`).join(""); $("pCat").value=p?catOf(p):(eCat!=="todas"?eCat:"cerveja");
   $("pNome").value=p?.nome||""; $("pEmb").value=p?.embalagem||"Garrafa 600ml"; $("pCx").value=p?.porCaixa||24; $("pMin").value=p?.minimo??"";
-  $("pSem").value=p?.consumoSemana||""; $("pForn").value=p?.fornecedor||""; $("pCusto").value=p?.custoUnit?fmt2(p.custoUnit):""; $("pChave").value=p?.chaves||"";
+  $("pSem").value=p?.consumoSemana||""; $("pForn").value=p?.fornecedor||""; $("pCusto").value=p?.custoUnit?fmt2(p.custoUnit):""; $("pVenda").value=p?.precoVenda?fmt2(p.precoVenda):""; updMarg(); $("pChave").value=p?.chaves||"";
   $("pFornList").innerHTML=[...new Set([...produtos.map(q=>q.fornecedor),...state.items.filter(i=>i.tipo==="variavel").map(i=>i.fornecedor)].filter(Boolean))].slice(0,30).map(f=>`<option value="${esc(f)}">`).join("");
   $("pDel").hidden=!p; $("pMov").hidden=!p; $("pNote").textContent=""; $("mCx").value=""; $("mUn").value="";
   renderHist(); $("scrim4").hidden=false;
@@ -1110,7 +1115,7 @@ $("pEmb").addEventListener("change", ()=>{ const m={"Garrafa 600ml":24,"Garrafa 
 $("pForm").addEventListener("submit", async e=>{
   e.preventDefault(); const nome=$("pNome").value.trim().slice(0,80); if(!nome){ $("pNote").textContent="Informe o nome da cerveja."; $("pNome").focus(); return; }
   const doc={nome,categoria:$("pCat").value,embalagem:$("pEmb").value,porCaixa:Math.max(1,Math.round(Number($("pCx").value)||1)),minimo:Math.max(0,Math.round(Number($("pMin").value)||0)),
-    consumoSemana:Math.max(0,Number($("pSem").value)||0),fornecedor:$("pForn").value.trim().slice(0,80),custoUnit:Math.max(0,num($("pCusto").value)),
+    consumoSemana:Math.max(0,Number($("pSem").value)||0),fornecedor:$("pForn").value.trim().slice(0,80),custoUnit:Math.max(0,num($("pCusto").value)),precoVenda:Math.max(0,num($("pVenda").value)),
     chaves:$("pChave").value.trim().slice(0,120),criadoEm:pEditing?.criadoEm||Date.now(),atualizadoEm:Date.now()};
   const b=$("pSave"); b.disabled=true;
   try{ await (pEditing?db.collection("estoque").doc(pEditing.id):db.collection("estoque").doc()).set(doc); $("scrim4").hidden=true; }
@@ -1132,6 +1137,8 @@ $("pDel").onclick=async ()=>{ if(!pEditing) return;
     await db.collection("estoque").doc(pEditing.id).delete(); $("scrim4").hidden=true; }catch(err){ $("pNote").textContent="Não foi possível excluir: "+(err?.message||err?.code); } };
 $("pCancel").onclick=()=>{ $("scrim4").hidden=true; };
 $("scrim4").addEventListener("click", e=>{ if(e.target===$("scrim4")) $("scrim4").hidden=true; });
+function updMarg(){ const c=num($("pCusto").value), v=num($("pVenda").value); $("pMarg").textContent = c>0&&v>0 ? `Lucro ${brl.format(v-c)} por unidade · margem ${Math.round((v-c)/v*100)}%` : ""; }
+$("pCusto").addEventListener("input",updMarg); $("pVenda").addEventListener("input",updMarg);
 $("eAddProd").onclick=()=>openProd(null);
 $("eList").addEventListener("click", e=>{ const b=e.target.closest("[data-pid]"); if(b) openProd(produtos.find(p=>p.id===b.dataset.pid)); });
 
