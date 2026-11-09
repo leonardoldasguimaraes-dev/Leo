@@ -71,7 +71,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .caixa .sbtn{align-self:center}
 .caixa .ok{color:#B9F2CF}
 .caixa .warn{color:#FFD58A}
-.calcbtn{display:inline-flex;align-items:center;gap:6px;margin-left:auto}
+.calcbtn{display:inline-flex;align-items:center;gap:6px}
+.hbtns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
+.hbtns .sbtn{padding:7px 10px}
 .calc{display:flex;flex-direction:column;gap:10px}
 .cdisp{background:var(--sunk);border-radius:12px;padding:12px 14px;text-align:right;min-height:96px;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;overflow:hidden}
 .cexpr{font-family:var(--mono);font-size:16px;color:var(--muted);word-break:break-all;min-height:20px}
@@ -99,6 +101,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .lkeys button.hit{background:rgba(255,255,255,.3)}
 .lkeys .lsm{font-family:var(--body);font-size:13px;border:0;background:none}
 .lockhelp{font-size:12.5px;opacity:.7}
+body.privado .num:not(.cres):not(.cpaddisp), body.privado .mini, body.privado #margem, body.privado .pill, body.privado svg text, body.privado #catNote, body.privado .badge, body.privado .vt td:not(:first-child){filter:blur(9px);user-select:none}
+body.privado .ctape{filter:none}
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(255,255,255,.14)}
 
 /* totais */
@@ -316,8 +320,11 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
   <div class="top-in">
     <div class="brandrow">
       <div class="logo">Simpatia<small>Controle financeiro do bar</small></div>
-      <button class="sbtn calcbtn" id="pinBtn" aria-label="Senha do app" style="margin-left:auto"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg> Senha</button>
-      <button class="sbtn calcbtn" id="calcBtn" style="margin-left:0" aria-label="Abrir calculadora"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="2.5" width="16" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="7" y="5.5" width="10" height="4" rx="1" fill="currentColor"/><circle cx="8.5" cy="13.5" r="1.3" fill="currentColor"/><circle cx="12" cy="13.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="13.5" r="1.3" fill="currentColor"/><circle cx="8.5" cy="17.5" r="1.3" fill="currentColor"/><circle cx="12" cy="17.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="17.5" r="1.3" fill="currentColor"/></svg> Calculadora</button>
+      <div class="hbtns">
+      <button class="sbtn calcbtn" id="eyeBtn" aria-label="Ocultar valores"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path id="eyeOpen" d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="currentColor"/><path id="eyeSlash" d="M3 3l18 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="display:none"/></svg> <span id="eyeLbl">Ocultar</span></button>
+      <button class="sbtn calcbtn" id="pinBtn" aria-label="Senha do app"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg> Senha</button>
+      <button class="sbtn calcbtn" id="calcBtn" aria-label="Abrir calculadora"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="2.5" width="16" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="7" y="5.5" width="10" height="4" rx="1" fill="currentColor"/><circle cx="8.5" cy="13.5" r="1.3" fill="currentColor"/><circle cx="12" cy="13.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="13.5" r="1.3" fill="currentColor"/><circle cx="8.5" cy="17.5" r="1.3" fill="currentColor"/><circle cx="12" cy="17.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="17.5" r="1.3" fill="currentColor"/></svg> Calculadora</button>
+      </div>
       <div class="month" role="group" aria-label="Mês">
         <button id="prevM" aria-label="Mês anterior">‹</button>
         <span id="monthLabel">—</span>
@@ -1745,6 +1752,11 @@ async function initPin(u){
   try{ const d=await pinRef.get(); clearTimeout(t); pinHash = d.exists ? d.data().hash : null; }catch{ clearTimeout(t); pinHash=null; }
   if(pinHash) lockShow("unlock"); else lockHide();
 }
+
+/* ---------- ocultar valores ---------- */
+function setPrivado(on){ document.body.classList.toggle("privado",on); $("eyeLbl").textContent=on?"Mostrar":"Ocultar"; $("eyeSlash").style.display=on?"":"none"; $("eyeBtn").setAttribute("aria-label",on?"Mostrar valores":"Ocultar valores"); try{ localStorage.setItem("privado",on?"1":""); }catch{} }
+$("eyeBtn").onclick=()=>setPrivado(!document.body.classList.contains("privado"));
+try{ if(localStorage.getItem("privado")==="1") setPrivado(true); }catch{}
 
 /* ---------- calculadora ---------- */
 let cExpr="", cTape=[], cJust=false;
