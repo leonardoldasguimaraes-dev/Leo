@@ -883,9 +883,12 @@ let db=null, assets=null, sample=null, downloads=null, canWrite=true;
 function showStatus(msg, err){ const s=$("status"); s.textContent=msg; s.className="banner"+(err?" err":""); s.hidden=!msg; }
 
 /* ---------- cálculo ---------- */
+// conta a pagar só baixa no resultado e no saldo quando for confirmada como paga (na data do pagamento)
+const conta=it=>!it.pendente && it.pago!==false;
+const dataEf=it=>it.tipo!=="entrada"&&it.pago===true&&it.pagoEm?it.pagoEm:it.data;
 function totals(ym){
   const t={entrada:0,fixo:0,variavel:0,despesa:0};
-  for(const it of state.items) if(!it.pendente && ymOf(it.data)===ym && t[it.tipo]!==undefined) t[it.tipo]+=it.valor;
+  for(const it of state.items) if(conta(it) && ymOf(dataEf(it))===ym && t[it.tipo]!==undefined) t[it.tipo]+=it.valor;
   t.saidas=t.fixo+t.variavel+t.despesa; t.resultado=t.entrada-t.saidas;
   return t;
 }
@@ -928,7 +931,7 @@ function shortMoney(v){ if(v>=1e6) return (v/1e6).toLocaleString("pt-BR",{maximu
 
 function renderCats(){
   const by={};
-  for(const it of state.items){ if(it.pendente || ymOf(it.data)!==state.ym || it.tipo==="entrada") continue;
+  for(const it of state.items){ if(!conta(it) || ymOf(dataEf(it))!==state.ym || it.tipo==="entrada") continue;
     const k=it.categoria||"Sem categoria"; (by[k] ||= {v:0,tipo:it.tipo}).v+=it.valor; }
   const rows=Object.entries(by).sort((a,b)=>b[1].v-a[1].v);
   const total=rows.reduce((s,[,o])=>s+o.v,0);
@@ -964,7 +967,7 @@ function renderList(){
     return `<button class="row" data-id="${esc(it.id)}"><span class="stripe" style="background:${T.color}"></span>
       <span class="main"><span class="t">${esc(it.descricao||it.categoria||T.label)}</span>
       <span class="s"><span class="num">${d}/${m}</span><span class="tag" style="color:${T.color}">${T.label}</span>${it.categoria?`<span>${esc(it.categoria)}</span>`:""}${it.fornecedor?`<span>· ${esc(it.fornecedor)}</span>`:""}${it.nota?`<span class="clip">📎 nota</span>`:""}</span></span>
-      <span class="amt num" style="color:${it.pendente?"var(--muted)":it.tipo==="entrada"?"var(--pos)":"var(--ink)"}">${it.tipo==="entrada"?"+":"−"} ${brl.format(it.valor)}${it.pendente?`<br><span class="badge b-amb">Pendente</span>`:""}${it.pago===false?`<br><span class="badge b-amb">A pagar</span>`:""}</span></button>`; }).join("");
+      <span class="amt num" style="color:${it.pendente||it.pago===false?"var(--muted)":it.tipo==="entrada"?"var(--pos)":"var(--ink)"}">${it.tipo==="entrada"?"+":"−"} ${brl.format(it.valor)}${it.pendente?`<br><span class="badge b-amb">Pendente</span>`:""}${it.pago===false?`<br><span class="badge b-amb">A pagar</span>`:""}</span></button>`; }).join("");
 }
 
 const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim();
@@ -1922,9 +1925,9 @@ function saldoInfo(ym){
   if(!saldo) return null;
   if(ym < ymOf(saldo.data)) return {antes:true};
   const monthStart=ym+"-01"; let ini=saldo.valor, fim;
-  for(const it of state.items) if(!it.pendente && it.data>=saldo.data && it.data<monthStart) ini+=sign(it);
+  for(const it of state.items) if(conta(it) && dataEf(it)>=saldo.data && dataEf(it)<monthStart) ini+=sign(it);
   fim=ini;
-  for(const it of state.items) if(!it.pendente && ymOf(it.data)===ym && it.data>=saldo.data) fim+=sign(it);
+  for(const it of state.items) if(conta(it) && ymOf(dataEf(it))===ym && dataEf(it)>=saldo.data) fim+=sign(it);
   return {ini,fim,inicio:ym===ymOf(saldo.data)};
 }
 function renderSaldo(){
