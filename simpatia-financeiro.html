@@ -1126,7 +1126,7 @@ function renderEstoque(){
   if(document.activeElement!==$("eDias")) $("eDias").value=eCfg.dias||7; if(document.activeElement!==$("ePrazo")) $("ePrazo").value=eCfg.prazo||0;
   // pedido
   const groups={};
-  for(const x of A) if(x.a.caixas>0){ const f=x.p.fornecedor||"Sem fornecedor"; (groups[f] ||= []).push(x); }
+  for(const x of [...A].sort((u,v)=>ordemProd(u.p,v.p))) if(x.a.caixas>0){ const f=x.p.fornecedor||"Sem fornecedor"; (groups[f] ||= []).push(x); }
   const gk=Object.keys(groups).sort();
   if(!A.length) $("ePed").innerHTML=`<div class="empty"><strong>Cadastre seus produtos</strong>Toque em <b>+ Do catálogo</b> ou <b>+ Cadastrar produto</b>. Depois faça uma contagem do estoque, e o app sugere o pedido.</div>`;
   else if(!gk.length) $("ePed").innerHTML=`<div class="note">Nada para pedir agora: o estoque cobre os próximos ${horizonte()} dias. ${A.some(x=>x.a.perDay===null)?"Alguns produtos ainda não têm consumo calculado: faça contagens em dias diferentes ou informe a venda média por semana.":""}</div>`;
@@ -1278,6 +1278,7 @@ $("eCats").addEventListener("click", e=>{ const b=e.target.closest("[data-ecat]"
 
 // contagem
 let cForn="Ambev";
+const ordemProd=(a,b)=>(a.ordem??a.criadoEm??0)-(b.ordem??b.criadoEm??0)||a.nome.localeCompare(b.nome);
 const fornOf=p=>(p.fornecedor||"").trim()||"Sem fornecedor";
 function showCForn(){ if(typeof closePad==="function") closePad();
   [...$("cForns").children].forEach(b=>b.setAttribute("aria-pressed", b.dataset.cf===cForn));
@@ -1295,7 +1296,7 @@ function openCount(){
   if(!fs.includes(cForn)) cForn=fs.find(f=>produtos.some(p=>fornOf(p)===f))||fs[0];
   $("cForns").innerHTML=fs.map(f=>`<button type="button" class="chip" data-cf="${esc(f)}">${esc(f)} <span class="num">${produtos.filter(p=>fornOf(p)===f).length}</span></button>`).join("");
   $("cRows").innerHTML=`<div class="cnt"><span class="h" style="text-align:left">Produto</span><span class="h">Caixas</span><span class="h">Avulsas</span></div><div class="empty" id="cEmpty" hidden></div>`+
-    [...produtos].sort((a,b)=>CATS.findIndex(c=>c[0]===catOf(a))-CATS.findIndex(c=>c[0]===catOf(b))||a.nome.localeCompare(b.nome)).map(p=>{ const a=analyze(p); return `<div class="cnt" data-cp="${esc(p.id)}" data-cforn="${esc(fornOf(p))}"><span><b>${esc(p.nome)}</b><br><span class="note">${p.porCaixa>1?`cx de ${p.porCaixa} · `:""}sistema: ${fmtCx(a.st,p.porCaixa)}</span></span>
+    [...produtos].sort(ordemProd).map(p=>{ const a=analyze(p); return `<div class="cnt" data-cp="${esc(p.id)}" data-cforn="${esc(fornOf(p))}"><span><b>${esc(p.nome)}</b><br><span class="note">${p.porCaixa>1?`cx de ${p.porCaixa} · `:""}sistema: ${fmtCx(a.st,p.porCaixa)}</span></span>
       <input type="text" readonly inputmode="none" tabindex="-1" autocomplete="off" class="padin" data-c aria-label="Caixas de ${esc(p.nome)}"${p.porCaixa>1?"":" disabled"}><input type="text" readonly inputmode="none" tabindex="-1" autocomplete="off" class="padin" data-u aria-label="Unidades avulsas de ${esc(p.nome)}"></div>`; }).join("");
   showCForn(); $("scrim5").hidden=false;
 }
