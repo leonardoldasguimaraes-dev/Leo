@@ -207,6 +207,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 .detgrid .num{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .detgrid .zero{color:var(--muted)}
 .detl{display:flex;flex-direction:column;gap:6px}
+.detl .dl{align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
 .detl a{color:var(--accent);font-weight:600}
 .detl div{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13.5px}
 .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
@@ -397,6 +398,14 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
       <div class="list" id="list"></div>
     </div>
   </section>
+  <section class="sec">
+    <button type="button" class="card fiabtn" id="histBtn" aria-expanded="false" aria-controls="histBody">
+      <span><span class="vh">Últimas alterações</span><br><span class="note" id="histNote">Desfazer o que foi mudado</span></span>
+      <span class="extarrow" aria-hidden="true"></span>
+    </button>
+    <div id="histBody" class="sec" hidden><div class="list" id="histList"></div></div>
+  </section>
+
   <section class="sec">
     <button type="button" class="card fiabtn" id="prodBtn" aria-expanded="false" aria-controls="prodBody">
       <span><span class="vh">Produtos comprados</span><br><span class="note" id="prodNote">Produtos das notas fiscais</span></span>
@@ -875,7 +884,8 @@ function renderVendas(){
   else $("vDet").innerHTML=`<div class="dethead"><h3>${dayLabel(vSel)}</h3><span class="num">${D?brl.format(D.total):"R$ 0,00"}</span></div>`+
     (D?`<div class="detgrid">${VF.filter(([k])=>k!=="outros"||D.outros).map(([k,,l])=>`<div><span class="label">${l}</span><span class="num${D[k]?"":" zero"}">${D[k]?brl.format(D[k]):"–"}</span></div>`).join("")}</div>`+
       (D.taxas?`<div class="note">Taxas da maquininha: ${brl.format(D.taxas)} · líquido ${brl.format(D.total-D.taxas)}</div>`:"")+
-      `<div class="detl">${D.docs.sort((a,b)=>(a.criadoEm||0)-(b.criadoEm||0)).map(r=>`<div><span>${esc(r.vendas.maquina||"Lançamento")}${r.nota?` · <a href="/_blob/${esc(r.nota.id)}" target="_blank" rel="noopener">ver relatório</a>`:""} <span class="note">· ${brl.format(r.valor)}</span></span>${canWrite?`<button type="button" class="btn" data-ved="${esc(r.id)}">Editar</button>`:""}</div>`).join("")}</div>`
+      (D.docs.filter(r=>r.vendas.dinheiro>0).length>1?`<div class="banner err">Atenção: este dia tem dinheiro em ${D.docs.filter(r=>r.vendas.dinheiro>0).length} lançamentos. Se for o mesmo dinheiro, apague ou corrija um deles.</div>`:"")+
+      `<div class="label">Lançamentos deste dia (${D.docs.length})</div><div class="detl">${D.docs.sort((a,b)=>(a.criadoEm||0)-(b.criadoEm||0)).map((r,i)=>`<div class="dl"><span><b>${i+1}. ${r.nota?"Relatório da maquininha":"Lançado à mão"}</b>${r.nota?` · <a href="/_blob/${esc(r.nota.id)}" target="_blank" rel="noopener">ver foto</a>`:""}<br><span class="note">${VF.filter(([k])=>r.vendas[k]).map(([k,,l])=>`${l} ${brl.format(r.vendas[k])}`).join(" · ")||"sem valores"} = <b>${brl.format(r.valor)}</b></span></span>${canWrite?`<button type="button" class="btn primary" data-ved="${esc(r.id)}">Editar</button>`:""}</div>`).join("")}</div>`
      :`<div class="note">Nenhuma venda lançada neste dia.</div>`)+
     (canWrite&&db?`<div class="tools"><button type="button" class="btn primary" data-vnew="${vSel}">+ Lançar vendas deste dia</button></div>`:"");
   // tabela dia a dia
@@ -955,8 +965,9 @@ $("vForm").addEventListener("submit", async e=>{
     const vendas={maquina:maq,taxas:tax}; for(const [k,id] of VF) vendas[k]=vNum(id);
     const ref=vEditing? db.collection("lancamentos").doc(vEditing.id) : db.collection("lancamentos").doc();
     const now=Date.now();
-    await ref.set({tipo:"entrada",categoria:"Vendas do dia",descricao:"Vendas do dia"+(maq?` · ${maq}`:""),valor:Math.round(total*100)/100,data,mes:ymOf(data),
-      fornecedor:maq,pagamento:"Misto",obs:$("vObs").value.trim().slice(0,300),nota:nota||null,vendas,criadoEm:vEditing?.criadoEm||now,atualizadoEm:now});
+    const vdoc={tipo:"entrada",categoria:"Vendas do dia",descricao:"Vendas do dia"+(maq?` · ${maq}`:""),valor:Math.round(total*100)/100,data,mes:ymOf(data),
+      fornecedor:maq,pagamento:"Misto",obs:$("vObs").value.trim().slice(0,300),nota:nota||null,vendas,criadoEm:vEditing?.criadoEm||now,atualizadoEm:now};
+    await ref.set(vdoc); logChange(ref.id, vEditing, vdoc, vEditing?"alterou":"criou");
     const taxRef=db.collection("lancamentos").doc(ref.id+"-taxa");
     if(tax>0) await taxRef.set({tipo:"variavel",categoria:"Taxas de cartão",descricao:"Taxas da maquininha"+(maq?` · ${maq}`:""),valor:tax,data,mes:ymOf(data),
       fornecedor:maq,pagamento:"Desconto na maquininha",obs:"",nota:null,origem:ref.id,criadoEm:now,atualizadoEm:now});
@@ -972,7 +983,7 @@ $("vDel").onclick=async ()=>{
   if(!vEditing) return;
   if(!vDelArmed){ vDelArmed=true; $("vDel").textContent="Toque de novo para excluir"; setTimeout(()=>{vDelArmed=false;$("vDel").textContent="Excluir"},3000); return; }
   vDelArmed=false; $("vDel").textContent="Excluir";
-  try{ await db.collection("lancamentos").doc(vEditing.id).delete(); await db.collection("lancamentos").doc(vEditing.id+"-taxa").delete();
+  try{ await db.collection("lancamentos").doc(vEditing.id).delete(); logChange(vEditing.id, vEditing, null, "apagou"); await db.collection("lancamentos").doc(vEditing.id+"-taxa").delete();
     if(vEditing.nota&&assets) assets.delete(vEditing.nota.id).catch(()=>{}); closeVendas(); }
   catch(e){ $("vNoteF").textContent="Não foi possível excluir: "+(e?.message||e?.code); }
 };
@@ -1448,6 +1459,31 @@ document.querySelector(".tabs").addEventListener("click", e=>{ const b=e.target.
 window.addEventListener("hashchange", ()=>setTab(tabFromHash()));
 setTab(tabFromHash());
 
+/* ---------- histórico / desfazer ---------- */
+let historico=[];
+const strip=o=>{ if(!o) return null; const {id,...r}=o; return JSON.parse(JSON.stringify(r)); };
+async function logChange(docId, antes, depois, acao){
+  try{ const d=depois||antes||{};
+    await db.collection("historico").doc().set({col:"lancamentos",docId,antes:strip(antes),depois:strip(depois),acao,
+      resumo:`${d.descricao||d.categoria||"Lançamento"} · ${ddmm(d.data||today())} · ${brl.format(d.valor||0)}`,quando:Date.now(),desfeito:false});
+    const old=historico.filter(h=>!h.desfeito).sort((a,b)=>b.quando-a.quando).slice(40); for(const h of old) db.collection("historico").doc(h.id).delete().catch(()=>{});
+  }catch{}
+}
+function renderHist2(){
+  const L=[...historico].sort((a,b)=>b.quando-a.quando).slice(0,10);
+  $("histNote").textContent = L.length ? `${L.length} alteração(ões) recente(s) · toque para ${$("histBody").hidden?"ver e desfazer":"esconder"}` : "Nenhuma alteração ainda";
+  $("histList").innerHTML = L.length ? L.map(h=>{ const t=new Date(h.quando);
+    return `<div class="row" style="cursor:default"><span class="stripe" style="background:${h.desfeito?"var(--line)":"var(--accent)"}"></span><span class="main"><span class="t">${esc({criou:"Criou",alterou:"Alterou",apagou:"Apagou",confirmou:"Confirmou entrada",pagou:"Confirmou pagamento",desfez:"Desfez"}[h.acao]||h.acao)}: ${esc(h.resumo||"")}</span>
+      <span class="s"><span class="num">${pad(t.getDate())}/${pad(t.getMonth()+1)} ${pad(t.getHours())}:${pad(t.getMinutes())}</span>${h.desfeito?`<span class="badge b-gray">desfeito</span>`:""}</span></span>
+      <span class="amt">${!h.desfeito&&canWrite&&db?`<button type="button" class="btn" data-undo="${esc(h.id)}">Desfazer</button>`:""}</span></div>`; }).join("") : `<div class="empty">As alterações que você fizer nos lançamentos aparecem aqui, com o botão Desfazer.</div>`;
+}
+async function desfazer(h){
+  const ref=db.collection("lancamentos").doc(h.docId);
+  if(h.antes) await ref.set(h.antes); else await ref.delete();
+  await db.collection("historico").doc(h.id).update({desfeito:true});
+  showStatus(`Desfeito: ${h.resumo}`); setTimeout(()=>showStatus(""),4000);
+}
+
 /* ---------- dinheiro x cartão ---------- */
 let entregas=[];
 const isDin=it=> it.vendas ? (it.vendas.dinheiro||0) : (it.pagamento==="Dinheiro" ? it.valor : 0);
@@ -1694,7 +1730,7 @@ $("delBtn").onclick=async ()=>{
   if(!editing) return;
   if(!delArmed){ delArmed=true; $("delBtn").textContent="Toque de novo para excluir"; setTimeout(()=>{delArmed=false;$("delBtn").textContent="Excluir"},3000); return; }
   delArmed=false; $("delBtn").textContent="Excluir";
-  try{ await db.collection("lancamentos").doc(editing.id).delete();
+  try{ await db.collection("lancamentos").doc(editing.id).delete(); logChange(editing.id, editing, null, "apagou");
     if(editing.nota && assets) assets.delete(editing.nota.id).catch(()=>{});
     closeForm(); }catch(e){ $("attachNote").textContent="Não foi possível excluir: "+(e?.message||e?.code); }
 };
@@ -1718,7 +1754,7 @@ $("form").addEventListener("submit", async e=>{
       pagamento:$("fPag").value,obs:$("fObs").value.trim().slice(0,500),nota:nota||null,itens:formItens,pendente:$("fPend").checked,pago:!$("fApagar").checked,pagoEm:editing?.pagoEm||null,comprovante:editing?.comprovante||null,
       criadoEm:editing?.criadoEm||Date.now(),atualizadoEm:Date.now()};
     const ref = editing ? db.collection("lancamentos").doc(editing.id) : db.collection("lancamentos").doc();
-    await ref.set(doc);
+    await ref.set(doc); logChange(ref.id, editing, doc, editing?"alterou":"criou");
     if(oldNota && (!nota || nota.id!==oldNota.id)) assets.delete(oldNota.id).catch(()=>{});
     if(ymOf(data)!==state.ym){ state.ym=ymOf(data); }
     closeForm(); render();
@@ -1737,7 +1773,7 @@ $("pendList").addEventListener("click", async e=>{
   const b=e.target.closest("[data-conf]"); if(!b||!db) return; const it=state.items.find(x=>x.id===b.dataset.conf); if(!it) return;
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Toque de novo para confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Confirmar entrada"; },3000); return; }
   b.disabled=true;
-  try{ await db.collection("lancamentos").doc(it.id).update({pendente:false,confirmadoEm:today(),atualizadoEm:Date.now()});
+  try{ await db.collection("lancamentos").doc(it.id).update({pendente:false,confirmadoEm:today(),atualizadoEm:Date.now()}); logChange(it.id, it, {...it,pendente:false,confirmadoEm:today()}, "confirmou");
     showStatus(`${it.descricao||"Lançamento"} confirmado: ${brl.format(it.valor)} agora conta no balanço de ${ymLabel(ymOf(it.data))}.${it.itens?.length?" As cervejas já aparecem no Estoque para dar entrada.":""}`); setTimeout(()=>showStatus(""),6000); }
   catch(err){ b.disabled=false; showStatus("Não foi possível confirmar: "+(err?.message||err?.code),true); }
 });
@@ -1758,7 +1794,7 @@ $("payForm").addEventListener("submit", async e=>{ e.preventDefault(); if(!payIt
   try{ let comp=null;
     if(payFile){ const f=payFile.file, up=await assets.upload(f, f.type?undefined:{type:"application/pdf"}); comp={id:up.id,nome:f.name.slice(0,120),tipo:up.contentType}; }
     const upd={pago:true,pagoEm:data,pagamento:$("payForma").value,atualizadoEm:Date.now()}; if(comp) upd.comprovante=comp;
-    await db.collection("lancamentos").doc(payIt.id).update(upd);
+    await db.collection("lancamentos").doc(payIt.id).update(upd); logChange(payIt.id, payIt, {...payIt,...upd}, "pagou");
     $("scrim8").hidden=true; showStatus(`Pagamento de ${brl.format(payIt.valor)} confirmado (${payIt.descricao||"conta"}).`); setTimeout(()=>showStatus(""),5000); }
   catch(err){ $("payNote").textContent="Não foi possível salvar: "+(err?.message||err?.code); }
   finally{ b.disabled=false; b.textContent="Confirmar pagamento"; } });
@@ -1766,6 +1802,10 @@ $("payCancel").onclick=()=>{ $("scrim8").hidden=true; };
 $("scrim8").addEventListener("click", e=>{ if(e.target===$("scrim8")) $("scrim8").hidden=true; });
 $("extBtn").onclick=()=>{ const open=$("extBody").hidden; $("extBody").hidden=!open; $("extBtn").setAttribute("aria-expanded",open); try{ localStorage.setItem("extAberto",open?"1":""); }catch{} renderList(); };
 try{ if(localStorage.getItem("extAberto")==="1"){ $("extBody").hidden=false; $("extBtn").setAttribute("aria-expanded","true"); } }catch{}
+$("histBtn").onclick=()=>{ const open=$("histBody").hidden; $("histBody").hidden=!open; $("histBtn").setAttribute("aria-expanded",open); renderHist2(); };
+$("histList").addEventListener("click", async e=>{ const b=e.target.closest("[data-undo]"); if(!b) return; const h=historico.find(x=>x.id===b.dataset.undo); if(!h) return;
+  if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Toque de novo"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Desfazer"; },3000); return; }
+  b.disabled=true; try{ await desfazer(h); }catch(err){ b.disabled=false; showStatus("Não foi possível desfazer: "+(err?.message||err?.code),true); } });
 $("prodBtn").onclick=()=>{ const open=$("prodBody").hidden; $("prodBody").hidden=!open; $("prodBtn").setAttribute("aria-expanded",open); try{ localStorage.setItem("prodAberto",open?"1":""); }catch{} renderProducts(); };
 try{ if(localStorage.getItem("prodAberto")==="1"){ $("prodBody").hidden=false; $("prodBtn").setAttribute("aria-expanded","true"); } }catch{}
 $("prevM").onclick=()=>{ state.ym=shiftYm(state.ym,-1); render(); };
@@ -1825,6 +1865,7 @@ render();
   db.collection("estoque").onSnapshot(sn=>{ produtos=sn.docs.map(x=>({id:x.id,...x.data()})).filter(p=>p.nome); renderEstoque(); }, ()=>{});
   db.collection("clientes").onSnapshot(sn=>{ const m={}; for(const x of sn.docs){ const v=x.data(); if(v.nome) m[ckey(v.nome)]={nome:v.nome,tel:v.tel||""}; } clientesTel=m; renderFiados(); }, ()=>{});
   db.collection("fiados").onSnapshot(sn=>{ fiados=sn.docs.map(x=>({id:x.id,...x.data()})).filter(f=>f.cliente&&typeof f.valor==="number"&&typeof f.data==="string"); renderFiados(); }, ()=>{});
+  db.collection("historico").onSnapshot(sn=>{ historico=sn.docs.map(x=>({id:x.id,...x.data()})).filter(h=>h.docId&&h.quando); renderHist2(); }, ()=>{});
   db.collection("entregas").onSnapshot(sn=>{ entregas=sn.docs.map(x=>({id:x.id,...x.data()})).filter(e=>typeof e.valor==="number"&&typeof e.data==="string"); renderCaixa(); if(!$("scrim11").hidden) renderEntList(); }, ()=>{});
   db.collection("movimentos").onSnapshot(sn=>{ movs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.produtoId&&typeof m.qtd==="number"&&typeof m.data==="string"); renderEstoque(); if(!$("scrim4").hidden) renderHist(); }, ()=>{});
   db.doc("config/estoque").onSnapshot(d=>{ const v=d.exists?d.data():{}; eCfg={dias:Number(v.dias)||7, prazo:Number(v.prazo)||0, ign:Array.isArray(v.ign)?v.ign:[]}; renderEstoque(); }, ()=>{});
