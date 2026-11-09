@@ -1512,12 +1512,15 @@ function fClients(){
 }
 function renderFiados(){
   const cs=fClients(), devendo=cs.filter(c=>c.saldo>0.009), ym=thisMonth();
-  const total=devendo.reduce((s,c)=>s+c.saldo,0), ant=cs.reduce((s,c)=>s+Math.max(0,c.ant),0);
-  const rec=fiados.filter(f=>f.tipo==="pagamento"&&ymOf(f.data)===ym).reduce((s,f)=>s+f.valor,0);
-  const novos=fiados.filter(f=>f.tipo==="compra"&&ymOf(f.data)===ym).reduce((s,f)=>s+f.valor,0);
+  const isF=n=>funcK(ckey(n));
+  const total=devendo.filter(c=>!funcK(c.key)).reduce((s,c)=>s+c.saldo,0), ant=cs.filter(c=>!funcK(c.key)).reduce((s,c)=>s+Math.max(0,c.ant),0);
+  const rec=fiados.filter(f=>f.tipo==="pagamento"&&!isF(f.cliente)&&ymOf(f.data)===ym).reduce((s,f)=>s+f.valor,0);
+  const novos=fiados.filter(f=>f.tipo==="compra"&&!isF(f.cliente)&&ymOf(f.data)===ym).reduce((s,f)=>s+f.valor,0);
+  const funcTot=devendo.filter(c=>funcK(c.key)).reduce((s,c)=>s+c.saldo,0), funcMes=fiados.filter(f=>f.tipo==="compra"&&isF(f.cliente)&&ymOf(f.data)===ym).reduce((s,f)=>s+f.valor,0);
   const tile=(l,v,c="")=>`<div class="tile"><span class="label">${l}</span><span class="v num"${c}>${v}</span></div>`;
-  $("fTiles").innerHTML=tile("Total a receber",brl.format(total),total?' style="color:var(--neg)"':"")+tile(`Fiado até ${ymLabel(shiftYm(ym,-1),true)}`,brl.format(ant))+tile(`Fiado novo em ${ymLabel(ym,true)}`,brl.format(novos))+tile(`Recebido em ${ymLabel(ym,true)}`,brl.format(rec),rec?' style="color:var(--pos)"':"")+
-    `<div class="tile" style="grid-column:1/-1"><span class="label">Dinheiro do fiado guardado</span><span class="v num" style="color:var(--pos)">${brl.format(fiados.filter(f=>f.tipo==="pagamento").reduce((t,f)=>t+f.valor,0))}</span><span class="note">Total já recebido dos fiados. Fica separado: não entra no caixa nem nas vendas do bar.</span></div>`;
+  $("fTiles").innerHTML=tile("Clientes: a receber",brl.format(total),total?' style="color:var(--neg)"':"")+tile(`Fiado até ${ymLabel(shiftYm(ym,-1),true)}`,brl.format(ant))+tile(`Fiado novo em ${ymLabel(ym,true)}`,brl.format(novos))+tile(`Recebido em ${ymLabel(ym,true)}`,brl.format(rec),rec?' style="color:var(--pos)"':"")+
+    `<div class="tile" style="grid-column:1/-1"><span class="label">Dinheiro do fiado guardado</span><span class="v num" style="color:var(--pos)">${brl.format(fiados.filter(f=>f.tipo==="pagamento").reduce((t,f)=>t+f.valor,0))}</span><span class="note">Total já recebido dos fiados de clientes. Fica separado: não entra no caixa nem nas vendas do bar.</span></div>`+
+    `<div class="tile" style="grid-column:1/-1"><span class="label">Consumo de funcionários (controle)</span><span class="v num">${brl.format(funcTot)}</span><span class="note">Saiu do bar e é descontado no salário pelo restaurante. Não entra no a receber do bar. Consumo novo em ${ymLabel(ym,true)}: ${brl.format(funcMes)}.</span></div>`;
   $("fCliList").innerHTML=cs.map(c=>`<option value="${esc(c.nome)}">`).join("");
 
   const q=ckey($("fQ").value);
@@ -1528,7 +1531,7 @@ function renderFiados(){
     const lbl={ok:"Pago",red:"Do mês anterior",amb:`${dias} dias`,gray:"Este mês"}[st];
     return `<div class="sw" data-sw="${esc(c.key)}"><button type="button" class="swdel" data-swdel="${esc(c.key)}">Excluir</button><button class="row" data-ck="${esc(c.key)}"><span class="stripe" style="background:${st==="red"?"var(--neg)":st==="amb"?"var(--accent)":st==="ok"?"var(--pos)":"var(--line)"}"></span>
     <span class="main"><span class="t">${esc(c.nome)}${funcK(c.key)?` <span class="badge b-gray">Funcionário</span>`:""}</span><span class="s">${c.aberto?`<span>devendo desde ${ddmm(c.aberto)}</span>`:""}${telOk(telOf(c.key))?`<span>· ${fmtTel(telOf(c.key))}</span>`:""}<span>· último mov. ${ddmm(c.ult)}</span></span></span>
-    <span class="amt"><span class="num" style="color:${c.saldo>0.009?"var(--neg)":"var(--pos)"}">${brl.format(Math.max(0,c.saldo))}</span><br><span class="badge b-${st}">${lbl}</span>${!isentoK(c.key)&&liberacao(c).pode<=0.009?`<br><span class="badge b-red" style="margin-top:3px;display:inline-block">Sem fiado novo</span>`:""}</span></button></div>`; }).join("");
+    <span class="amt"><span class="num" style="color:${c.saldo>0.009?"var(--neg)":"var(--pos)"}">${brl.format(Math.max(0,c.saldo))}</span><br><span class="badge b-${st}">${lbl}</span>${!isentoK(c.key)&&!funcK(c.key)&&liberacao(c).pode<=0.009?`<br><span class="badge b-red" style="margin-top:3px;display:inline-block">Sem fiado novo</span>`:""}</span></button></div>`; }).join("");
   if(!$("scrim7").hidden) renderClient();
 }
 function setFMode(m){
@@ -1557,7 +1560,7 @@ $("fForm").addEventListener("submit", async e=>{
   if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){ $("fNote").textContent="Informe a data."; return; }
   if($("fTel").value.trim() && !telOk(telDigits($("fTel").value))){ $("fNote").textContent="Telefone inválido. Use DDD + número, ex.: (11) 98765-4321."; $("fTel").focus(); return; }
   const existing=fClients().find(c=>c.key===ckey(cli)), nome=existing?existing.nome:cli;
-  if(fMode==="compra" && existing && $("fSave").dataset.force!=="1"){ const L=liberacao(existing);
+  if(fMode==="compra" && existing && !funcK(existing.key) && !$("fFuncChk").checked && $("fSave").dataset.force!=="1"){ const L=liberacao(existing);
     if(valor>L.pode+0.009){ $("fNote").innerHTML=`<b style="color:var(--neg)">Atenção: limite atingido.</b> ${esc(nome)} pode pegar só ${brl.format(L.pode)} agora (${esc(L.motivo)}). Toque em Salvar de novo para lançar mesmo assim.`;
       $("fSave").dataset.force="1"; setTimeout(()=>{ $("fSave").dataset.force=""; },8000); return; } }
   $("fSave").dataset.force="";
@@ -1623,8 +1626,9 @@ function renderClient(){
   const c=fClients().find(x=>x.key===fOpenKey); if(!c){ $("scrim7").hidden=true; return; }
   $("cName").textContent=c.nome; $("cSaldo").textContent=brl.format(Math.max(0,c.saldo)); $("cSaldo").style.color=c.saldo>0.009?"var(--neg)":"var(--pos)";
   const L=liberacao(c), isento=!!clientesTel[c.key]?.semAcrescimo;
-  $("cLib").innerHTML=`<b>Pode pegar fiado agora: ${brl.format(L.pode)}</b><br><span class="note">${esc(L.motivo)}${L.novo?` · já pegou ${brl.format(L.novo)} este mês`:""}</span>`;
-  $("cLib").className = "banner" + (L.pode>0?"":" err");
+  if(funcK(c.key)){ $("cLib").innerHTML=`<b>Funcionário: controle de consumo</b><br><span class="note">O que sai do bar fica anotado aqui e é descontado no salário pelo restaurante.${L.novo?` Consumo novo este mês: ${brl.format(L.novo)}.`:""}</span>`; $("cLib").className="banner"; }
+  else { $("cLib").innerHTML=`<b>Pode pegar fiado agora: ${brl.format(L.pode)}</b><br><span class="note">${esc(L.motivo)}${L.novo?` · já pegou ${brl.format(L.novo)} este mês`:""}</span>`;
+  $("cLib").className = "banner" + (L.pode>0?"":" err"); }
   $("cIsento").checked=isento; $("cIsento").disabled=!(canWrite&&fiaOwner);
   const BA=baseAcrescimo(c);
   $("cFecha").hidden=!(canWrite&&fiaOwner&&db&&BA.base>0.009&&!isento);
