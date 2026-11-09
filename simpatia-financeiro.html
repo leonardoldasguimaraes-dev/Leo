@@ -499,8 +499,8 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="field"><span class="label">Motivo</span><div class="seg" id="qMot" style="grid-template-columns:repeat(3,1fr)"></div></div>
     <div class="field"><label for="qProd">Produto</label><select id="qProd"></select></div>
     <div class="grid2">
-      <div class="field"><label for="qCx">Caixas</label><input id="qCx" type="number" min="0" inputmode="numeric" placeholder="0"></div>
-      <div class="field"><label for="qUn">Unidades</label><input id="qUn" type="number" min="0" inputmode="numeric" placeholder="0"></div>
+      <div class="field"><label for="qCx">Caixas</label><input id="qCx" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" placeholder="0"></div>
+      <div class="field"><label for="qUn">Unidades</label><input id="qUn" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" placeholder="0"></div>
     </div>
     <div class="grid2">
       <div class="field"><label for="qData">Data</label><input id="qData" type="date"></div>
@@ -558,6 +558,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 <div class="scrim" id="scrim5" hidden>
   <form class="sheet" id="cForm" novalidate>
     <h3>Contagem de estoque</h3>
+    <div class="note">Digite e toque no <b>✓ azul</b> do teclado para salvar e voltar.</div>
     <div class="note">Escolha o fornecedor e conte o que está no bar (freezer + depósito). Pode passar por várias abas antes de salvar: tudo o que você preencher é salvo junto. Deixe em branco o que não contou.</div>
     <div class="field"><label for="cData">Data da contagem</label><input id="cData" type="date"></div>
     <div class="chips" id="cForns" role="group" aria-label="Fornecedor"></div>
@@ -1271,7 +1272,7 @@ function openCount(){
   $("cForns").innerHTML=fs.map(f=>`<button type="button" class="chip" data-cf="${esc(f)}">${esc(f)} <span class="num">${produtos.filter(p=>fornOf(p)===f).length}</span></button>`).join("");
   $("cRows").innerHTML=`<div class="cnt"><span class="h" style="text-align:left">Produto</span><span class="h">Caixas</span><span class="h">Avulsas</span></div><div class="empty" id="cEmpty" hidden></div>`+
     [...produtos].sort((a,b)=>CATS.findIndex(c=>c[0]===catOf(a))-CATS.findIndex(c=>c[0]===catOf(b))||a.nome.localeCompare(b.nome)).map(p=>{ const a=analyze(p); return `<div class="cnt" data-cp="${esc(p.id)}" data-cforn="${esc(fornOf(p))}"><span><b>${esc(p.nome)}</b><br><span class="note">${p.porCaixa>1?`cx de ${p.porCaixa} · `:""}sistema: ${fmtCx(a.st,p.porCaixa)}</span></span>
-      <input type="number" min="0" inputmode="numeric" data-c aria-label="Caixas de ${esc(p.nome)}"${p.porCaixa>1?"":" disabled"}><input type="number" min="0" inputmode="numeric" data-u aria-label="Unidades avulsas de ${esc(p.nome)}"></div>`; }).join("");
+      <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" data-c aria-label="Caixas de ${esc(p.nome)}"${p.porCaixa>1?"":" disabled"}><input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" data-u aria-label="Unidades avulsas de ${esc(p.nome)}"></div>`; }).join("");
   showCForn(); $("scrim5").hidden=false;
 }
 $("cForm").addEventListener("submit", async e=>{
@@ -1285,7 +1286,7 @@ $("cForm").addEventListener("submit", async e=>{
   catch(err){ $("cNote").textContent="Não foi possível salvar: "+(err?.message||err?.code); } finally{ b.disabled=false; b.textContent="Salvar contagem"; }
 });
 $("cForns").addEventListener("click", e=>{ const b=e.target.closest("[data-cf]"); if(!b) return; cForn=b.dataset.cf; showCForn(); $("cForns").scrollIntoView({block:"nearest"}); });
-$("cRows").addEventListener("input", ()=>{ const filled=[...$("cRows").querySelectorAll("[data-cp]")].filter(r=>r.querySelector("[data-c]").value!==""||r.querySelector("[data-u]").value!=="").length; $("cSave").textContent = filled ? `Salvar contagem (${filled})` : "Salvar contagem"; });
+$("cRows").addEventListener("input", e=>{ if(e.target.matches("[data-c],[data-u]")) e.target.value=e.target.value.replace(/\D/g,""); const filled=[...$("cRows").querySelectorAll("[data-cp]")].filter(r=>r.querySelector("[data-c]").value!==""||r.querySelector("[data-u]").value!=="").length; $("cSave").textContent = filled ? `Salvar contagem (${filled})` : "Salvar contagem"; });
 $("cCancel").onclick=()=>{ $("scrim5").hidden=true; };
 $("scrim5").addEventListener("click", e=>{ if(e.target===$("scrim5")) $("scrim5").hidden=true; });
 $("eCountBtn").onclick=openCount;
