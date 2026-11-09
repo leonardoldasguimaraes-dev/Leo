@@ -1472,8 +1472,7 @@ const ACRESC=0.16, LIMITE_FIADO=200, LIB_PCT=0.3, ACR_INICIO="2026-11-01";
 function baseAcrescimo(c){
   const acrs=c.hist.filter(f=>f.tipo==="acrescimo"); const ate=acrs.reduce((m,f)=>f.ate&&f.ate>m?f.ate:m,"");
   const desde = ate || ACR_INICIO;
-  const ini = funcK(c.key) ? "0000-00-00" : ACR_INICIO;
-  const comp=c.hist.filter(f=>f.tipo==="compra" && f.data>=ini && (ate? f.data>ate : true) && f.data<=today());
+  const comp=c.hist.filter(f=>f.tipo==="compra" && f.data>=ACR_INICIO && (ate? f.data>ate : true) && f.data<=today());
   return {base:Math.round(comp.reduce((t,f)=>t+f.valor,0)*100)/100, ate:comp.reduce((m,f)=>f.data>m?f.data:m,""), desde};
 }
 function cobrancaText(c){
@@ -1629,7 +1628,7 @@ function renderClient(){
   $("cIsento").checked=isento; $("cIsento").disabled=!(canWrite&&fiaOwner);
   const BA=baseAcrescimo(c);
   $("cFecha").hidden=!(canWrite&&fiaOwner&&db&&BA.base>0.009&&!isento);
-  const tx=taxaK(c.key); $("cFecha").textContent=`Fechar o mês: +${Math.round(tx*100)}% sobre ${brl.format(BA.base)}${funcK(c.key)?"":" de fiado novo"} = ${brl.format(Math.round(BA.base*tx*100)/100)}`;
+  const tx=taxaK(c.key); $("cFecha").textContent=`Fechar o mês: +${Math.round(tx*100)}% sobre ${brl.format(BA.base)} de consumo novo = ${brl.format(Math.round(BA.base*tx*100)/100)}`;
   $("cFunc").checked=funcK(c.key); $("cFunc").disabled=!(canWrite&&fiaOwner);
   $("cInfo").textContent = c.saldo>0.009 ? `Devendo desde ${c.aberto?c.aberto.split("-").reverse().join("/"):"—"}${c.ant>0.009?` · ${brl.format(c.ant)} vem de antes de ${ymLabel(thisMonth())}`:""}` : "Sem saldo devedor.";
   const W=canWrite&&fiaOwner;
