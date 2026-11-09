@@ -1,5 +1,6 @@
 <title>Simpatia Financeiro</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
 <style>
@@ -31,6 +32,7 @@
   color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
+html,body,button,input,select,textarea,a,label{touch-action:manipulation}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 96px}
 .wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
@@ -235,7 +237,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 .field input.money{font-size:20px}
 .cpadkeys .padok{background:#2F6FDB;border-color:#2F6FDB;color:#fff;font-size:28px;font-weight:700;border-radius:999px}
 #scrim5 .sheet{padding-bottom:300px}
-.cnt input{font:inherit;font-family:var(--mono);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;text-align:right}
+.cnt input{font:inherit;font-size:16px;font-family:var(--mono);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;text-align:right}
 .ctag{font-size:11px;font-weight:700;color:var(--pos)}
 .cnt .h{font-size:11px;color:var(--muted);text-align:center;font-weight:600}
 .hist{display:flex;flex-direction:column;font-size:13px}
@@ -2277,4 +2279,8 @@ render();
   else if(!aberto&&trav){document.body.classList.remove("travado");document.body.style.top="";window.scrollTo(0,y);trav=false;}}
  const mo=new MutationObserver(ver);
  document.querySelectorAll(".scrim").forEach(x=>mo.observe(x,{attributes:true,attributeFilter:["hidden"]}));ver();})();
+
+/* sem zoom no iPhone (pinça e toque duplo) */
+["gesturestart","gesturechange"].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
+document.addEventListener("dblclick",e=>e.preventDefault(),{passive:false});
 </script>
