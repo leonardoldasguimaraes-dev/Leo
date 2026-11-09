@@ -62,6 +62,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .sbtn{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);color:var(--brand-ink);border-radius:9px;padding:7px 11px;font-size:13px;font-weight:600}
 .sbtn:hover{background:rgba(255,255,255,.22)}
 @media (max-width:460px){.saldo{grid-template-columns:1fr 1fr}.saldo .sbtn{grid-column:1/-1}}
+.caixa{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;align-items:start;border-top:1px solid rgba(255,255,255,.18);padding-top:12px}
+.caixa>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.caixa .label{color:var(--brand-ink);opacity:.75}
+.caixa .num{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.caixa .mini{font-size:11.5px;opacity:.7}
+.caixa .mao .num{font-size:22px}
+.caixa .sbtn{align-self:center}
+.caixa .ok{color:#B9F2CF}
+.caixa .warn{color:#FFD58A}
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(255,255,255,.14)}
 
 /* totais */
@@ -125,7 +134,7 @@ a.btn.primary{color:#1A1205}
 .tabs{display:flex;gap:4px;background:rgba(0,0,0,.18);padding:4px;border-radius:12px}
 .tabs button{flex:1;border:0;background:none;color:var(--brand-ink);opacity:.75;border-radius:9px;padding:9px 6px;font-weight:600;font-size:14px}
 .tabs button[aria-selected="true"]{background:var(--brand-ink);color:var(--brand);opacity:1}
-body.est .month, body.est .result, body.est .saldo, body.est #finMain, body.est #finFab,
+body.est .month, body.est .result, body.est .saldo, body.est .caixa, body.fia .caixa, body.est #finMain, body.est #finFab,
 body.fia .month, body.fia .result, body.fia .saldo, body.fia #finMain, body.fia #finFab{display:none}
 body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:not(.fia) #fiaFab{display:none}
 .fiahead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
@@ -268,7 +277,13 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
       </div>
       <span class="pill" id="margem">Margem —</span>
     </div>
-    <div class="saldo">
+    <div class="caixa">
+      <div><span class="label">Entrou no cartão / Pix</span><span class="num" id="hCart">R$ 0,00</span><span class="mini">vai para a conta do restaurante</span></div>
+      <div><span class="label">Entrou em dinheiro</span><span class="num" id="hDin">R$ 0,00</span><span class="mini" id="hDinEnt"></span></div>
+      <div class="mao"><span class="label">Dinheiro com você</span><span class="num" id="hMao">R$ 0,00</span><span class="mini" id="hMaoNote"></span></div>
+      <button class="sbtn" id="entBtn">Registrar dinheiro entregue</button>
+    </div>
+    <div class="saldo" hidden>
       <div><span class="label" id="saldoIniLbl">Saldo anterior</span><span class="num" id="saldoIni">—</span></div>
       <div><span class="label">Saldo final do mês</span><span class="num" id="saldoFim">—</span></div>
       <button class="sbtn" id="saldoBtn">Definir saldo anterior</button>
@@ -590,6 +605,22 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
   </form>
 </div>
 
+<div class="scrim" id="scrim11" hidden>
+  <form class="sheet" id="entForm" novalidate>
+    <h3>Dinheiro entregue</h3>
+    <div class="note">Registre o dinheiro do caixa que você passou para o restaurante. Isso não é gasto do bar: só tira o dinheiro da sua mão.</div>
+    <div class="grid2">
+      <div class="field"><label for="entVal">Valor entregue (R$)</label><input id="entVal" class="money" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="entData">Data</label><input id="entData" type="date"></div>
+    </div>
+    <div class="field"><label for="entObs">Observação</label><input id="entObs" autocomplete="off"></div>
+    <div class="note" id="entNote"></div>
+    <div class="label">Últimas entregas</div>
+    <div class="hist" id="entList"></div>
+    <div class="actions"><div class="r"><button type="button" class="btn" id="entCancel">Cancelar</button><button type="submit" class="btn primary" id="entSave">Registrar entrega</button></div></div>
+  </form>
+</div>
+
 <div class="scrim" id="scrim2" hidden>
   <form class="sheet" id="saldoForm" novalidate>
     <h3>Saldo anterior</h3>
@@ -697,8 +728,9 @@ function render(){
   $("monthLabel").textContent = ymLabel(state.ym);
   const t = totals(state.ym);
   $("resultado").textContent = brl.format(t.resultado);
-  renderSaldo();
-  $("margem").textContent = t.entrada>0 ? `Margem ${(t.resultado/t.entrada*100).toLocaleString("pt-BR",{maximumFractionDigits:1})}%` : "Margem —";
+  renderSaldo(); renderCaixa();
+  const sit = t.entrada===0&&t.saidas===0 ? "" : Math.abs(t.resultado)<1 ? "Empatou" : t.resultado>0 ? "Lucro" : "Prejuízo";
+  $("margem").textContent = sit ? (t.entrada>0 ? `${sit} · margem ${(t.resultado/t.entrada*100).toLocaleString("pt-BR",{maximumFractionDigits:1})}%` : sit) : "Sem lançamentos";
 
   $("tiles").innerHTML = ORDER.map(k=>`<div class="tile"><span class="label"><i class="dot" style="background:${TYPES[k].color}"></i>${TYPES[k].plural}</span><span class="v num" style="${k==="entrada"?"color:var(--pos)":""}">${brl.format(t[k])}</span></div>`).join("");
 
@@ -825,9 +857,10 @@ function renderVendas(){
   let best=null; for(const [d,v] of Object.entries(byDay)) if(!best||v>best[1]) best=[d,v];
   $("vNote").textContent = dias ? `${dias} dia(s) lançado(s)` : "";
   const cell=(l,v,extra="")=>`<div><span class="label">${l}</span><span class="num"${extra}>${v}</span></div>`;
-  $("vSum").innerHTML = cell("Total vendido",brl.format(tot.total),' style="color:var(--pos)"') + cell("Média por dia",dias?brl.format(tot.total/dias):"—") +
-    cell("Melhor dia",best?`${best[0].slice(8)}/${best[0].slice(5,7)} · ${kShort(best[1])}`:"—") +
-    VF.filter(([k])=>tot[k]>0).map(([k,,l])=>cell(l,`${brl.format(tot[k])} <span class="note">${Math.round(tot[k]/tot.total*100)}%</span>`)).join("") +
+  const cartT=tot.total-tot.dinheiro;
+  $("vSum").innerHTML = cell("Total vendido",brl.format(tot.total),' style="color:var(--pos)"') + cell("Dinheiro",`${brl.format(tot.dinheiro)}${tot.total?` <span class="note">${Math.round(tot.dinheiro/tot.total*100)}%</span>`:""}`) +
+    cell("Cartão / Pix",`${brl.format(cartT)}${tot.total?` <span class="note">${Math.round(cartT/tot.total*100)}%</span>`:""}`) +
+    cell("Média por dia",dias?brl.format(tot.total/dias):"—") + cell("Melhor dia",best?`${best[0].slice(8)}/${best[0].slice(5,7)} · ${kShort(best[1])}`:"—") +
     (tot.taxas>0?cell("Taxas",`${brl.format(tot.taxas)} <span class="note">${(tot.taxas/tot.total*100).toLocaleString("pt-BR",{maximumFractionDigits:1})}%</span>`):"");
   const [y,m]=state.ym.split("-").map(Number), n=new Date(y,m,0).getDate(), off=new Date(y,m-1,1).getDay(), hoje=today();
   let g=["D","S","T","Q","Q","S","S"].map(w=>`<span class="wd">${w}</span>`).join("")+"<span></span>".repeat(off);
@@ -1414,6 +1447,50 @@ document.querySelector(".tabs").addEventListener("click", e=>{ const b=e.target.
 window.addEventListener("hashchange", ()=>setTab(tabFromHash()));
 setTab(tabFromHash());
 
+/* ---------- dinheiro x cartão ---------- */
+let entregas=[];
+const isDin=it=> it.vendas ? (it.vendas.dinheiro||0) : (it.pagamento==="Dinheiro" ? it.valor : 0);
+const isCart=it=> it.vendas ? Math.max(0,it.valor-(it.vendas.dinheiro||0)) : (it.pagamento==="Dinheiro" ? 0 : it.valor);
+function caixaInfo(){
+  const ym=state.ym; let cart=0, din=0, dinTot=0;
+  for(const it of state.items){ if(it.pendente||it.tipo!=="entrada") continue; const d=isDin(it); dinTot+=d; if(ymOf(it.data)===ym){ din+=d; cart+=isCart(it); } }
+  const fiaDin=fiados.filter(f=>f.tipo==="pagamento"&&f.forma==="Dinheiro").reduce((t,f)=>t+f.valor,0);
+  const entTot=entregas.reduce((t,e)=>t+e.valor,0), entMes=entregas.filter(e=>ymOf(e.data)===ym).reduce((t,e)=>t+e.valor,0);
+  return {cart,din,mao:Math.round((dinTot+fiaDin-entTot)*100)/100,entMes,fiaDin};
+}
+function renderCaixa(){
+  const c=caixaInfo();
+  $("hCart").textContent=brl.format(c.cart); $("hDin").textContent=brl.format(c.din);
+  $("hDinEnt").textContent = c.entMes ? `entregue no mês: ${brl.format(c.entMes)}` : "";
+  const m=$("hMao"); m.classList.remove("ok","warn");
+  if(Math.abs(c.mao)<0.01){ m.textContent="Zerado ✓"; m.classList.add("ok"); $("hMaoNote").textContent="todo o dinheiro foi entregue"; }
+  else if(c.mao>0){ m.textContent=brl.format(c.mao); m.classList.add("warn"); $("hMaoNote").textContent="falta entregar"; }
+  else { m.textContent=brl.format(-c.mao); $("hMaoNote").textContent="entregue a mais do que o lançado nas vendas"; }
+}
+function openEnt(){
+  if(!db){ showStatus("Entre na sua conta do claude.ai para registrar.",true); return; }
+  if(!canWrite){ showStatus("Seu acesso é só de leitura.",true); return; }
+  const c=caixaInfo(); $("entVal").value = c.mao>0 ? fmt2(c.mao) : ""; $("entData").value=today(); $("entObs").value="Entregue para pagar os funcionários"; $("entNote").textContent="";
+  renderEntList(); $("scrim11").hidden=false; }
+function renderEntList(){
+  const L=[...entregas].sort((a,b)=>b.data.localeCompare(a.data)||(b.criadoEm||0)-(a.criadoEm||0)).slice(0,15);
+  $("entList").innerHTML = L.length ? L.map(e=>`<div><span class="num">${ddmm(e.data)}</span><span>${esc(e.obs||"Dinheiro entregue")}</span><span class="num">${brl.format(e.valor)}</span>${canWrite?`<button type="button" data-entdel="${esc(e.id)}" aria-label="Apagar">×</button>`:"<span></span>"}</div>`).join("") : `<div class="note">Nenhuma entrega registrada ainda.</div>`;
+}
+$("entBtn").onclick=openEnt;
+$("entForm").addEventListener("submit", async e=>{ e.preventDefault();
+  const v=parseMoney($("entVal").value), d=$("entData").value;
+  if(!(v>0)){ $("entNote").textContent="Informe o valor entregue."; return; }
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ $("entNote").textContent="Informe a data."; return; }
+  const b=$("entSave"); b.disabled=true;
+  try{ await db.collection("entregas").doc().set({valor:v,data:d,obs:$("entObs").value.trim().slice(0,120),criadoEm:Date.now()});
+    $("scrim11").hidden=true; showStatus(`Entrega de ${brl.format(v)} registrada.`); setTimeout(()=>showStatus(""),4000); }
+  catch(err){ $("entNote").textContent="Não foi possível salvar: "+(err?.message||err?.code); } finally{ b.disabled=false; } });
+$("entList").addEventListener("click", async e=>{ const b=e.target.closest("[data-entdel]"); if(!b) return;
+  if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="apagar?"; setTimeout(()=>{b.dataset.armed="";b.textContent="×";},3000); return; }
+  try{ await db.collection("entregas").doc(b.dataset.entdel).delete(); }catch{} });
+$("entCancel").onclick=()=>{ $("scrim11").hidden=true; };
+$("scrim11").addEventListener("click", e=>{ if(e.target===$("scrim11")) $("scrim11").hidden=true; });
+
 /* ---------- saldo ---------- */
 let saldo=null;
 const sign=it=> it.tipo==="entrada"? it.valor : -it.valor;
@@ -1610,7 +1687,7 @@ Use ponto como separador decimal nos números.`,
 $("typeSeg").addEventListener("click", e=>{ const b=e.target.closest("button[data-t]"); if(b) setTipo(b.dataset.t); });
 $("cancelBtn").onclick=closeForm;
 $("scrim").addEventListener("click", e=>{ if(e.target===$("scrim")) closeForm(); });
-document.addEventListener("keydown", e=>{ if(e.key!=="Escape") return; if(!$("scrim").hidden) closeForm(); if(!$("scrim2").hidden) closeSaldo(); if(!$("scrim3").hidden) closeVendas(); $("scrim4").hidden=true; $("scrim5").hidden=true; $("scrim6").hidden=true; $("scrim7").hidden=true; $("scrim8").hidden=true; $("scrim9").hidden=true; $("scrim10").hidden=true; });
+document.addEventListener("keydown", e=>{ if(e.key!=="Escape") return; if(!$("scrim").hidden) closeForm(); if(!$("scrim2").hidden) closeSaldo(); if(!$("scrim3").hidden) closeVendas(); $("scrim4").hidden=true; $("scrim5").hidden=true; $("scrim6").hidden=true; $("scrim7").hidden=true; $("scrim8").hidden=true; $("scrim9").hidden=true; $("scrim10").hidden=true; $("scrim11").hidden=true; });
 
 let delArmed=false;
 $("delBtn").onclick=async ()=>{
@@ -1741,13 +1818,14 @@ render();
   const [d,a,s,dl,u] = await Promise.all(["db","assets","sample","downloads","user"].map(n=>window.claude.use(n).catch(()=>null)));
   db=d; assets=a; sample=s; downloads=dl;
   if(u){ try{ const c=await u.can("data.write"); if(c===false) canWrite=false; }catch{} }
-  if(!canWrite){ $("addBtn").hidden=true; $("vendasBtn").hidden=true; $("eCountBtn").hidden=true; $("eLossBtn").hidden=true; $("eAddProd").hidden=true; $("eCatalog").hidden=true; $("fNew").hidden=true; $("fAnt").hidden=true; $("fPay").hidden=true; $("copyFixos").hidden=true; }
+  if(!canWrite){ $("entBtn").hidden=true; $("addBtn").hidden=true; $("vendasBtn").hidden=true; $("eCountBtn").hidden=true; $("eLossBtn").hidden=true; $("eAddProd").hidden=true; $("eCatalog").hidden=true; $("fNew").hidden=true; $("fAnt").hidden=true; $("fPay").hidden=true; $("copyFixos").hidden=true; }
   if(sample){ try{ const l=await sample.limits(); aiImages=!!l?.images; aiMax=l?.images?.maxCount||3; }catch{} }
   if(!db){ showStatus("Entre na sua conta do claude.ai para ver e salvar os lançamentos.",true); state.loaded=true; render(); return; }
   const timer=setTimeout(()=>showStatus("Não consegui buscar os lançamentos ainda. Verifique a conexão."),10000);
   db.collection("estoque").onSnapshot(sn=>{ produtos=sn.docs.map(x=>({id:x.id,...x.data()})).filter(p=>p.nome); renderEstoque(); }, ()=>{});
   db.collection("clientes").onSnapshot(sn=>{ const m={}; for(const x of sn.docs){ const v=x.data(); if(v.nome) m[ckey(v.nome)]={nome:v.nome,tel:v.tel||""}; } clientesTel=m; renderFiados(); }, ()=>{});
-  db.collection("fiados").onSnapshot(sn=>{ fiados=sn.docs.map(x=>({id:x.id,...x.data()})).filter(f=>f.cliente&&typeof f.valor==="number"&&typeof f.data==="string"); renderFiados(); }, ()=>{});
+  db.collection("fiados").onSnapshot(sn=>{ fiados=sn.docs.map(x=>({id:x.id,...x.data()})).filter(f=>f.cliente&&typeof f.valor==="number"&&typeof f.data==="string"); renderFiados(); renderCaixa(); }, ()=>{});
+  db.collection("entregas").onSnapshot(sn=>{ entregas=sn.docs.map(x=>({id:x.id,...x.data()})).filter(e=>typeof e.valor==="number"&&typeof e.data==="string"); renderCaixa(); if(!$("scrim11").hidden) renderEntList(); }, ()=>{});
   db.collection("movimentos").onSnapshot(sn=>{ movs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.produtoId&&typeof m.qtd==="number"&&typeof m.data==="string"); renderEstoque(); if(!$("scrim4").hidden) renderHist(); }, ()=>{});
   db.doc("config/estoque").onSnapshot(d=>{ const v=d.exists?d.data():{}; eCfg={dias:Number(v.dias)||7, prazo:Number(v.prazo)||0, ign:Array.isArray(v.ign)?v.ign:[]}; renderEstoque(); }, ()=>{});
   db.doc("config/saldo").onSnapshot(d=>{
