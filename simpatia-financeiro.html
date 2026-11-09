@@ -1395,6 +1395,7 @@ async function saveTel(nome, tel){ const d=telDigits(tel), isen=!!clientesTel[ck
 const saudacao=()=>{ const h=new Date().getHours(); return h<12?"Bom dia":h<18?"Boa tarde":"Boa noite"; };
 function avisoText(){ return `${saudacao()}! Aqui é o Léo do Simpatia. Estou adicionando seu número aqui, só para a gente ter um controle melhor. Obrigado!`; }
 function quitadoText(){ return `${saudacao()}, meu amigo! Recebi seu pagamento, sua continha aqui está quitada. Tá tudo certinho, tá joia! Obrigado pela confiança, boa semana e fica com Deus!`; }
+const isentoK=k=>!!clientesTel[k]?.semAcrescimo;
 const ACRESC=0.18, LIMITE_FIADO=200, LIB_PCT=0.3, ACR_INICIO="2026-11-01";
 function baseAcrescimo(c){
   const acrs=c.hist.filter(f=>f.tipo==="acrescimo"); const ate=acrs.reduce((m,f)=>f.ate&&f.ate>m?f.ate:m,"");
@@ -1417,7 +1418,7 @@ function liberacao(c){
   const novo=c.hist.filter(f=>f.tipo==="compra"&&f.data>=start).reduce((t,f)=>t+f.valor,0);
   let lim, motivo;
   if(fech<=0.009){ lim=LIMITE_FIADO; motivo=`sem conta do mês anterior: limite de ${brl.format(LIMITE_FIADO)} no mês`; }
-  else if(pago>=fech-0.009){ lim=LIMITE_FIADO; motivo=`quitou o mês anterior: limite de ${brl.format(LIMITE_FIADO)} no mês`; }
+  else if(pago>=fech-0.009){ lim=Math.round(fech); motivo=`pagou tudo (${brl.format(fech)}): pode pegar até o que conseguiu pagar, ${brl.format(lim)} no mês`; }
   else if(pago>=fech*0.5){ lim=Math.round(fech*LIB_PCT); motivo=`pagou ${Math.round(pago/fech*100)}% do que devia (${brl.format(fech)}): libera 30% = ${brl.format(lim)}`; }
   else { lim=0; motivo=`pagou ${fech?Math.round(pago/fech*100):0}% do fechamento (${brl.format(fech)}). Precisa pagar pelo menos ${brl.format(Math.ceil(fech*0.5))} para liberar`; }
   return {pode:Math.max(0,lim-novo), lim, novo, motivo, fech, pago};
@@ -1449,11 +1450,11 @@ function renderFiados(){
   let rows=(fShowAll?cs:devendo).filter(c=>!q||c.key.includes(q)).sort((a,b)=>b.saldo-a.saldo||a.nome.localeCompare(b.nome));
   if(!cs.length){ $("fList").innerHTML=`<div class="empty"><strong>Nenhum fiado lançado</strong>Comece pelos fiados do mês anterior: toque em <b>+ Fiado do mês anterior</b> e lance o total que cada cliente deve. Depois use <b>+ Novo fiado</b> no dia a dia.</div>`; return; }
   if(!rows.length){ $("fList").innerHTML=`<div class="empty"><strong>${q?"Nenhum cliente com esse nome":"Ninguém devendo"}</strong>${q?"":"Todos os fiados estão pagos."}</div>`; return; }
-  $("fList").innerHTML=rows.map(c=>{ const dias=c.aberto?dayDiff(c.aberto,today()):0, st=c.saldo<=0.009?"ok":c.ant>0.009?"red":dias>15?"amb":"gray";
+  $("fList").innerHTML=rows.map(c=>{ const dias=c.aberto?dayDiff(c.aberto,today()):0, st=c.saldo<=0.009?"ok":(c.ant-c.hist.filter(f=>f.tipo==="pagamento"&&f.data>=thisMonth()+"-01").reduce((t,f)=>t+f.valor,0))>0.009?"red":dias>15?"amb":"gray";
     const lbl={ok:"Pago",red:"Do mês anterior",amb:`${dias} dias`,gray:"Este mês"}[st];
     return `<button class="row" data-ck="${esc(c.key)}"><span class="stripe" style="background:${st==="red"?"var(--neg)":st==="amb"?"var(--accent)":st==="ok"?"var(--pos)":"var(--line)"}"></span>
     <span class="main"><span class="t">${esc(c.nome)}</span><span class="s">${c.aberto?`<span>devendo desde ${ddmm(c.aberto)}</span>`:""}${telOk(telOf(c.key))?`<span>· ${fmtTel(telOf(c.key))}</span>`:""}<span>· último mov. ${ddmm(c.ult)}</span></span></span>
-    <span class="amt"><span class="num" style="color:${c.saldo>0.009?"var(--neg)":"var(--pos)"}">${brl.format(Math.max(0,c.saldo))}</span><br><span class="badge b-${st}">${lbl}</span></span></button>`; }).join("");
+    <span class="amt"><span class="num" style="color:${c.saldo>0.009?"var(--neg)":"var(--pos)"}">${brl.format(Math.max(0,c.saldo))}</span><br><span class="badge b-${st}">${lbl}</span>${!isentoK(c.key)&&liberacao(c).pode<=0.009?`<br><span class="badge b-red" style="margin-top:3px;display:inline-block">Sem fiado novo</span>`:""}</span></button>`; }).join("");
   if(!$("scrim7").hidden) renderClient();
 }
 function setFMode(m){
@@ -1482,6 +1483,10 @@ $("fForm").addEventListener("submit", async e=>{
   if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){ $("fNote").textContent="Informe a data."; return; }
   if($("fTel").value.trim() && !telOk(telDigits($("fTel").value))){ $("fNote").textContent="Telefone inválido. Use DDD + número, ex.: (11) 98765-4321."; $("fTel").focus(); return; }
   const existing=fClients().find(c=>c.key===ckey(cli)), nome=existing?existing.nome:cli;
+  if(fMode==="compra" && existing && $("fSave").dataset.force!=="1"){ const L=liberacao(existing);
+    if(valor>L.pode+0.009){ $("fNote").innerHTML=`<b style="color:var(--neg)">Atenção: limite atingido.</b> ${esc(nome)} pode pegar só ${brl.format(L.pode)} agora (${esc(L.motivo)}). Toque em Salvar de novo para lançar mesmo assim.`;
+      $("fSave").dataset.force="1"; setTimeout(()=>{ $("fSave").dataset.force=""; },8000); return; } }
+  $("fSave").dataset.force="";
   const b=$("fSave"); b.disabled=true; b.textContent="Salvando…";
   try{
     const ref=db.collection("fiados").doc(), now=Date.now(), doc={cliente:nome,tipo:fMode,valor,data,desc:$("fDesc2").value.trim().slice(0,120),criadoEm:now};
