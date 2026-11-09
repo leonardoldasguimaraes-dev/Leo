@@ -420,8 +420,8 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
   </section>
 
   <section class="sec card">
-    <div class="sechead"><h2>2. Caderno</h2><span class="note">Venda rápida, varejo, pinga</span></div>
-    <div class="seg" id="cxFCad" role="group" aria-label="Forma de pagamento"><button type="button" data-f="din" aria-pressed="true">Dinheiro</button><button type="button" data-f="cart" aria-pressed="false">Cartão/Pix</button><button type="button" data-f="ale" aria-pressed="false">Alelo</button><button type="button" data-f="fia" aria-pressed="false">Fiado</button></div>
+    <div class="sechead"><h2>2. Caderno</h2><span class="note">Só venda de balcão no dinheiro</span></div>
+    <div class="seg" id="cxFCad" hidden><button type="button" data-f="din" aria-pressed="true">Dinheiro</button></div>
     <div class="cxadd"><input id="cxCadD" placeholder="O que foi (ex.: 2 doses)" autocomplete="off" aria-label="Descrição"><input id="cxCadV" class="m" inputmode="decimal" placeholder="0,00" autocomplete="off" aria-label="Valor"></div>
     <button type="button" class="btn primary" id="cxCadAdd">+ Adicionar ao caderno</button>
     <div class="cxl" id="cxCadL"></div>
@@ -443,7 +443,9 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
       <div class="field"><label for="cxPix">Pix</label><input id="cxPix" class="money cxin" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
       <div class="field"><label for="cxVou">Voucher</label><input id="cxVou" class="money cxin" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
       <div class="field"><label for="cxAle">Alelo (Cielo)</label><input id="cxAle" class="money cxin" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="cxNot">Notinhas do balcão</label><input id="cxNot" class="money cxin" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
     </div>
+    <span class="note">Notinhas do balcão: soma das notinhas da máquina grampeadas no caderno (cartão e Pix de quem pagou no balcão, sem comanda).</span>
   </section>
 
   <section class="sec card">
@@ -1854,8 +1856,8 @@ const TAB_HASH={fin:"",est:"#estoque",fia:"#fiados",cx:"#caixa"};
 /* ---------- caixa do dia (rascunho; não lança nada no Financeiro) ---------- */
 let cxDocs={}, cxCur=null, cxDirty=false, cxTimer=null, cxFCad="din", cxFCom="din";
 const CXF={din:"Dinheiro",cart:"Cartão/Pix",ale:"Alelo",fia:"Fiado"};
-const CXN=["Troco","Deb","Cre","Pix","Vou","Ale","Gav"], CXI=["CL","AL","C6","A6"];
-function cxBlank(d){ return {data:d,troco:32,caderno:[],comandas:[],deb:null,cre:null,pix:null,vou:null,ale:null,gav:null,CL:null,AL:null,C6:null,A6:null,obs:""}; }
+const CXN=["Troco","Deb","Cre","Pix","Vou","Ale","Gav","Not"], CXI=["CL","AL","C6","A6"];
+function cxBlank(d){ return {data:d,troco:32,caderno:[],comandas:[],deb:null,cre:null,pix:null,vou:null,ale:null,gav:null,not:null,CL:null,AL:null,C6:null,A6:null,obs:""}; }
 const mstr=v=>v==null||v===""?"":String(Number(v).toFixed(2)).replace(".",",");
 function cxLoad(){ if(!$("cxData").value) $("cxData").value=today(); const d=$("cxData").value;
   cxCur={...cxBlank(d),...(cxDocs[d]||{})}; cxCur.caderno=[...(cxCur.caderno||[])]; cxCur.comandas=[...(cxCur.comandas||[])];
@@ -1871,7 +1873,10 @@ function cxSave(){ if(!db||!canWrite){ $("cxSave").textContent="Sem acesso para 
 function cxCalc(c){ const by={din:0,cart:0,ale:0,fia:0}; for(const x of [...c.caderno,...c.comandas]) by[x.f]=(by[x.f]||0)+(x.v||0);
   const cad=c.caderno.reduce((t,x)=>t+(x.v||0),0), com=c.comandas.reduce((t,x)=>t+(x.v||0),0), troco=c.troco??0;
   const maq=[c.deb,c.cre,c.pix,c.vou].some(v=>v!=null)?(c.deb||0)+(c.cre||0)+(c.pix||0)+(c.vou||0):null;
-  return {by,cad,com,tot:cad+com,troco,esp:troco+by.din,maq}; }
+  // cartão e Alelo das comandas já estão dentro da maquininha/Cielo; o resto da máquina é balcão (notinhas)
+  const balc=(maq??0)+(c.ale??0)-by.cart-by.ale;
+  const tot=by.din+by.fia+Math.max(maq??0,by.cart)+Math.max(c.ale??0,by.ale);
+  return {by,cad,com,tot,troco,esp:troco+by.din,maq,balc}; }
 function difTxt(d){ if(Math.abs(d)<0.01) return `<span class="ok">Bateu</span>`; return d>0?`<span class="ok">Sobrou ${brl.format(d)}</span>`:`<span class="bad">Faltou ${brl.format(-d)}</span>`; }
 function cxRender(){ const c=cxCur, k=cxCalc(c);
   const lst=(arr,tipo)=>arr.length?arr.map((x,i)=>`<div><span>${tipo==="com"?`Comanda ${esc(x.d||"?")}`:esc(x.d||"—")}</span><span class="badge ${x.f==="fia"?"b-red":x.f==="din"?"b-ok":"b-amb"}">${CXF[x.f]}</span><span class="num">${brl.format(x.v||0)}</span><button type="button" data-cxdel="${tipo}:${i}" aria-label="Apagar">×</button></div>`).join("")+`<div class="cxtot" style="display:flex"><span>Total</span><span class="num">${brl.format(arr.reduce((t,x)=>t+(x.v||0),0))}</span></div>`:`<span class="note">Nada anotado ainda.</span>`;
@@ -1881,23 +1886,28 @@ function cxRender(){ const c=cxCur, k=cxCalc(c);
   $("cxTiles").innerHTML=tile("Vendido no dia",brl.format(k.tot))+tile("Tem que ter na gaveta",brl.format(k.esp))+tile("Gaveta contada",c.gav!=null?brl.format(c.gav):"—")+
     tile("Diferença da gaveta",dg==null?"—":Math.abs(dg)<0.01?"Bateu":(dg>0?"+ ":"− ")+brl.format(Math.abs(dg)),dg==null?"":Math.abs(dg)<0.01?' style="color:var(--pos)"':dg<0?' style="color:var(--neg)"':' style="color:var(--pos)"');
   const r=[];
-  r.push(`<div><span>Caderno</span><span class="num">${brl.format(k.cad)}</span></div>`);
+  r.push(`<div><span>Caderno (dinheiro)</span><span class="num">${brl.format(k.cad)}</span></div>`);
   r.push(`<div><span>Comandas</span><span class="num">${brl.format(k.com)}</span></div>`);
-  r.push(`<div><span><b>Total vendido</b></span><span class="num"><b>${brl.format(k.tot)}</b></span></div>`);
+  r.push(`<div><span><b>Total vendido</b> <span class="note">(dinheiro + máquina + fiado)</span></span><span class="num"><b>${brl.format(k.tot)}</b></span></div>`);
   r.push(`<div><span>Em dinheiro (anotado) + troco ${brl.format(k.troco)}</span><span class="num">${brl.format(k.esp)}</span></div>`);
   r.push(`<div><span>Gaveta</span><span>${c.gav==null?"falta contar":difTxt(dg)}</span></div>`);
-  r.push(`<div><span>Cartão/Pix anotado ${brl.format(k.by.cart)} × maquininha ${k.maq==null?"—":brl.format(k.maq)}</span><span>${k.maq==null?"falta o relatório":difTxt(k.maq-k.by.cart)}</span></div>`);
-  r.push(`<div><span>Alelo anotado ${brl.format(k.by.ale)} × Cielo ${c.ale==null?"—":brl.format(c.ale)}</span><span>${c.ale==null?(k.by.ale?"falta o relatório":"—"):difTxt(c.ale-k.by.ale)}</span></div>`);
+  r.push(`<div><span>Maquininha Sicoob${c.ale!=null?" + Alelo":""}</span><span class="num">${k.maq==null&&c.ale==null?"falta o relatório":brl.format((k.maq??0)+(c.ale??0))}</span></div>`);
+  r.push(`<div><span>Comandas no cartão/Pix/Alelo</span><span class="num">${brl.format(k.by.cart+k.by.ale)}</span></div>`);
+  if(k.maq!=null||c.ale!=null){ r.push(`<div><span>Sobra da máquina = balcão no cartão</span><span class="num">${brl.format(k.balc)}</span></div>`);
+    if(k.balc<-0.009) r.push(`<div><span>Comandas no cartão passam do relatório da máquina</span><span class="bad">confira</span></div>`);
+    else if(c.not!=null) r.push(`<div><span>Notinhas grampeadas ${brl.format(c.not)}</span><span>${difTxt(c.not-k.balc)}</span></div>`); }
   if(k.by.fia) r.push(`<div><span>Fiado do dia (lance no Fiados)</span><span class="num" style="color:var(--neg)">${brl.format(k.by.fia)}</span></div>`);
   if(c.CL!=null||c.AL!=null){ const d=(c.CL||0)-(c.AL||0); r.push(`<div><span>Litrões: ${c.CL??0} vazios × ${c.AL??0} anotados</span><span>${d===0?`<span class="ok">Bateu</span>`:d>0?`<span class="bad">${d} sem anotar</span>`:`<span class="ok">${-d} a mais anotado</span>`}</span></div>`); }
   if(c.C6!=null||c.A6!=null){ const d=(c.C6||0)-(c.A6||0); r.push(`<div><span>600: ${c.C6??0} vazios × ${c.A6??0} anotados</span><span>${d===0?`<span class="ok">Bateu</span>`:d>0?`<span class="bad">${d} sem anotar</span>`:`<span class="ok">${-d} a mais anotado</span>`}</span></div>`); }
   $("cxRes").innerHTML=r.join("");
   [["cxFCad",cxFCad],["cxFCom",cxFCom]].forEach(([id,f])=>[...$(id).children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.f===f))); }
 function cxResumoTxt(){ const c=cxCur,k=cxCalc(c); const dg=c.gav!=null?c.gav-k.esp:null; const f=v=>brl.format(v);
-  const L=[`Caixa ${ddmm(c.data)}`,`Caderno: ${f(k.cad)}`,`Comandas: ${f(k.com)}`,`Total vendido: ${f(k.tot)}`,`Dinheiro anotado: ${f(k.by.din)} + troco ${f(k.troco)} = ${f(k.esp)}`];
+  const L=[`Caixa ${ddmm(c.data)}`,`Caderno (dinheiro): ${f(k.cad)}`,`Comandas: ${f(k.com)}`,`Total vendido: ${f(k.tot)}`,`Dinheiro anotado: ${f(k.by.din)} + troco ${f(k.troco)} = ${f(k.esp)}`];
   if(c.gav!=null) L.push(`Gaveta contada: ${f(c.gav)} (${Math.abs(dg)<0.01?"bateu":dg>0?"sobrou "+f(dg):"faltou "+f(-dg)})`);
-  L.push(`Cartão/Pix anotado: ${f(k.by.cart)}`+(k.maq!=null?` · maquininha ${f(k.maq)} (débito ${f(c.deb||0)}, crédito ${f(c.cre||0)}, pix ${f(c.pix||0)}, voucher ${f(c.vou||0)})`:""));
-  if(k.by.ale||c.ale!=null) L.push(`Alelo anotado: ${f(k.by.ale)}`+(c.ale!=null?` · Cielo ${f(c.ale)}`:""));
+  if(k.maq!=null) L.push(`Maquininha: ${f(k.maq)} (débito ${f(c.deb||0)}, crédito ${f(c.cre||0)}, pix ${f(c.pix||0)}, voucher ${f(c.vou||0)})`);
+  if(c.ale!=null) L.push(`Alelo (Cielo): ${f(c.ale)}`);
+  L.push(`Comandas no cartão/Pix/Alelo: ${f(k.by.cart+k.by.ale)}`);
+  if(k.maq!=null||c.ale!=null) L.push(`Balcão no cartão (sobra da máquina): ${f(k.balc)}`+(c.not!=null?` · notinhas ${f(c.not)}`:""));
   if(k.by.fia) L.push(`Fiado do dia: ${f(k.by.fia)}`);
   if(c.CL!=null||c.AL!=null) L.push(`Litrões: ${c.CL??0} vazios, ${c.AL??0} anotados`);
   if(c.C6!=null||c.A6!=null) L.push(`600: ${c.C6??0} vazios, ${c.A6??0} anotados`);
