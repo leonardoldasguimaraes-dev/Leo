@@ -518,6 +518,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
       <span class="note" id="cTelNote"></span></div>
     <a class="btn" id="cWaHi" target="_blank" rel="noopener" hidden>Avisar que salvei o número</a>
     <a class="btn" id="cWaOk" target="_blank" rel="noopener" hidden>Avisar que a conta foi quitada</a>
+    <a class="btn" id="cWaRegra" target="_blank" rel="noopener" hidden>Enviar aviso das novas regras</a>
     <div class="tools"><a class="btn primary" id="cWa" target="_blank" rel="noopener" hidden>Cobrar no WhatsApp</a><button type="button" class="btn" id="cPay">Receber pagamento</button><button type="button" class="btn" id="cAdd">+ Fiado</button><button type="button" class="btn" id="cCopy">Copiar cobrança</button></div>
     <div id="cCopyBox"></div>
     <div class="label">Histórico</div>
@@ -1442,6 +1443,10 @@ async function saveCli(nome, patch){ const k=ckey(nome), cur=clientesTel[k]||{};
 async function saveTel(nome, tel){ await saveCli(nome,{tel:telDigits(tel)}); }
 const saudacao=()=>{ const h=new Date().getHours(); return h<12?"Bom dia":h<18?"Boa tarde":"Boa noite"; };
 function avisoText(){ return `${saudacao()}! Aqui é o Léo do Simpatia. Estou adicionando seu número aqui, só para a gente ter um controle melhor. Obrigado!`; }
+function regraText(k){
+  if(funcK(k)) return `${saudacao()}! Tudo bem? Aqui é o Léo do Simpatia.\nA partir de novembro o bar está com um controle novo, tudo anotado e conferido todo dia.\nO seu consumo no bar continua liberado, mas agora é lançado no seu nome, com acréscimo de 18%, e descontado no salário no fim do mês.\nToda venda tem que ir na comanda ou no caderno, inclusive a sua.\nÉ para o bar e o restaurante continuarem firmes, garantindo o trabalho de todo mundo. Conto com você. Obrigado!`;
+  return `${saudacao()}, meu amigo! Tudo bem? Aqui é o Léo do Simpatia.\nA partir de novembro o fiado do bar mudou: ele fecha no fim do mês, vence no dia 10 e tem ${Math.round(ACRESC*100)}% a mais, porque eu pago a mercadoria na hora e só recebo depois de 30 dias. Pagando à vista, fica o preço normal.\nO que você já devia de outubro continua do mesmo valor, sem acréscimo.\nObrigado pela parceria de sempre, e fica com Deus!`;
+}
 function quitadoText(){ return `${saudacao()}, meu amigo! Recebi seu pagamento, sua continha aqui está quitada. Tá tudo certinho, tá joia! Obrigado pela confiança, boa semana e fica com Deus!`; }
 const isentoK=k=>!!clientesTel[k]?.semAcrescimo;
 const funcK=k=>!!clientesTel[k]?.funcionario;
@@ -1586,6 +1591,7 @@ function renderClient(){
   $("cTel").disabled=!canWrite; $("cTelSave").hidden=!canWrite;
   const hi=$("cWaHi"); hi.hidden=!telOk(tel); if(!hi.hidden) hi.href=`https://wa.me/${tel}?text=${encodeURIComponent(avisoText())}`;
   hi.classList.toggle("primary", !!$("cTelNote").dataset.novo);
+  const rg=$("cWaRegra"); rg.hidden=!(telOk(tel)&&!isentoK(c.key)); if(!rg.hidden) rg.href=`https://wa.me/${tel}?text=${encodeURIComponent(regraText(c.key))}`;
   const ok=$("cWaOk"); ok.hidden=!(telOk(tel)&&c.saldo<=0.009&&c.hist.some(f=>f.tipo==="pagamento")); if(!ok.hidden) ok.href=`https://wa.me/${tel}?text=${encodeURIComponent(quitadoText())}`;
   ok.classList.toggle("primary", !!$("cTelNote").dataset.quitou);
   const wa=$("cWa"); wa.hidden=!(telOk(tel)&&c.saldo>0.009); if(!wa.hidden) wa.href=`https://wa.me/${tel}?text=${encodeURIComponent(cobrancaText(c))}`;
