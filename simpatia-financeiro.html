@@ -1488,7 +1488,7 @@ function cobrancaText(c){
   const acr=[...c.hist].reverse().find(f=>f.tipo==="acrescimo" && (!lastPay || (f.data>lastPay.data) || (f.data===lastPay.data && (f.criadoEm||0)>(lastPay.criadoEm||0))));
   const tot=Math.max(0,c.saldo), mes=acr?Math.round(((acr.base||0)+acr.valor)*100)/100:0;
   const pctTxt=Math.round((acr?.pct||taxaK(c.key))*100);
-  if(funcK(c.key)) return `${saud}! Tudo bem?\nFechei sua conta do mês aqui no bar${acr?`: ${brl.format(acr.base||0)} + ${pctTxt}% = ${brl.format(mes)}`:`: ${brl.format(tot)}`}.${acr&&tot-mes>0.009?` Total em aberto: ${brl.format(tot)}.`:""}\nEsse valor vai ser descontado no seu salário. Qualquer dúvida, fala comigo.\nObrigado!`;
+  if(funcK(c.key)) return `${saud}! Tudo bem?\nFechei sua conta do mês aqui no bar: ${brl.format(tot)}.\nEsse valor vai ser descontado no seu salário. Qualquer dúvida, fala comigo.\nObrigado!`;
   const linha = acr ? `Fechei sua continha aqui: ${brl.format(acr.base||0)} de fiado do mês + ${pctTxt}% do prazo de 30 dias = ${brl.format(mes)}.${tot-mes>0.009?` Somando com o que já estava em aberto, o total ficou em ${brl.format(tot)}.`:""}` : `Fechei sua continha aqui, ficou em ${brl.format(tot)}.`;
   return `${saud}, meu amigo!\n${linha}\nObrigado, boa semana e fica com Deus!`;
 }
