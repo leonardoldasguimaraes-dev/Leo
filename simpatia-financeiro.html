@@ -170,6 +170,22 @@ a.btn.primary{color:#1A1205}
 .tabs button[aria-selected="true"]{background:var(--brand-ink);color:var(--brand);opacity:1}
 body.est .month, body.est .result, body.est .saldo, body.est .caixa, body.fia .caixa, body.est #finMain, body.est #finFab,
 body.fia .month, body.fia .result, body.fia .saldo, body.fia #finMain, body.fia #finFab{display:none}
+body.cx .month, body.cx .result, body.cx .saldo, body.cx .caixa, body.cx #finMain, body.cx #finFab{display:none}
+body:not(.cx) #cxMain{display:none}
+#cxMain .grid2{grid-template-columns:1fr 1fr}
+.cxdate{display:flex;gap:8px;align-items:center}
+.cxdate input{flex:1;font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 11px}
+.cxadd{display:grid;grid-template-columns:1fr 104px;gap:8px}
+.cxadd input{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:10px 11px;width:100%;min-width:0}
+.cxadd input.m{font-family:var(--mono);text-align:right}
+.cxl{display:flex;flex-direction:column}
+.cxl div{display:grid;grid-template-columns:1fr auto auto 32px;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.cxl div:first-child{border-top:0}
+.cxl button{border:0;background:none;color:var(--muted);font-size:17px}
+.cxtot{display:flex;justify-content:space-between;font-weight:700;padding-top:6px;border-top:2px solid var(--line)}
+.cxres div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:15px}
+.cxres div:first-child{border-top:0}
+.cxres .ok{color:var(--pos);font-weight:700}.cxres .bad{color:var(--neg);font-weight:700}
 body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:not(.fia) #fiaFab{display:none}
 .fiahead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
 .fiahead .num{font-size:26px}
@@ -371,6 +387,7 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
     <nav class="tabs" role="tablist" aria-label="Seções">
       <button role="tab" id="tabFin" data-tab="fin" aria-selected="true">Financeiro</button>
       <button role="tab" id="tabEst" data-tab="est" aria-selected="false">Estoque</button>
+      <button role="tab" id="tabCx" data-tab="cx" aria-selected="false">Caixa do dia</button>
     </nav>
   </div>
 </header>
@@ -389,6 +406,66 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
     <div class="chips"><button class="chip" id="fShowAll" aria-pressed="false">Mostrar também quem já pagou</button></div>
     <button type="button" class="btn primary" id="fAvisoFunc" style="align-self:flex-start">Aviso para todos os funcionários</button>
     <div class="list" id="fList"></div>
+  </section>
+</main>
+
+<main class="wrap" id="cxMain" style="margin-top:6px">
+  <div class="note">Rascunho do fechamento. Esta aba <b>não lança nada</b> no Financeiro: confira aqui e depois lance você mesmo em Vendas do dia.</div>
+  <div class="cxdate"><button type="button" class="btn" id="cxPrev" aria-label="Dia anterior">‹</button><input type="date" id="cxData" aria-label="Data do caixa"><button type="button" class="btn" id="cxNext" aria-label="Próximo dia">›</button></div>
+  <div class="tiles" id="cxTiles"></div>
+
+  <section class="sec card">
+    <div class="sechead"><h2>1. Troco</h2><span class="note">Moedas que ficam na gaveta</span></div>
+    <div class="field"><input id="cxTroco" class="money cxin" inputmode="decimal" placeholder="32,00" autocomplete="off" aria-label="Troco"></div>
+  </section>
+
+  <section class="sec card">
+    <div class="sechead"><h2>2. Caderno</h2><span class="note">Venda rápida, varejo, pinga</span></div>
+    <div class="seg" id="cxFCad" role="group" aria-label="Forma de pagamento"><button type="button" data-f="din" aria-pressed="true">Dinheiro</button><button type="button" data-f="cart" aria-pressed="false">Cartão/Pix</button><button type="button" data-f="ale" aria-pressed="false">Alelo</button><button type="button" data-f="fia" aria-pressed="false">Fiado</button></div>
+    <div class="cxadd"><input id="cxCadD" placeholder="O que foi (ex.: 2 doses)" autocomplete="off" aria-label="Descrição"><input id="cxCadV" class="m" inputmode="decimal" placeholder="0,00" autocomplete="off" aria-label="Valor"></div>
+    <button type="button" class="btn primary" id="cxCadAdd">+ Adicionar ao caderno</button>
+    <div class="cxl" id="cxCadL"></div>
+  </section>
+
+  <section class="sec card">
+    <div class="sechead"><h2>3. Comandas</h2><span class="note">Mesas e balcão</span></div>
+    <div class="seg" id="cxFCom" role="group" aria-label="Forma de pagamento"><button type="button" data-f="din" aria-pressed="true">Dinheiro</button><button type="button" data-f="cart" aria-pressed="false">Cartão/Pix</button><button type="button" data-f="ale" aria-pressed="false">Alelo</button><button type="button" data-f="fia" aria-pressed="false">Fiado</button></div>
+    <div class="cxadd"><input id="cxComD" inputmode="numeric" placeholder="Nº da comanda" autocomplete="off" aria-label="Número da comanda"><input id="cxComV" class="m" inputmode="decimal" placeholder="0,00" autocomplete="off" aria-label="Valor"></div>
+    <button type="button" class="btn primary" id="cxComAdd">+ Adicionar comanda</button>
+    <div class="cxl" id="cxComL"></div>
+  </section>
+
+  <section class="sec card">
+    <div class="sechead"><h2>4. Maquininha e Alelo</h2><span class="note">Do relatório de fechamento</span></div>
+    <div class="grid2">
+      <div class="field"><label for="cxDeb">Débito</label><input id="cxDeb" class="money cxin" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="cxCre">Crédito</label><input id="cxCre" class="money cxin" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="cxPix">Pix</label><input id="cxPix" class="money cxin" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="cxVou">Voucher</label><input id="cxVou" class="money cxin" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="cxAle">Alelo (Cielo)</label><input id="cxAle" class="money cxin" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+    </div>
+  </section>
+
+  <section class="sec card">
+    <div class="sechead"><h2>5. Dinheiro na gaveta</h2><span class="note">Conte tudo, com o troco junto</span></div>
+    <div class="field"><input id="cxGav" class="money cxin" inputmode="decimal" placeholder="0,00" autocomplete="off" aria-label="Dinheiro contado na gaveta"></div>
+  </section>
+
+  <section class="sec card">
+    <div class="sechead"><h2>6. Cascos</h2><span class="note">Vazios no fim do dia × o que foi anotado</span></div>
+    <div class="grid2">
+      <div class="field"><label for="cxCL">Litrões vazios</label><input id="cxCL" class="cxin" inputmode="numeric" placeholder="0" autocomplete="off"></div>
+      <div class="field"><label for="cxAL">Litrões anotados</label><input id="cxAL" class="cxin" inputmode="numeric" placeholder="0" autocomplete="off"></div>
+      <div class="field"><label for="cxC6">600 vazios</label><input id="cxC6" class="cxin" inputmode="numeric" placeholder="0" autocomplete="off"></div>
+      <div class="field"><label for="cxA6">600 anotados</label><input id="cxA6" class="cxin" inputmode="numeric" placeholder="0" autocomplete="off"></div>
+    </div>
+  </section>
+
+  <section class="sec card">
+    <div class="sechead"><h2>Resumo do caixa</h2><button type="button" class="btn" id="cxCopy">Copiar resumo</button></div>
+    <div class="cxres" id="cxRes"></div>
+    <div class="field"><label for="cxObs">Observações</label><textarea id="cxObs" class="cxin" rows="2" placeholder="Ex.: água sem gás de consumo próprio"></textarea></div>
+    <div class="note" id="cxSave"></div>
   </section>
 </main>
 
@@ -1773,11 +1850,78 @@ $("fiaGo").onclick=()=>{ try{ history.replaceState(null,"","#fiados"); }catch{} 
 const voltarInicio=()=>{ try{ history.replaceState(null,"","#"); }catch{} setTab("fin"); window.scrollTo({top:0}); };
 $("fiaBack").onclick=voltarInicio; $("fiaBack2").onclick=voltarInicio;
 // abas
-const TAB_HASH={fin:"",est:"#estoque",fia:"#fiados"};
-function tabFromHash(){ return location.hash==="#estoque"?"est":location.hash==="#fiados"?"fia":"fin"; }
-function setTab(t){ document.body.classList.toggle("est", t==="est"); document.body.classList.toggle("fia", t==="fia");
-  $("tabFin").setAttribute("aria-selected", t==="fin"); $("tabEst").setAttribute("aria-selected", t==="est"); 
-  if(t==="est") renderEstoque(); if(t==="fia") renderFiados(); }
+const TAB_HASH={fin:"",est:"#estoque",fia:"#fiados",cx:"#caixa"};
+/* ---------- caixa do dia (rascunho; não lança nada no Financeiro) ---------- */
+let cxDocs={}, cxCur=null, cxDirty=false, cxTimer=null, cxFCad="din", cxFCom="din";
+const CXF={din:"Dinheiro",cart:"Cartão/Pix",ale:"Alelo",fia:"Fiado"};
+const CXN=["Troco","Deb","Cre","Pix","Vou","Ale","Gav"], CXI=["CL","AL","C6","A6"];
+function cxBlank(d){ return {data:d,troco:32,caderno:[],comandas:[],deb:null,cre:null,pix:null,vou:null,ale:null,gav:null,CL:null,AL:null,C6:null,A6:null,obs:""}; }
+const mstr=v=>v==null||v===""?"":String(Number(v).toFixed(2)).replace(".",",");
+function cxLoad(){ if(!$("cxData").value) $("cxData").value=today(); const d=$("cxData").value;
+  cxCur={...cxBlank(d),...(cxDocs[d]||{})}; cxCur.caderno=[...(cxCur.caderno||[])]; cxCur.comandas=[...(cxCur.comandas||[])];
+  for(const k of CXN){ const key=k==="Troco"?"troco":k.toLowerCase(); $("cx"+k).value=mstr(cxCur[key]); }
+  for(const k of CXI) $("cx"+k).value=cxCur[k]==null?"":String(cxCur[k]);
+  $("cxObs").value=cxCur.obs||""; $("cxSave").textContent=cxDocs[d]?"Salvo.":""; cxRender(); }
+function cxRead(){ for(const k of CXN){ const key=k==="Troco"?"troco":k.toLowerCase(), v=$("cx"+k).value.trim(); cxCur[key]=v===""?null:(isFinite(parseMoney(v))?parseMoney(v):null); }
+  for(const k of CXI){ const v=$("cx"+k).value.replace(/\D/g,""); cxCur[k]=v===""?null:Number(v); }
+  cxCur.obs=$("cxObs").value.slice(0,500); }
+function cxSave(){ if(!db||!canWrite){ $("cxSave").textContent="Sem acesso para salvar."; return; } cxDirty=true; clearTimeout(cxTimer); $("cxSave").textContent="Salvando…";
+  cxTimer=setTimeout(async ()=>{ const d=cxCur.data; const doc={...cxCur,atualizadoEm:Date.now()}; cxDocs[d]=doc;
+    try{ await db.collection("caixa").doc(d).set(doc); $("cxSave").textContent="Salvo."; }catch(err){ $("cxSave").textContent="Não salvou: "+(err?.message||err?.code); } cxDirty=false; },600); }
+function cxCalc(c){ const by={din:0,cart:0,ale:0,fia:0}; for(const x of [...c.caderno,...c.comandas]) by[x.f]=(by[x.f]||0)+(x.v||0);
+  const cad=c.caderno.reduce((t,x)=>t+(x.v||0),0), com=c.comandas.reduce((t,x)=>t+(x.v||0),0), troco=c.troco??0;
+  const maq=[c.deb,c.cre,c.pix,c.vou].some(v=>v!=null)?(c.deb||0)+(c.cre||0)+(c.pix||0)+(c.vou||0):null;
+  return {by,cad,com,tot:cad+com,troco,esp:troco+by.din,maq}; }
+function difTxt(d){ if(Math.abs(d)<0.01) return `<span class="ok">Bateu</span>`; return d>0?`<span class="ok">Sobrou ${brl.format(d)}</span>`:`<span class="bad">Faltou ${brl.format(-d)}</span>`; }
+function cxRender(){ const c=cxCur, k=cxCalc(c);
+  const lst=(arr,tipo)=>arr.length?arr.map((x,i)=>`<div><span>${tipo==="com"?`Comanda ${esc(x.d||"?")}`:esc(x.d||"—")}</span><span class="badge ${x.f==="fia"?"b-red":x.f==="din"?"b-ok":"b-amb"}">${CXF[x.f]}</span><span class="num">${brl.format(x.v||0)}</span><button type="button" data-cxdel="${tipo}:${i}" aria-label="Apagar">×</button></div>`).join("")+`<div class="cxtot" style="display:flex"><span>Total</span><span class="num">${brl.format(arr.reduce((t,x)=>t+(x.v||0),0))}</span></div>`:`<span class="note">Nada anotado ainda.</span>`;
+  $("cxCadL").innerHTML=lst(c.caderno,"cad"); $("cxComL").innerHTML=lst(c.comandas,"com");
+  const tile=(l,v,st="")=>`<div class="tile"><span class="label">${l}</span><span class="v num"${st}>${v}</span></div>`;
+  const dg=c.gav!=null?c.gav-k.esp:null;
+  $("cxTiles").innerHTML=tile("Vendido no dia",brl.format(k.tot))+tile("Tem que ter na gaveta",brl.format(k.esp))+tile("Gaveta contada",c.gav!=null?brl.format(c.gav):"—")+
+    tile("Diferença da gaveta",dg==null?"—":Math.abs(dg)<0.01?"Bateu":(dg>0?"+ ":"− ")+brl.format(Math.abs(dg)),dg==null?"":Math.abs(dg)<0.01?' style="color:var(--pos)"':dg<0?' style="color:var(--neg)"':' style="color:var(--pos)"');
+  const r=[];
+  r.push(`<div><span>Caderno</span><span class="num">${brl.format(k.cad)}</span></div>`);
+  r.push(`<div><span>Comandas</span><span class="num">${brl.format(k.com)}</span></div>`);
+  r.push(`<div><span><b>Total vendido</b></span><span class="num"><b>${brl.format(k.tot)}</b></span></div>`);
+  r.push(`<div><span>Em dinheiro (anotado) + troco ${brl.format(k.troco)}</span><span class="num">${brl.format(k.esp)}</span></div>`);
+  r.push(`<div><span>Gaveta</span><span>${c.gav==null?"falta contar":difTxt(dg)}</span></div>`);
+  r.push(`<div><span>Cartão/Pix anotado ${brl.format(k.by.cart)} × maquininha ${k.maq==null?"—":brl.format(k.maq)}</span><span>${k.maq==null?"falta o relatório":difTxt(k.maq-k.by.cart)}</span></div>`);
+  r.push(`<div><span>Alelo anotado ${brl.format(k.by.ale)} × Cielo ${c.ale==null?"—":brl.format(c.ale)}</span><span>${c.ale==null?(k.by.ale?"falta o relatório":"—"):difTxt(c.ale-k.by.ale)}</span></div>`);
+  if(k.by.fia) r.push(`<div><span>Fiado do dia (lance no Fiados)</span><span class="num" style="color:var(--neg)">${brl.format(k.by.fia)}</span></div>`);
+  if(c.CL!=null||c.AL!=null){ const d=(c.CL||0)-(c.AL||0); r.push(`<div><span>Litrões: ${c.CL??0} vazios × ${c.AL??0} anotados</span><span>${d===0?`<span class="ok">Bateu</span>`:d>0?`<span class="bad">${d} sem anotar</span>`:`<span class="ok">${-d} a mais anotado</span>`}</span></div>`); }
+  if(c.C6!=null||c.A6!=null){ const d=(c.C6||0)-(c.A6||0); r.push(`<div><span>600: ${c.C6??0} vazios × ${c.A6??0} anotados</span><span>${d===0?`<span class="ok">Bateu</span>`:d>0?`<span class="bad">${d} sem anotar</span>`:`<span class="ok">${-d} a mais anotado</span>`}</span></div>`); }
+  $("cxRes").innerHTML=r.join("");
+  [["cxFCad",cxFCad],["cxFCom",cxFCom]].forEach(([id,f])=>[...$(id).children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.f===f))); }
+function cxResumoTxt(){ const c=cxCur,k=cxCalc(c); const dg=c.gav!=null?c.gav-k.esp:null; const f=v=>brl.format(v);
+  const L=[`Caixa ${ddmm(c.data)}`,`Caderno: ${f(k.cad)}`,`Comandas: ${f(k.com)}`,`Total vendido: ${f(k.tot)}`,`Dinheiro anotado: ${f(k.by.din)} + troco ${f(k.troco)} = ${f(k.esp)}`];
+  if(c.gav!=null) L.push(`Gaveta contada: ${f(c.gav)} (${Math.abs(dg)<0.01?"bateu":dg>0?"sobrou "+f(dg):"faltou "+f(-dg)})`);
+  L.push(`Cartão/Pix anotado: ${f(k.by.cart)}`+(k.maq!=null?` · maquininha ${f(k.maq)} (débito ${f(c.deb||0)}, crédito ${f(c.cre||0)}, pix ${f(c.pix||0)}, voucher ${f(c.vou||0)})`:""));
+  if(k.by.ale||c.ale!=null) L.push(`Alelo anotado: ${f(k.by.ale)}`+(c.ale!=null?` · Cielo ${f(c.ale)}`:""));
+  if(k.by.fia) L.push(`Fiado do dia: ${f(k.by.fia)}`);
+  if(c.CL!=null||c.AL!=null) L.push(`Litrões: ${c.CL??0} vazios, ${c.AL??0} anotados`);
+  if(c.C6!=null||c.A6!=null) L.push(`600: ${c.C6??0} vazios, ${c.A6??0} anotados`);
+  if(c.obs) L.push(`Obs.: ${c.obs}`); return L.join("\n"); }
+function cxAdd(tipo){ const D=$(tipo==="cad"?"cxCadD":"cxComD"), V=$(tipo==="cad"?"cxCadV":"cxComV"), v=parseMoney(V.value);
+  if(!(v>0)){ showStatus("Digite o valor.",true); setTimeout(()=>showStatus(""),2500); V.focus(); return; }
+  (tipo==="cad"?cxCur.caderno:cxCur.comandas).push({d:D.value.trim().slice(0,60),v,f:tipo==="cad"?cxFCad:cxFCom});
+  D.value=""; V.value=""; if(tipo==="cad") cxFCad="din"; else cxFCom="din"; cxRender(); cxSave(); (tipo==="cad"?D:D).focus(); }
+$("cxCadAdd").onclick=()=>cxAdd("cad"); $("cxComAdd").onclick=()=>cxAdd("com");
+["cxCadV","cxComV"].forEach(id=>$(id).addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); cxAdd(id==="cxCadV"?"cad":"com"); } }));
+$("cxFCad").addEventListener("click",e=>{ const b=e.target.closest("[data-f]"); if(b){ cxFCad=b.dataset.f; cxRender(); } });
+$("cxFCom").addEventListener("click",e=>{ const b=e.target.closest("[data-f]"); if(b){ cxFCom=b.dataset.f; cxRender(); } });
+["cxCadL","cxComL"].forEach(id=>$(id).addEventListener("click",e=>{ const b=e.target.closest("[data-cxdel]"); if(!b) return;
+  if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="apagar?"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="×"; },3000); return; }
+  const [t,i]=b.dataset.cxdel.split(":"); (t==="cad"?cxCur.caderno:cxCur.comandas).splice(Number(i),1); cxRender(); cxSave(); }));
+document.querySelectorAll(".cxin").forEach(i=>i.addEventListener("input",()=>{ cxRead(); cxRender(); cxSave(); }));
+$("cxData").addEventListener("change",()=>{ if(!$("cxData").value) $("cxData").value=today(); cxLoad(); });
+$("cxPrev").onclick=()=>{ $("cxData").value=addDays($("cxData").value||today(),-1); cxLoad(); };
+$("cxNext").onclick=()=>{ $("cxData").value=addDays($("cxData").value||today(),1); cxLoad(); };
+$("cxCopy").onclick=async ()=>{ const t=cxResumoTxt(); try{ await navigator.clipboard.writeText(t); $("cxCopy").textContent="Copiado!"; }catch{ $("cxCopy").textContent="Não copiou"; } setTimeout(()=>$("cxCopy").textContent="Copiar resumo",2000); };
+function tabFromHash(){ return location.hash==="#estoque"?"est":location.hash==="#fiados"?"fia":location.hash==="#caixa"?"cx":"fin"; }
+function setTab(t){ document.body.classList.toggle("est", t==="est"); document.body.classList.toggle("fia", t==="fia"); document.body.classList.toggle("cx", t==="cx");
+  $("tabFin").setAttribute("aria-selected", t==="fin"); $("tabEst").setAttribute("aria-selected", t==="est"); $("tabCx").setAttribute("aria-selected", t==="cx");
+  if(t==="est") renderEstoque(); if(t==="fia") renderFiados(); if(t==="cx") cxLoad(); }
 document.querySelector(".tabs").addEventListener("click", e=>{ const b=e.target.closest("[data-tab]"); if(!b) return; const t=b.dataset.tab; try{ history.replaceState(null,"",TAB_HASH[t]||"#"); }catch{} setTab(t); });
 window.addEventListener("hashchange", ()=>setTab(tabFromHash()));
 setTab(tabFromHash());
@@ -2289,6 +2433,7 @@ render();
   db.collection("clientes").onSnapshot(sn=>{ const m={}; for(const x of sn.docs){ const v=x.data(); if(v.nome) m[ckey(v.nome)]={nome:v.nome,tel:v.tel||"",semAcrescimo:!!v.semAcrescimo,funcionario:!!v.funcionario}; } clientesTel=m; renderFiados(); }, ()=>{});
   db.collection("fiados").onSnapshot(sn=>{ fiados=sn.docs.map(x=>({id:x.id,...x.data()})).filter(f=>f.cliente&&typeof f.valor==="number"&&typeof f.data==="string"); renderFiados(); }, ()=>{});
   db.collection("historico").onSnapshot(sn=>{ historico=sn.docs.map(x=>({id:x.id,...x.data()})).filter(h=>h.docId&&h.quando); renderHist2(); }, ()=>{});
+  db.collection("caixa").onSnapshot(sn=>{ cxDocs={}; sn.docs.forEach(x=>{ cxDocs[x.id]=x.data(); }); if(document.body.classList.contains("cx") && !cxDirty) cxLoad(); }, ()=>{});
   db.collection("entregas").onSnapshot(sn=>{ entregas=sn.docs.map(x=>({id:x.id,...x.data()})).filter(e=>typeof e.valor==="number"&&typeof e.data==="string"); renderCaixa(); if(!$("scrim11").hidden) renderEntList(); }, ()=>{});
   db.collection("movimentos").onSnapshot(sn=>{ movs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.produtoId&&typeof m.qtd==="number"&&typeof m.data==="string"); renderEstoque(); if(!$("scrim4").hidden) renderHist(); }, ()=>{});
   db.doc("config/estoque").onSnapshot(d=>{ const v=d.exists?d.data():{}; eCfg={dias:Number(v.dias)||7, prazo:Number(v.prazo)||0, ign:Array.isArray(v.ign)?v.ign:[]}; renderEstoque(); }, ()=>{});
