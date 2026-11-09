@@ -293,9 +293,11 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 .banner.err{border-color:var(--neg);color:var(--neg)}
 
 /* folha */
-.scrim{position:fixed;inset:0;background:rgba(10,16,13,.5);z-index:30;display:flex;align-items:flex-end;justify-content:center}
-.sheet{background:var(--surface);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;
+.scrim{position:fixed;inset:0;background:rgba(10,16,13,.5);z-index:30;display:flex;align-items:flex-end;justify-content:center;overscroll-behavior:contain;touch-action:none}
+body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
+.sheet{background:var(--surface);width:100%;max-width:560px;max-height:92vh;max-height:calc(100dvh - 16px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;border-radius:18px 18px 0 0;
   padding:18px max(18px,env(safe-area-inset-left,0px)) calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.sheet>*{flex-shrink:0}
 @media (min-width:640px){.scrim{align-items:center}.sheet{border-radius:18px}}
 .sheet h3{font-size:20px}
 .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--sunk);padding:4px;border-radius:10px}
@@ -2251,4 +2253,12 @@ render();
     render();
   }, err=>{ clearTimeout(timer); state.loaded=true; render(); showStatus("Conexão com os dados perdida. Recarregue a página.",true); });
 })();
+
+/* trava o fundo enquanto uma janela (sheet) esta aberta */
+(function(){let y=0,trav=false;
+ function ver(){const aberto=[...document.querySelectorAll(".scrim")].some(x=>!x.hidden);
+  if(aberto&&!trav){y=window.scrollY;document.body.style.top=(-y)+"px";document.body.classList.add("travado");trav=true;}
+  else if(!aberto&&trav){document.body.classList.remove("travado");document.body.style.top="";window.scrollTo(0,y);trav=false;}}
+ const mo=new MutationObserver(ver);
+ document.querySelectorAll(".scrim").forEach(x=>mo.observe(x,{attributes:true,attributeFilter:["hidden"]}));ver();})();
 </script>
