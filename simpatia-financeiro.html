@@ -236,6 +236,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 .cpadkeys .padok{background:#2F6FDB;border-color:#2F6FDB;color:#fff;font-size:28px;font-weight:700;border-radius:999px}
 #scrim5 .sheet{padding-bottom:300px}
 .cnt input{font:inherit;font-family:var(--mono);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;text-align:right}
+.ctag{font-size:11px;font-weight:700;color:var(--pos)}
 .cnt .h{font-size:11px;color:var(--muted);text-align:center;font-weight:600}
 .hist{display:flex;flex-direction:column;font-size:13px}
 .hist div{display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
@@ -643,6 +644,7 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
     <h3>Contagem de estoque</h3>
     <div class="note">Conte freezer + depósito. Toque em Caixas ou Avulsas, digite e toque no <b style="color:#2F6FDB">✓ azul</b> do teclado. No fim, toque em <b>Salvar contagem</b>.</div>
     <div class="field"><label for="cData">Data da contagem</label><input id="cData" type="date"></div>
+    <div class="banner" id="cJa" hidden></div>
     <div class="chips" id="cForns" role="group" aria-label="Fornecedor"></div>
     <div id="cRows"></div>
     <div class="note" id="cNote"></div>
@@ -1388,6 +1390,16 @@ function showCForn(){ if(typeof closePad==="function") closePad();
   const filled=[...$("cRows").querySelectorAll("[data-cp]")].filter(r=>r.querySelector("[data-c]").value!==""||r.querySelector("[data-u]").value!=="").length;
   $("cSave").textContent = filled ? `Salvar contagem (${filled})` : "Salvar contagem";
 }
+// contagem ja salva na data: preenche para continuar/editar
+function contDia(pid,data){ return movs.filter(m=>m.produtoId===pid&&m.tipo==="contagem"&&m.data===data).sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0))[0]||null; }
+function preencherCont(){ const data=$("cData").value; let n=0;
+  [...$("cRows").querySelectorAll("[data-cp]")].forEach(r=>{ const p=produtos.find(q=>q.id===r.dataset.cp); const m=p&&contDia(p.id,data);
+    const ci=r.querySelector("[data-c]"), ui=r.querySelector("[data-u]"), tag=r.querySelector(".ctag");
+    if(m){ n++; const cx=p.porCaixa>1?p.porCaixa:1; ci.value=cx>1?String(Math.floor(m.qtd/cx)):""; ui.value=String(cx>1?m.qtd%cx:m.qtd); if(cx>1&&ui.value==="0"&&ci.value!=="") ui.value=""; }
+    else { ci.value=""; ui.value=""; }
+    r.dataset.mid=m?m.id:""; r.dataset.orig=m?String(m.qtd):""; if(tag) tag.hidden=!m; });
+  $("cJa").hidden=!n; $("cJa").innerHTML=n?`Você já salvou <b>${n}</b> item(ns) nessa data. Eles estão preenchidos: complete o que falta ou corrija e toque em <b>Salvar contagem</b>.`:"";
+  showCForn(); }
 function openCount(){
   if(!db){ showStatus("Entre na sua conta do claude.ai para usar o estoque.",true); return; }
   if(!canWrite){ showStatus("Seu acesso é só de leitura.",true); return; }
@@ -1397,18 +1409,22 @@ function openCount(){
   if(!fs.includes(cForn)) cForn=fs.find(f=>produtos.some(p=>fornOf(p)===f))||fs[0];
   $("cForns").innerHTML=fs.map(f=>`<button type="button" class="chip" data-cf="${esc(f)}">${esc(f)} <span class="num">${produtos.filter(p=>fornOf(p)===f).length}</span></button>`).join("");
   $("cRows").innerHTML=`<div class="cnt"><span class="h" style="text-align:left">Produto</span><span class="h">Caixas</span><span class="h">Avulsas</span></div><div class="empty" id="cEmpty" hidden></div>`+
-    [...produtos].sort(ordemProd).map(p=>{ const a=analyze(p); return `<div class="cnt" data-cp="${esc(p.id)}" data-cforn="${esc(fornOf(p))}"><span><b>${esc(p.nome)}</b><br><span class="note">${p.porCaixa>1?`cx de ${p.porCaixa} · `:""}sistema: ${fmtCx(a.st,p.porCaixa)}</span></span>
+    [...produtos].sort(ordemProd).map(p=>{ const a=analyze(p); return `<div class="cnt" data-cp="${esc(p.id)}" data-cforn="${esc(fornOf(p))}"><span><b>${esc(p.nome)}</b><br><span class="note">${p.porCaixa>1?`cx de ${p.porCaixa} · `:""}sistema: ${fmtCx(a.st,p.porCaixa)}</span> <span class="ctag" hidden>✓ já contado</span></span>
       <input type="text" readonly inputmode="none" tabindex="-1" autocomplete="off" class="padin" data-c aria-label="Caixas de ${esc(p.nome)}"${p.porCaixa>1?"":" disabled"}><input type="text" readonly inputmode="none" tabindex="-1" autocomplete="off" class="padin" data-u aria-label="Unidades avulsas de ${esc(p.nome)}"></div>`; }).join("");
-  showCForn(); $("scrim5").hidden=false;
+  preencherCont(); $("scrim5").hidden=false;
 }
+$("cData").addEventListener("change", ()=>{ if(typeof closePad==="function") closePad(); preencherCont(); });
 $("cForm").addEventListener("submit", async e=>{
   e.preventDefault(); const data=$("cData").value; if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){ $("cNote").textContent="Informe a data."; return; }
   const rows=[...$("cRows").querySelectorAll("[data-cp]")].map(r=>{ const c=r.querySelector("[data-c]").value, u=r.querySelector("[data-u]").value; const p=produtos.find(q=>q.id===r.dataset.cp);
-    return (c===""&&u==="")?null:{p,q:Math.round((Number(c)||0)*(p.porCaixa||1)+(Number(u)||0))}; }).filter(Boolean);
+    return (c===""&&u==="")?null:{p,q:Math.round((Number(c)||0)*(p.porCaixa||1)+(Number(u)||0)),mid:r.dataset.mid||"",orig:r.dataset.orig}; }).filter(Boolean);
   if(!rows.length){ $("cNote").textContent="Preencha a contagem de pelo menos uma cerveja."; return; }
   const b=$("cSave"); b.disabled=true; b.textContent="Salvando…";
-  try{ const now=Date.now(); for(const [i,r] of rows.entries()) await db.collection("movimentos").doc().set({produtoId:r.p.id,tipo:"contagem",qtd:r.q,data,obs:"",criadoEm:now+i});
-    closePad(); $("scrim5").hidden=true; showStatus(`Contagem de ${rows.length} cerveja(s) salva.`); setTimeout(()=>showStatus(""),3500); }
+  try{ const now=Date.now(); let novos=0, alt=0;
+    for(const [i,r] of rows.entries()){
+      if(r.mid){ if(String(r.q)===r.orig) continue; const m=movs.find(x=>x.id===r.mid)||{}; await db.collection("movimentos").doc(r.mid).set({produtoId:r.p.id,tipo:"contagem",qtd:r.q,data,obs:m.obs||"",criadoEm:m.criadoEm||now+i}); alt++; }
+      else { await db.collection("movimentos").doc().set({produtoId:r.p.id,tipo:"contagem",qtd:r.q,data,obs:"",criadoEm:now+i}); novos++; } }
+    closePad(); $("scrim5").hidden=true; showStatus(novos||alt?`Contagem salva: ${novos} novo(s)${alt?`, ${alt} corrigido(s)`:""}.`:"Nada mudou na contagem."); setTimeout(()=>showStatus(""),3500); }
   catch(err){ $("cNote").textContent="Não foi possível salvar: "+(err?.message||err?.code); } finally{ b.disabled=false; b.textContent="Salvar contagem"; }
 });
 let padIn=null, padVal="", padTs=0;
