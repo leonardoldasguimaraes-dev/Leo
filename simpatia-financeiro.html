@@ -1470,7 +1470,7 @@ const saudacao=()=>{ const h=new Date().getHours(); return h<12?"Bom dia":h<18?"
 function avisoText(){ return `${saudacao()}! Aqui é o Léo do Simpatia. Estou adicionando seu número aqui, só para a gente ter um controle melhor. Obrigado!`; }
 function regraText(k){
   if(k==="__func__"||funcK(k)) return `${saudacao()}! Tudo bem? Aqui é o Léo do Simpatia.\nA partir de novembro o bar está com um controle novo, tudo anotado e conferido todo dia.\nO seu consumo no bar continua liberado, mas agora é lançado no seu nome, com acréscimo de 18%, e descontado no salário no fim do mês.\nToda venda tem que ir na comanda ou no caderno, inclusive a sua.\nÉ para o bar e o restaurante continuarem firmes, garantindo o trabalho de todo mundo. Conto com você. Obrigado!`;
-  return `${saudacao()}, meu amigo! Tudo bem? Aqui é o Léo do Simpatia.\nA partir de novembro o fiado do bar mudou: ele fecha no fim do mês, vence no dia 10 e tem ${Math.round(ACRESC*100)}% a mais, porque eu pago a mercadoria na hora e só recebo depois de 30 dias. Pagando à vista, fica o preço normal.\nO que você já devia de outubro continua do mesmo valor, sem acréscimo.\nObrigado pela parceria de sempre, e fica com Deus!`;
+  return `${saudacao()}, meu amigo! Tudo bem? Aqui é o Léo do Simpatia.\nA partir de novembro o fiado do bar mudou: a conta fecha no fim de cada mês e vence no dia 10 do mês seguinte.\nObrigado pela parceria de sempre, e fica com Deus!`;
 }
 function quitadoText(){ return `${saudacao()}, meu amigo! Recebi seu pagamento, sua continha aqui está quitada. Tá tudo certinho, tá joia! Obrigado pela confiança, boa semana e fica com Deus!`; }
 const isentoK=k=>!!clientesTel[k]?.semAcrescimo;
