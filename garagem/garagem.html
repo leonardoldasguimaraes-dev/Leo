@@ -113,6 +113,13 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
 .pill.warn { background: var(--warn-bg); color: var(--warn-fg); }
 .pill.late { background: var(--danger); color: var(--surface); }
 .pill.none { color: var(--muted); border: 1px dashed var(--line); }
+.visit { border: 1px solid var(--accent); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.visit-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.visit-head b { font-family: var(--display); font-size: 1.2rem; text-transform: uppercase; letter-spacing: .03em; }
+.visit ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.visit li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; }
+.visit li::before { content: ""; width: 14px; height: 14px; margin-top: 4px; border: 2px solid var(--accent); border-radius: 3px; }
+.visit li small { display: block; color: var(--muted); font-size: .84rem; }
 .chip.on { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
 
 /* Sheet */
@@ -321,6 +328,12 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
     const plans = plansFor(v.id);
     const pst = plans.map((p) => planStatus(p, recs, km));
     const planAlerts = pst.filter((s) => s.level === "late" || s.level === "warn");
+    // Next workshop visit: the soonest km-based item, plus everything due within 1.000 km / 60 days of it, plus items never recorded.
+    const withKm = pst.filter((s) => s.kmLeft !== null && s.kmLeft !== undefined);
+    const minLeft = withKm.length ? Math.min(...withKm.map((s) => s.kmLeft)) : null;
+    const visitKm = minLeft !== null ? km + Math.max(minLeft, 0) : null;
+    const visitItems = pst.filter((s) => s.level === "none" || s.level === "late" || (s.kmLeft != null && minLeft !== null && s.kmLeft <= minLeft + 1000) || (s.daysLeft != null && s.daysLeft <= 60));
+    const visitHtml = visitItems.length ? '<div class="visit"><div class="visit-head"><b>Próxima ida à oficina</b><span class="sub">' + (visitKm !== null ? (minLeft <= 0 ? "já passou da hora" : "aos " + nInt.format(visitKm) + " km · faltam " + nInt.format(minLeft) + " km") : "") + '</span></div><div class="hint">Peça para fazer:</div><ul>' + visitItems.map((s) => "<li><div>" + esc(s.p.nome) + "<small>" + esc(s.level === "none" ? "sem registro: pedir para conferir" : s.level === "late" ? s.text : s.kmLeft != null ? "vence aos " + nInt.format(km + s.kmLeft) + " km" : s.text) + "</small></div></li>").join("") + "</ul></div>" : "";
 
     const digits = String(Math.round(km)).padStart(6, "0").split("").map((d) => "<span>" + d + "</span>").join("");
     $("panel").innerHTML =
@@ -334,7 +347,7 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
       '<div class="stat"><span class="label">Consumo médio</span><b>' + (avg ? n1.format(avg) + " km/L" : "—") + "</b></div>" +
       '<div class="stat"><span class="label">Combustível no mês</span><b>' + brl.format(fuelMonth) + "</b></div>" +
       '<div class="stat"><span class="label">Manutenção ' + yr + "</span><b>" + brl.format(maintYear) + "</b></div>" +
-      "</div>";
+      "</div>" + visitHtml;
     $("editV").onclick = () => openVehicle(v);
     $("actions").hidden = false; $("log").hidden = false;
 
