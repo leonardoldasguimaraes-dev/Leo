@@ -265,7 +265,8 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
   function planStatus(p, recs, km) {
     const nm = (p.nome || "").toLowerCase();
     const done = recs.filter((r) => r.tipo === "manutencao" && ((Array.isArray(r.itens) && r.itens.includes(p.id)) || (r.servico || "").toLowerCase() === nm));
-    const last = done[done.length - 1] || null;
+    let last = done[done.length - 1] || null;
+    if (!last && num(p.baseKm) !== null) last = { km: num(p.baseKm), data: p.baseData || "", base: true };
     if (!last) return { p, last: null, level: "none", text: "sem registro" };
     const iKm = num(p.intervaloKm), iM = num(p.intervaloMeses);
     let kmLeft = null, daysLeft = null;
@@ -339,7 +340,7 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
 
     $("plan").hidden = !state.loaded.p;
     $("planList").innerHTML = pst.length ? pst.map((s) => {
-      const lastTxt = s.last ? "último aos " + (num(s.last.km) !== null ? nInt.format(num(s.last.km)) + " km" : "—") + " em " + fmtDate(s.last.data) : "";
+      const lastTxt = s.last && s.last.base ? (s.p.baseTexto || "contando desde " + nInt.format(num(s.last.km)) + " km") : s.last ? "último aos " + (num(s.last.km) !== null ? nInt.format(num(s.last.km)) + " km" : "—") + " em " + fmtDate(s.last.data) : "";
       const meta = [intervalText(s.p), lastTxt].filter(Boolean).join(" · ");
       return '<li class="plan-item" data-p="' + esc(s.p.id) + '" tabindex="0"><div><div class="t">' + esc(s.p.nome) + '</div><div class="m">' + esc(meta) + (s.p.descricao ? "<br>" + esc(s.p.descricao) : "") + '</div></div><span class="pill ' + s.level + '">' + esc(s.text) + "</span></li>";
     }).join("") : '<li class="empty-state">Nenhum plano cadastrado para este veículo ainda.</li>';
