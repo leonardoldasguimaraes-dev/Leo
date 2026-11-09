@@ -494,6 +494,8 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
   <div class="sheet">
     <div class="fiahead"><h3 id="cName">Cliente</h3><span class="num" id="cSaldo"></span></div>
     <div class="note" id="cInfo"></div>
+    <div class="banner" id="cLib"></div>
+    <div class="tools"><button type="button" class="btn" id="cFecha">Fechar o mês (+15%)</button><label class="chk" style="align-items:center"><input type="checkbox" id="cIsento"><span>Cliente antigo: sem acréscimo</span></label></div>
     <div class="field"><label for="cTel">Telefone / WhatsApp</label>
       <div class="inl"><input id="cTel" type="tel" inputmode="tel" placeholder="(11) 98765-4321" autocomplete="off" style="flex:1;min-width:0"><button type="button" class="btn" id="cTelSave">Salvar</button></div>
       <span class="note" id="cTelNote"></span></div>
@@ -1389,13 +1391,29 @@ function telDigits(t){ let d=String(t||"").replace(/\D/g,""); if(d.length===10||
 const telOk=d=>/^55\d{10,11}$/.test(d);
 function fmtTel(d){ d=String(d||""); const n=d.startsWith("55")?d.slice(2):d; return n.length===11?`(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`:n.length===10?`(${n.slice(0,2)}) ${n.slice(2,6)}-${n.slice(6)}`:d; }
 const telOf=k=>clientesTel[k]?.tel||"";
-async function saveTel(nome, tel){ const d=telDigits(tel); await db.collection("clientes").doc(cid(ckey(nome))).set({nome, tel:d, atualizadoEm:Date.now()}); clientesTel[ckey(nome)]={nome,tel:d}; }
+async function saveTel(nome, tel){ const d=telDigits(tel), isen=!!clientesTel[ckey(nome)]?.semAcrescimo; await db.collection("clientes").doc(cid(ckey(nome))).set({nome, tel:d, semAcrescimo:isen, atualizadoEm:Date.now()}); clientesTel[ckey(nome)]={nome,tel:d,semAcrescimo:isen}; }
 const saudacao=()=>{ const h=new Date().getHours(); return h<12?"Bom dia":h<18?"Boa tarde":"Boa noite"; };
 function avisoText(){ return `${saudacao()}! Aqui é o Léo do Simpatia. Estou adicionando seu número aqui, só para a gente ter um controle melhor. Obrigado!`; }
 function quitadoText(){ return `${saudacao()}, meu amigo! Recebi seu pagamento, sua continha aqui está quitada. Tá tudo certinho, tá joia! Obrigado pela confiança, boa semana e fica com Deus!`; }
+const ACRESC=0.15, LIMITE_FIADO=300;
 function cobrancaText(c){
-  const saud=saudacao();
-  return `${saud}, meu amigo!\nFechei sua continha aqui, ficou em ${brl.format(Math.max(0,c.saldo))}.\nObrigado, boa semana e fica com Deus!`;
+  const saud=saudacao(), lastPay=[...c.hist].reverse().find(f=>f.tipo==="pagamento");
+  const acr=[...c.hist].reverse().find(f=>f.tipo==="acrescimo" && (!lastPay || (f.data>lastPay.data) || (f.data===lastPay.data && (f.criadoEm||0)>(lastPay.criadoEm||0))));
+  const linha = acr ? `Fechei sua continha aqui: ${brl.format(acr.base||0)} + 15% do prazo de 30 dias, ficou em ${brl.format(Math.max(0,c.saldo))}.` : `Fechei sua continha aqui, ficou em ${brl.format(Math.max(0,c.saldo))}.`;
+  return `${saud}, meu amigo!\n${linha}\nObrigado, boa semana e fica com Deus!`;
+}
+function liberacao(c){
+  const ym=thisMonth(), start=ym+"-01";
+  const acrMes=c.hist.filter(f=>f.tipo==="acrescimo"&&f.data>=start).reduce((t,f)=>t+f.valor,0);
+  const fech=Math.max(0,c.ant)+acrMes;
+  const pago=c.hist.filter(f=>f.tipo==="pagamento"&&f.data>=start).reduce((t,f)=>t+f.valor,0);
+  const novo=c.hist.filter(f=>f.tipo==="compra"&&f.data>=start).reduce((t,f)=>t+f.valor,0);
+  let lim, motivo;
+  if(fech<=0.009){ lim=LIMITE_FIADO; motivo=`sem conta do mês anterior: limite de ${brl.format(LIMITE_FIADO)}`; }
+  else if(pago>=fech-0.009){ lim=LIMITE_FIADO; motivo=`quitou o mês anterior: limite de ${brl.format(LIMITE_FIADO)}`; }
+  else if(pago>=fech*0.5){ lim=Math.round(fech*0.3); motivo=`pagou ${Math.round(pago/fech*100)}% do fechamento (${brl.format(fech)}): libera 30% = ${brl.format(lim)}`; }
+  else { lim=0; motivo=`pagou ${fech?Math.round(pago/fech*100):0}% do fechamento (${brl.format(fech)}). Precisa pagar pelo menos ${brl.format(Math.ceil(fech*0.5))} para liberar`; }
+  return {pode:Math.max(0,lim-novo), lim, novo, motivo, fech, pago};
 }
 const thisMonth=()=>ymOf(today());
 const lastDayPrev=()=>{ const ym=shiftYm(thisMonth(),-1), [y,m]=ym.split("-").map(Number); return `${ym}-${pad(new Date(y,m,0).getDate())}`; };
@@ -1414,7 +1432,7 @@ function renderFiados(){
   const cs=fClients(), devendo=cs.filter(c=>c.saldo>0.009), ym=thisMonth();
   const total=devendo.reduce((s,c)=>s+c.saldo,0), ant=cs.reduce((s,c)=>s+Math.max(0,c.ant),0);
   const rec=fiados.filter(f=>f.tipo==="pagamento"&&ymOf(f.data)===ym).reduce((s,f)=>s+f.valor,0);
-  const novos=fiados.filter(f=>f.tipo!=="pagamento"&&ymOf(f.data)===ym).reduce((s,f)=>s+f.valor,0);
+  const novos=fiados.filter(f=>f.tipo==="compra"&&ymOf(f.data)===ym).reduce((s,f)=>s+f.valor,0);
   const tile=(l,v,c="")=>`<div class="tile"><span class="label">${l}</span><span class="v num"${c}>${v}</span></div>`;
   $("fTiles").innerHTML=tile("Total a receber",brl.format(total),total?' style="color:var(--neg)"':"")+tile(`Fiado até ${ymLabel(shiftYm(ym,-1),true)}`,brl.format(ant))+tile(`Fiado novo em ${ymLabel(ym,true)}`,brl.format(novos))+tile(`Recebido em ${ymLabel(ym,true)}`,brl.format(rec),rec?' style="color:var(--pos)"':"")+
     `<div class="tile" style="grid-column:1/-1"><span class="label">Dinheiro do fiado guardado</span><span class="v num" style="color:var(--pos)">${brl.format(fiados.filter(f=>f.tipo==="pagamento").reduce((t,f)=>t+f.valor,0))}</span><span class="note">Total já recebido dos fiados. Fica separado: não entra no caixa nem nas vendas do bar.</span></div>`;
@@ -1487,6 +1505,13 @@ $("fList").addEventListener("click", e=>{ const b=e.target.closest("[data-ck]");
 function renderClient(){
   const c=fClients().find(x=>x.key===fOpenKey); if(!c){ $("scrim7").hidden=true; return; }
   $("cName").textContent=c.nome; $("cSaldo").textContent=brl.format(Math.max(0,c.saldo)); $("cSaldo").style.color=c.saldo>0.009?"var(--neg)":"var(--pos)";
+  const L=liberacao(c), isento=!!clientesTel[c.key]?.semAcrescimo;
+  $("cLib").innerHTML=`<b>Pode pegar fiado agora: ${brl.format(L.pode)}</b><br><span class="note">${esc(L.motivo)}${L.novo?` · já pegou ${brl.format(L.novo)} este mês`:""}</span>`;
+  $("cLib").className = "banner" + (L.pode>0?"":" err");
+  $("cIsento").checked=isento; $("cIsento").disabled=!canWrite;
+  const jaAcr=c.hist.some(f=>f.tipo==="acrescimo"&&ymOf(f.data)===thisMonth());
+  $("cFecha").hidden=!(canWrite&&db&&c.saldo>0.009&&!isento&&!jaAcr);
+  $("cFecha").textContent=`Fechar o mês (+15% = ${brl.format(Math.round(c.saldo*ACRESC*100)/100)})`;
   $("cInfo").textContent = c.saldo>0.009 ? `Devendo desde ${c.aberto?c.aberto.split("-").reverse().join("/"):"—"}${c.ant>0.009?` · ${brl.format(c.ant)} vem de antes de ${ymLabel(thisMonth())}`:""}` : "Sem saldo devedor.";
   $("cPay").hidden=!(c.saldo>0.009&&canWrite); $("cAdd").hidden=!canWrite;
   const tel=telOf(c.key); if(document.activeElement!==$("cTel")) $("cTel").value=fmtTel(tel);
@@ -1497,7 +1522,7 @@ function renderClient(){
   ok.classList.toggle("primary", !!$("cTelNote").dataset.quitou);
   const wa=$("cWa"); wa.hidden=!(telOk(tel)&&c.saldo>0.009); if(!wa.hidden) wa.href=`https://wa.me/${tel}?text=${encodeURIComponent(cobrancaText(c))}`;
   if(!$("cTelNote").dataset.msg) $("cTelNote").textContent = telOk(tel) ? "" : "Salve o telefone para cobrar direto no WhatsApp.";
-  $("cHist").innerHTML=[...c.hist].reverse().map(f=>`<div><span class="num">${ddmm(f.data)}</span><span>${f.tipo==="pagamento"?`Pagamento${f.forma?` · ${esc(f.forma)}`:""}`:"Fiado"}${f.desc?` <span class="note">· ${esc(f.desc)}</span>`:""}</span><span class="num" style="color:${f.tipo==="pagamento"?"var(--pos)":"var(--neg)"}">${f.tipo==="pagamento"?"−":"+"} ${brl.format(f.valor)}</span>${canWrite?`<button type="button" data-delf="${esc(f.id)}" aria-label="Apagar">×</button>`:"<span></span>"}</div>`).join("");
+  $("cHist").innerHTML=[...c.hist].reverse().map(f=>`<div><span class="num">${ddmm(f.data)}</span><span>${f.tipo==="pagamento"?`Pagamento${f.forma?` · ${esc(f.forma)}`:""}`:f.tipo==="acrescimo"?"Acréscimo 15%":"Fiado"}${f.desc?` <span class="note">· ${esc(f.desc)}</span>`:""}</span><span class="num" style="color:${f.tipo==="pagamento"?"var(--pos)":"var(--neg)"}">${f.tipo==="pagamento"?"−":"+"} ${brl.format(f.valor)}</span>${canWrite?`<button type="button" data-delf="${esc(f.id)}" aria-label="Apagar">×</button>`:"<span></span>"}</div>`).join("");
 }
 $("cHist").addEventListener("click", async e=>{ const b=e.target.closest("[data-delf]"); if(!b) return;
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="apagar?"; setTimeout(()=>{b.dataset.armed="";b.textContent="×";},3000); return; }
@@ -1505,6 +1530,15 @@ $("cHist").addEventListener("click", async e=>{ const b=e.target.closest("[data-
   try{ if(f.lancId) await db.collection("lancamentos").doc(f.lancId).delete(); await db.collection("fiados").doc(f.id).delete(); }catch(err){ showStatus("Não foi possível apagar: "+(err?.message||err?.code),true); } });
 $("cPay").onclick=()=>{ const c=fClients().find(x=>x.key===fOpenKey); $("scrim7").hidden=true; openFiado("pagamento",c?.nome); };
 $("cAdd").onclick=()=>{ const c=fClients().find(x=>x.key===fOpenKey); $("scrim7").hidden=true; openFiado("compra",c?.nome); };
+$("cFecha").onclick=async ()=>{ const c=fClients().find(x=>x.key===fOpenKey); if(!c||!db) return; const b=$("cFecha");
+  if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Toque de novo para confirmar"; setTimeout(()=>{ b.dataset.armed=""; renderClient(); },3000); return; }
+  b.dataset.armed=""; const base=Math.round(c.saldo*100)/100, v=Math.round(base*ACRESC*100)/100;
+  try{ await db.collection("fiados").doc().set({cliente:c.nome,tipo:"acrescimo",valor:v,base,data:today(),desc:`15% do prazo sobre ${brl.format(base)}`,criadoEm:Date.now()});
+    showStatus(`Mês fechado para ${c.nome}: ${brl.format(base)} + 15% = ${brl.format(base+v)}.`); setTimeout(()=>showStatus(""),5000); }
+  catch(err){ showStatus("Não foi possível fechar: "+(err?.message||err?.code),true); } };
+$("cIsento").onchange=async ()=>{ const c=fClients().find(x=>x.key===fOpenKey); if(!c||!db) return; const v=$("cIsento").checked;
+  try{ const cur=clientesTel[c.key]||{nome:c.nome,tel:""}; await db.collection("clientes").doc(cid(c.key)).set({nome:cur.nome||c.nome,tel:cur.tel||"",semAcrescimo:v,atualizadoEm:Date.now()}); clientesTel[c.key]={...cur,semAcrescimo:v}; renderClient(); }
+  catch(err){ showStatus("Não foi possível salvar: "+(err?.message||err?.code),true); } };
 $("cCopy").onclick=async ()=>{ const c=fClients().find(x=>x.key===fOpenKey); if(!c) return;
   const txt=cobrancaText(c);
   try{ await navigator.clipboard.writeText(txt); $("cCopy").textContent="Copiado!"; setTimeout(()=>$("cCopy").textContent="Copiar cobrança",2500); }
@@ -1975,7 +2009,7 @@ render();
   if(!db){ showStatus("Entre na sua conta do claude.ai para ver e salvar os lançamentos.",true); state.loaded=true; render(); return; }
   const timer=setTimeout(()=>showStatus("Não consegui buscar os lançamentos ainda. Verifique a conexão."),10000);
   db.collection("estoque").onSnapshot(sn=>{ produtos=sn.docs.map(x=>({id:x.id,...x.data()})).filter(p=>p.nome); renderEstoque(); }, ()=>{});
-  db.collection("clientes").onSnapshot(sn=>{ const m={}; for(const x of sn.docs){ const v=x.data(); if(v.nome) m[ckey(v.nome)]={nome:v.nome,tel:v.tel||""}; } clientesTel=m; renderFiados(); }, ()=>{});
+  db.collection("clientes").onSnapshot(sn=>{ const m={}; for(const x of sn.docs){ const v=x.data(); if(v.nome) m[ckey(v.nome)]={nome:v.nome,tel:v.tel||"",semAcrescimo:!!v.semAcrescimo}; } clientesTel=m; renderFiados(); }, ()=>{});
   db.collection("fiados").onSnapshot(sn=>{ fiados=sn.docs.map(x=>({id:x.id,...x.data()})).filter(f=>f.cliente&&typeof f.valor==="number"&&typeof f.data==="string"); renderFiados(); }, ()=>{});
   db.collection("historico").onSnapshot(sn=>{ historico=sn.docs.map(x=>({id:x.id,...x.data()})).filter(h=>h.docId&&h.quando); renderHist2(); }, ()=>{});
   db.collection("entregas").onSnapshot(sn=>{ entregas=sn.docs.map(x=>({id:x.id,...x.data()})).filter(e=>typeof e.valor==="number"&&typeof e.data==="string"); renderCaixa(); if(!$("scrim11").hidden) renderEntList(); }, ()=>{});
