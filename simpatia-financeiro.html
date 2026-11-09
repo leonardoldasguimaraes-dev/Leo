@@ -71,6 +71,19 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .caixa .sbtn{align-self:center}
 .caixa .ok{color:#B9F2CF}
 .caixa .warn{color:#FFD58A}
+.calcbtn{display:inline-flex;align-items:center;gap:6px;margin-left:auto}
+.calc{display:flex;flex-direction:column;gap:10px}
+.cdisp{background:var(--sunk);border-radius:12px;padding:12px 14px;text-align:right;min-height:96px;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;overflow:hidden}
+.cexpr{font-family:var(--mono);font-size:16px;color:var(--muted);word-break:break-all;min-height:20px}
+.cres{font-family:var(--mono);font-size:34px;font-variant-numeric:tabular-nums;word-break:break-all}
+.ckeys{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ckeys button{height:58px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-family:var(--mono);font-size:22px;color:var(--ink)}
+.ckeys button:active{background:var(--sunk)}
+.ckeys .op{background:var(--sunk);font-weight:700}
+.ckeys .eq{background:var(--accent);border-color:var(--accent);color:#1A1205;font-weight:700}
+.ckeys .fn{color:var(--neg)}
+.ctape{max-height:120px;overflow:auto;font-family:var(--mono);font-size:13.5px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.ctape button{all:unset;cursor:pointer;text-align:right}
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(255,255,255,.14)}
 
 /* totais */
@@ -265,6 +278,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
   <div class="top-in">
     <div class="brandrow">
       <div class="logo">Simpatia<small>Controle financeiro do bar</small></div>
+      <button class="sbtn calcbtn" id="calcBtn" aria-label="Abrir calculadora"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="2.5" width="16" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="7" y="5.5" width="10" height="4" rx="1" fill="currentColor"/><circle cx="8.5" cy="13.5" r="1.3" fill="currentColor"/><circle cx="12" cy="13.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="13.5" r="1.3" fill="currentColor"/><circle cx="8.5" cy="17.5" r="1.3" fill="currentColor"/><circle cx="12" cy="17.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="17.5" r="1.3" fill="currentColor"/></svg> Calculadora</button>
       <div class="month" role="group" aria-label="Mês">
         <button id="prevM" aria-label="Mês anterior">‹</button>
         <span id="monthLabel">—</span>
@@ -628,6 +642,23 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="hist" id="entList"></div>
     <div class="actions"><div class="r"><button type="button" class="btn" id="entCancel">Cancelar</button><button type="submit" class="btn primary" id="entSave">Registrar entrega</button></div></div>
   </form>
+</div>
+
+<div class="scrim" id="scrimCalc" hidden>
+  <div class="sheet calc" role="dialog" aria-label="Calculadora">
+    <div class="sechead"><h3>Calculadora</h3><button type="button" class="btn" id="calcClose">Fechar</button></div>
+    <div class="cdisp"><div class="cexpr" id="cExpr"></div><div class="cres num" id="cRes">0</div></div>
+    <div class="ckeys" id="cKeys">
+      <button class="fn" data-k="C">C</button><button class="fn" data-k="back" aria-label="Apagar">⌫</button><button class="op" data-k="%">%</button><button class="op" data-k="/" aria-label="Dividir">÷</button>
+      <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button class="op" data-k="*" aria-label="Multiplicar">×</button>
+      <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button><button class="op" data-k="-" aria-label="Menos">−</button>
+      <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button class="op" data-k="+" aria-label="Mais">+</button>
+      <button data-k="00">00</button><button data-k="0">0</button><button data-k=",">,</button><button class="eq" data-k="=">=</button>
+    </div>
+    <div class="tools"><button type="button" class="btn" id="calcCopy">Copiar resultado</button></div>
+    <div class="label">Contas anteriores (toque para usar)</div>
+    <div class="ctape" id="cTape"></div>
+  </div>
 </div>
 
 <div class="scrim" id="scrim2" hidden>
@@ -1458,6 +1489,46 @@ function setTab(t){ document.body.classList.toggle("est", t==="est"); document.b
 document.querySelector(".tabs").addEventListener("click", e=>{ const b=e.target.closest("[data-tab]"); if(!b) return; const t=b.dataset.tab; try{ history.replaceState(null,"",TAB_HASH[t]||"#"); }catch{} setTab(t); });
 window.addEventListener("hashchange", ()=>setTab(tabFromHash()));
 setTab(tabFromHash());
+
+/* ---------- calculadora ---------- */
+let cExpr="", cTape=[], cJust=false;
+const OPS="+-*/";
+function cFmt(n){ if(!isFinite(n)) return "Erro"; const r=Math.round(n*1e8)/1e8; return r.toLocaleString("pt-BR",{maximumFractionDigits:8}); }
+function cEval(e){
+  const t=[]; let num="";
+  for(const ch of e){ if(/[0-9,]/.test(ch)) num+=ch; else if(ch==="%"){ if(num){ t.push({n:parseFloat(num.replace(",","."))||0,pct:true}); num=""; } } else if(OPS.includes(ch)){ if(num){ t.push({n:parseFloat(num.replace(",","."))||0}); num=""; } t.push(ch); } }
+  if(num) t.push({n:parseFloat(num.replace(",","."))||0});
+  while(t.length && typeof t[t.length-1]==="string") t.pop();
+  if(!t.length) return 0;
+  // % : a+b% = a+(a*b/100); a*b% = a*b/100
+  for(let i=0;i<t.length;i++){ if(t[i].pct){ const op=t[i-1], base=t[i-2]; t[i]={n: (op==="+"||op==="-")&&base? base.n*t[i].n/100 : t[i].n/100}; } }
+  const a=[t[0].n]; const o=[];
+  for(let i=1;i<t.length;i+=2){ const op=t[i], v=t[i+1].n; if(op==="*") a[a.length-1]*=v; else if(op==="/") a[a.length-1]=v===0?NaN:a[a.length-1]/v; else { o.push(op); a.push(v); } }
+  let r=a[0]; for(let i=0;i<o.length;i++) r = o[i]==="+" ? r+a[i+1] : r-a[i+1];
+  return r;
+}
+const cShow=e=>e.replace(/\*/g,"×").replace(/\//g,"÷").replace(/-/g,"−");
+function cRender(){ $("cExpr").textContent=cShow(cExpr); $("cRes").textContent = cExpr? cFmt(cEval(cExpr)) : "0";
+  $("cTape").innerHTML=cTape.slice(-8).reverse().map((x,i)=>`<button type="button" data-ct="${cTape.length-1-i}">${esc(cShow(x.e))} = <b>${cFmt(x.r)}</b></button>`).join(""); }
+function cKey(k){
+  if(k==="C"){ cExpr=""; cJust=false; }
+  else if(k==="back"){ cExpr=cExpr.slice(0,-1); }
+  else if(k==="="){ if(!cExpr) return; const r=cEval(cExpr); cTape.push({e:cExpr,r}); try{ localStorage.setItem("calcTape",JSON.stringify(cTape.slice(-20))); }catch{} cExpr=isFinite(r)?String(Math.round(r*1e8)/1e8).replace(".",","):""; cJust=true; }
+  else if(OPS.includes(k)){ if(!cExpr && k!=="-") return; if(OPS.includes(cExpr.slice(-1))) cExpr=cExpr.slice(0,-1); cExpr+=k; cJust=false; }
+  else if(k==="%"){ if(cExpr && /[0-9]$/.test(cExpr)) cExpr+="%"; }
+  else if(k===","){ if(cJust){ cExpr=""; cJust=false; } const last=cExpr.split(/[+\-*/]/).pop(); if(!last.includes(",")) cExpr+= last===""?"0,":","; }
+  else { if(cJust){ cExpr=""; cJust=false; } if(cExpr.slice(-1)==="%") cExpr+="*"; cExpr+=k; }
+  cRender();
+}
+try{ cTape=JSON.parse(localStorage.getItem("calcTape")||"[]"); }catch{ cTape=[]; }
+$("calcBtn").onclick=()=>{ cRender(); $("scrimCalc").hidden=false; };
+$("calcClose").onclick=()=>{ $("scrimCalc").hidden=true; };
+$("scrimCalc").addEventListener("click", e=>{ if(e.target===$("scrimCalc")) $("scrimCalc").hidden=true; });
+$("cKeys").addEventListener("click", e=>{ const b=e.target.closest("[data-k]"); if(b) cKey(b.dataset.k); });
+$("cTape").addEventListener("click", e=>{ const b=e.target.closest("[data-ct]"); if(!b) return; const x=cTape[+b.dataset.ct]; cExpr=String(Math.round(x.r*1e8)/1e8).replace(".",","); cJust=true; cRender(); });
+$("calcCopy").onclick=async ()=>{ const v=$("cRes").textContent; try{ await navigator.clipboard.writeText(v); $("calcCopy").textContent="Copiado!"; setTimeout(()=>$("calcCopy").textContent="Copiar resultado",1500); }catch{ $("calcCopy").textContent=v; } };
+document.addEventListener("keydown", e=>{ if($("scrimCalc").hidden) return; const k=e.key;
+  if(/^[0-9]$/.test(k)) cKey(k); else if(k===","||k===".") cKey(","); else if(OPS.includes(k)) cKey(k); else if(k==="Enter"||k==="="){ e.preventDefault(); cKey("="); } else if(k==="Backspace") cKey("back"); else if(k==="%") cKey("%"); else if(k==="Escape") $("scrimCalc").hidden=true; });
 
 /* ---------- histórico / desfazer ---------- */
 let historico=[];
