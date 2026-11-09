@@ -1,0 +1,78 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;600;700&family=Caveat:wght@600;700&display=swap">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#F3F5F1;font-family:Figtree,Arial,sans-serif;color:#16201B}
+.page{width:1240px;padding:48px 56px 40px}
+header{background:#1F4D3A;color:#F3F5F1;border-radius:22px;padding:28px 36px;display:flex;justify-content:space-between;align-items:flex-end}
+header h1{font-family:"Bricolage Grotesque",Arial,sans-serif;font-weight:800;font-size:52px;margin:0;letter-spacing:-.02em}
+header p{margin:6px 0 0;font-size:24px;opacity:.85}
+header .tag{font-size:20px;background:rgba(255,255,255,.14);padding:8px 16px;border-radius:999px;white-space:nowrap}
+.rules{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:26px 0}
+.rule{background:#fff;border:2px solid #D6DDD3;border-radius:16px;padding:16px 18px}
+.rule b{display:block;font-family:"Bricolage Grotesque",Arial;font-size:26px;color:#C9821A}
+.rule span{font-size:20px;line-height:1.3}
+h2{font-family:"Bricolage Grotesque",Arial;font-size:30px;margin:6px 0 12px}
+.nb{background:#FFFDF6;border:2px solid #CFC7B2;border-radius:10px;padding:26px 30px 22px 90px;position:relative;box-shadow:0 8px 24px rgba(0,0,0,.10);
+  background-image:repeating-linear-gradient(#FFFDF6 0 55px,#D9E2F0 55px 57px);background-position:0 108px}
+.nb:before{content:"";position:absolute;left:62px;top:0;bottom:0;width:2px;background:#E7A5A0}
+.holes{position:absolute;left:18px;top:40px;bottom:40px;display:flex;flex-direction:column;justify-content:space-between}
+.holes i{width:22px;height:22px;border-radius:50%;background:#F3F5F1;border:2px solid #CFC7B2;display:block}
+.hand{font-family:Caveat,"Comic Sans MS",cursive;color:#1B3A8C}
+.top{display:flex;justify-content:space-between;align-items:baseline;height:82px}
+.top .hand{font-size:52px}
+.grid{display:grid;grid-template-columns:1.3fr 1.5fr 1.1fr 1.2fr;align-items:center}
+.grid>div{height:57px;display:flex;align-items:center}
+.lbl{font-size:16px;color:#8A8270;text-transform:uppercase;letter-spacing:.06em}
+.grid .hand{font-size:36px;white-space:nowrap}
+.r{justify-content:flex-end;text-align:right}
+.tally{display:inline-flex;gap:12px;align-items:center}
+.sum{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:10px;border-top:3px double #CFC7B2;padding-top:10px}
+.sum div{display:flex;flex-direction:column}
+.sum .hand{font-size:44px}
+.note{font-size:20px;color:#5C6A62;line-height:1.4;margin:18px 0 0}
+.boxes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px}
+.box{background:#fff;border:2px solid #D6DDD3;border-radius:16px;padding:16px 20px;font-size:20px;line-height:1.35}
+.box b{font-family:"Bricolage Grotesque",Arial;font-size:24px;display:block;margin-bottom:4px}
+footer{margin-top:22px;font-size:18px;color:#5C6A62;display:flex;justify-content:space-between}
+</style></head><body><div class="page">
+<header><div><h1>Caderno de venda rápida</h1><p>Varejo, pinga e tudo que é pago na hora, no balcão</p></div><span class="tag">Uma página por dia</span></header>
+
+<div class="rules">
+  <div class="rule"><b>1. Data</b><span>Cada dia começa numa página nova, com a data no alto.</span></div>
+  <div class="rule"><b>2. Nome uma vez</b><span>VAREJO, PINGA… Escreva o item quando sair a primeira vez no dia.</span></div>
+  <div class="rule"><b>3. Risquinho</b><span>Um risquinho por venda, na coluna de como pagou: <b style="display:inline;font-size:20px;color:#16201B">DIN</b> ou <b style="display:inline;font-size:20px;color:#16201B">PIX/CARTÃO</b>.</span></div>
+  <div class="rule"><b>4. Fechou o dia</b><span>Conte os risquinhos × preço. Some ao total das comandas.</span></div>
+</div>
+
+<h2>Exemplo de página</h2>
+<div class="nb">
+  <div class="holes"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="top"><span class="hand">Vendas rápidas</span><span class="hand">10/11</span></div>
+  <div class="grid">
+    <div class="lbl">Item</div><div class="lbl">Dinheiro</div><div class="lbl">Pix / cartão</div><div class="lbl r">Fechamento</div>
+    <div class="hand">VAREJO</div><div><span class="tally" data-n="12"></span></div><div><span class="tally" data-n="2"></span></div><div class="hand r">14 × ___</div>
+    <div class="hand">PINGA</div><div><span class="tally" data-n="8"></span></div><div><span class="tally" data-n="0"></span></div><div class="hand r">8 × ___</div>
+    <div class="hand">BRAHMA LT</div><div><span class="tally" data-n="3"></span></div><div><span class="tally" data-n="1"></span></div><div class="hand r">4 × 13 = 52,00</div>
+    <div class="hand">ÁGUA</div><div><span class="tally" data-n="2"></span></div><div><span class="tally" data-n="0"></span></div><div class="hand r">2 × ___</div>
+    <div class="hand"></div><div></div><div></div><div></div>
+  </div>
+  <div class="sum">
+    <div><span class="lbl">Total dinheiro</span><span class="hand">R$ ______</span></div>
+    <div><span class="lbl">Total Pix / cartão</span><span class="hand">R$ ______</span></div>
+    <div><span class="lbl">Total do caderno</span><span class="hand">R$ ______</span></div>
+  </div>
+</div>
+
+<div class="boxes">
+  <div class="box"><b>No fim do dia</b>Some o caderno com as comandas. O <b style="display:inline;font-size:20px">dinheiro</b> do caderno entra no Dinheiro de Vendas do dia, e o <b style="display:inline;font-size:20px">Pix / cartão</b> já aparece no relatório da maquininha.</div>
+  <div class="box"><b>Cerveja no caderno também conta</b>Se sair litrão ou 600 pelo caderno, anote igual. Cada garrafa vendida tem que bater com um vasilhame vazio.</div>
+</div>
+<footer><span>Bar Simpatia · venda rápida = anota na hora, mesmo sem comanda</span><span>Preços: veja a lousa</span></footer>
+</div>
+<script>
+const ink="#1B3A8C";
+function g(k){ const w=k===5?50:k*11+6, ln=[]; for(let i=0;i<Math.min(k,4);i++){ const X=6+i*11+(i%2); ln.push(`<path d="M${X} ${4+(i%2)} L${X+1} 38" stroke="${ink}" stroke-width="3.2" stroke-linecap="round" fill="none"/>`); }
+  if(k===5) ln.push(`<path d="M0 32 L50 10" stroke="${ink}" stroke-width="3.2" stroke-linecap="round" fill="none"/>`); return `<svg width="${w}" height="42" viewBox="0 0 ${w} 42">${ln.join("")}</svg>`; }
+document.querySelectorAll(".tally").forEach(el=>{ let n=+el.dataset.n, o=""; while(n>0){ const k=Math.min(5,n); o+=g(k); n-=k; } el.innerHTML=o||'<span class="hand" style="font-size:30px;color:#B9B2A0">—</span>'; });
+</script></body></html>
