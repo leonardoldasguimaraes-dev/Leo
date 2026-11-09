@@ -518,9 +518,10 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="field"><label for="pCat">Tipo de bebida</label><select id="pCat"></select></div>
     <div class="field"><label for="pNome">Nome</label><input id="pNome" placeholder="Ex.: Coca-Cola lata 350ml" autocomplete="off"></div>
     <div class="grid2">
-      <div class="field"><label for="pEmb">Embalagem</label><select id="pEmb"><option>Garrafa 600ml</option><option>Garrafa 1L</option><option>Long neck</option><option>Garrafa 355ml</option><option>Vidro 290ml (KS)</option><option>Lata 269ml</option><option>Lata 350ml</option><option>Lata 473ml</option><option>Pet 200ml</option><option>Pet 500ml</option><option>Pet 600ml</option><option>Pet 1L</option><option>Pet 1,5L</option><option>Pet 2L</option><option>Barril (litros)</option><option>Outro</option></select></div>
+      <div class="field"><label for="pEmb">Embalagem</label><select id="pEmb"><option>Garrafa 600ml</option><option>Garrafa 1L</option><option>Long neck</option><option>Garrafa 355ml</option><option>Vidro 290ml (KS)</option><option>Lata 220ml</option><option>Lata 269ml</option><option>Lata 290ml</option><option>Lata 350ml</option><option>Lata 473ml</option><option>Pet 200ml</option><option>Pet 500ml</option><option>Pet 600ml</option><option>Pet 1L</option><option>Pet 1,5L</option><option>Pet 2L</option><option>Vidro 1L</option><option>Barril (litros)</option><option>Outro</option></select></div>
       <div class="field"><label for="pCx">Unidades por caixa</label><input id="pCx" type="number" min="1" inputmode="numeric" value="24"><span class="note">Engradado, fardo ou caixa.</span></div>
       <div class="field"><label for="pMin">Estoque mínimo (unid.)</label><input id="pMin" type="number" min="0" inputmode="numeric" placeholder="Ex.: 48"></div>
+      <div class="field"><label for="pCap">Estoque ideal / cabe no freezer (unid.)</label><input id="pCap" type="number" min="0" inputmode="numeric" placeholder="Opcional"><span class="note">O pedido sugere completar até esse número.</span></div>
       <div class="field"><label for="pSem">Venda média por semana (unid.)</label><input id="pSem" type="number" min="0" inputmode="numeric" placeholder="Opcional"><span class="note">Usada até o app ter contagens suficientes.</span></div>
       <div class="field"><label for="pForn">Fornecedor</label><input id="pForn" list="pFornList" autocomplete="off"><datalist id="pFornList"></datalist></div>
       <div class="field"><label for="pCusto">Custo por unidade (R$)</label><input id="pCusto" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
@@ -1076,9 +1077,11 @@ function analyze(p){
   const perDay = calc ?? (p.consumoSemana>0 ? p.consumoSemana/7 : null);
   const dias = horizonte(), cx=p.porCaixa||1, min=p.minimo||0;
   let need=0; if(perDay!==null) need=perDay*dias+min-st; else need=min>0? min*2-st : 0;
+  if(p.capacidade>0) need=Math.max(need, p.capacidade-st);
   const caixas = need>0 ? Math.ceil(need/cx) : 0;
   const diasRest = perDay ? st/perDay : null;
   let status = st<=min && (min>0||st<=0) ? "red" : (diasRest!==null && diasRest<dias) ? "amb" : (perDay===null && !min ? "gray" : "ok");
+  if(p.capacidade>0 && ms.length && status!=="red" && st<p.capacidade/2) status="amb";
   if(!ms.length) status="gray";
   return {st, perDay, calc, diasRest, caixas, status, last, n:ms.length};
 }
@@ -1103,16 +1106,16 @@ function renderEstoque(){
   if(!A.length) $("ePed").innerHTML=`<div class="empty"><strong>Cadastre seus produtos</strong>Toque em <b>+ Do catálogo</b> ou <b>+ Cadastrar produto</b>. Depois faça uma contagem do estoque, e o app sugere o pedido.</div>`;
   else if(!gk.length) $("ePed").innerHTML=`<div class="note">Nada para pedir agora: o estoque cobre os próximos ${horizonte()} dias. ${A.some(x=>x.a.perDay===null)?"Alguns produtos ainda não têm consumo calculado: faça contagens em dias diferentes ou informe a venda média por semana.":""}</div>`;
   else $("ePed").innerHTML=gk.map((f,gi)=>{ const its=groups[f], cost=its.reduce((s,x)=>s+x.a.caixas*(x.p.porCaixa||1)*(x.p.custoUnit||0),0);
-    return `<div class="pedgrp"><h4><span>${esc(f)}</span><span class="note num">${cost?"≈ "+brl.format(cost):""}</span></h4>${its.map(x=>`<div class="pedline"><span class="num">${x.a.caixas} cx</span><span>${esc(x.p.nome)} <span class="note">· tem ${fmtCx(x.a.st,x.p.porCaixa)}${x.a.perDay?` · vende ~${(x.a.perDay*7).toLocaleString("pt-BR",{maximumFractionDigits:0})}/sem`:""}</span></span><span class="badge ${x.a.status==="red"?"b-red":"b-amb"}">${x.a.status==="red"?"Abaixo do mínimo":"Acaba em "+Math.max(0,Math.floor(x.a.diasRest??0))+"d"}</span></div>`).join("")}
+    return `<div class="pedgrp"><h4><span>${esc(f)}</span><span class="note num">${cost?"≈ "+brl.format(cost):""}</span></h4>${its.map(x=>`<div class="pedline"><span class="num">${x.a.caixas} cx</span><span>${esc(x.p.nome)} <span class="note">· tem ${fmtCx(x.a.st,x.p.porCaixa)}${x.a.perDay?` · vende ~${(x.a.perDay*7).toLocaleString("pt-BR",{maximumFractionDigits:0})}/sem`:""}</span></span><span class="badge ${x.a.status==="red"?"b-red":"b-amb"}">${x.a.status==="red"?"Abaixo do mínimo":x.a.diasRest===null?(x.p.capacidade?"Completar até "+x.p.capacidade:"Repor"):"Acaba em "+Math.max(0,Math.floor(x.a.diasRest))+"d"}</span></div>`).join("")}
       <div class="tools"><button type="button" class="btn" data-copy="${gi}">Copiar pedido para WhatsApp</button></div><div data-copybox="${gi}"></div></div>`; }).join("")
-    + `<div class="note">Cálculo: venda média por dia × ${horizonte()} dias (${eCfg.dias||7} do pedido${eCfg.prazo?` + ${eCfg.prazo} até a entrega`:""}) + estoque mínimo − estoque atual, arredondado para caixas fechadas.</div>`;
+    + `<div class="note">Cálculo: venda média por dia × ${horizonte()} dias (${eCfg.dias||7} do pedido${eCfg.prazo?` + ${eCfg.prazo} até a entrega`:""}) + estoque mínimo − estoque atual, arredondado para caixas fechadas. Produtos com estoque ideal (quanto cabe no freezer) completam pelo menos até esse número.</div>`;
   $("ePed")._groups=gk.map(f=>[f,groups[f]]);
   // lista
   if(!A.length) $("eList").innerHTML=`<div class="empty"><strong>Nenhum produto cadastrado</strong>Toque em <b>+ Do catálogo</b> para escolher os produtos da Ambev, Itaipava, Heineken e Coca-Cola.</div>`;
   else $("eList").innerHTML=A.sort((x,y)=>({red:0,amb:1,ok:2,gray:3}[x.a.status]-{red:0,amb:1,ok:2,gray:3}[y.a.status])||x.p.nome.localeCompare(y.p.nome)).map(({p,a})=>{
     const lbl={red:"Comprar",amb:"Pedir logo",ok:"OK",gray:a.n?"Sem consumo":"Sem contagem"}[a.status];
     return `<button class="row" data-pid="${esc(p.id)}"><span class="stripe" style="background:${a.status==="red"?"var(--neg)":a.status==="amb"?"var(--accent)":a.status==="ok"?"var(--pos)":"var(--line)"}"></span>
-      <span class="main"><span class="t">${esc(p.nome)}</span><span class="s">${p.precoVenda?`<span class="num">venda ${brl.format(p.precoVenda)}${p.custoUnit?` · custo ${brl.format(p.custoUnit)} · margem ${Math.round((p.precoVenda-p.custoUnit)/p.precoVenda*100)}%`:""}</span><span>·</span>`:""}<span>${esc(p.embalagem||"")}</span>${eCat==="todas"&&catOf(p)!=="cerveja"?`<span>· ${esc(catName(catOf(p)))}</span>`:""}${a.perDay?`<span>· vende ~${(a.perDay*7).toLocaleString("pt-BR",{maximumFractionDigits:0})}/sem${a.calc===null?" (informado)":""}</span>`:""}${a.diasRest!==null?`<span>· dura ~${Math.max(0,Math.floor(a.diasRest))} dias</span>`:""}${a.last?`<span>· contado ${ddmm(a.last)}</span>`:""}</span></span>
+      <span class="main"><span class="t">${esc(p.nome)}</span><span class="s">${p.precoVenda?`<span class="num">venda ${brl.format(p.precoVenda)}${p.custoUnit?` · custo ${brl.format(p.custoUnit)} · margem ${Math.round((p.precoVenda-p.custoUnit)/p.precoVenda*100)}%`:""}</span><span>·</span>`:""}<span>${esc(p.embalagem||"")}</span>${eCat==="todas"&&catOf(p)!=="cerveja"?`<span>· ${esc(catName(catOf(p)))}</span>`:""}${a.perDay?`<span>· vende ~${(a.perDay*7).toLocaleString("pt-BR",{maximumFractionDigits:0})}/sem${a.calc===null?" (informado)":""}</span>`:""}${a.diasRest!==null?`<span>· dura ~${Math.max(0,Math.floor(a.diasRest))} dias</span>`:""}${p.capacidade?`<span>· cabe ${p.capacidade}</span>`:""}${a.last?`<span>· contado ${ddmm(a.last)}</span>`:""}</span></span>
       <span class="amt"><span class="num">${fmtCx(a.st,p.porCaixa)}</span><br><span class="badge ${"b-"+a.status}">${lbl}</span></span></button>`; }).join("");
   renderCompras(); renderQuebras();
 }
@@ -1174,7 +1177,7 @@ function openProd(p){
   if(!canWrite){ showStatus("Seu acesso é só de leitura.",true); return; }
   pEditing=p||null; $("pTitle").textContent=p?p.nome:"Cadastrar produto";
   $("pCatBtnWrap").hidden=!!p; $("pCat").innerHTML=CATS.map(c=>`<option value="${c[0]}">${c[1]}</option>`).join(""); $("pCat").value=p?catOf(p):(eCat!=="todas"?eCat:"cerveja");
-  $("pNome").value=p?.nome||""; $("pEmb").value=p?.embalagem||"Garrafa 600ml"; $("pCx").value=p?.porCaixa||24; $("pMin").value=p?.minimo??"";
+  $("pNome").value=p?.nome||""; $("pEmb").value=p?.embalagem||"Garrafa 600ml"; $("pCx").value=p?.porCaixa||24; $("pMin").value=p?.minimo??""; $("pCap").value=p?.capacidade||"";
   $("pSem").value=p?.consumoSemana||""; $("pForn").value=p?.fornecedor||""; $("pCusto").value=p?.custoUnit?fmt2(p.custoUnit):""; $("pVenda").value=p?.precoVenda?fmt2(p.precoVenda):""; updMarg(); $("pChave").value=p?.chaves||"";
   $("pFornList").innerHTML=[...new Set([...produtos.map(q=>q.fornecedor),...state.items.filter(i=>i.tipo==="variavel").map(i=>i.fornecedor)].filter(Boolean))].slice(0,30).map(f=>`<option value="${esc(f)}">`).join("");
   $("pDel").hidden=!p; $("pMov").hidden=!p; $("pNote").textContent=""; $("mCx").value=""; $("mUn").value="";
@@ -1189,7 +1192,7 @@ $("pCatBtn").onclick=()=>{ $("scrim4").hidden=true; openCatalog(); };
 $("pEmb").addEventListener("change", ()=>{ const m={"Garrafa 600ml":24,"Garrafa 1L":12,"Long neck":24,"Garrafa 355ml":24,"Vidro 290ml (KS)":24,"Lata 269ml":6,"Lata 350ml":12,"Lata 473ml":12,"Pet 200ml":12,"Pet 500ml":12,"Pet 600ml":12,"Pet 1L":6,"Pet 1,5L":6,"Pet 2L":6,"Barril (litros)":1}; if(m[$("pEmb").value]&&!pEditing) $("pCx").value=m[$("pEmb").value]; });
 $("pForm").addEventListener("submit", async e=>{
   e.preventDefault(); const nome=$("pNome").value.trim().slice(0,80); if(!nome){ $("pNote").textContent="Informe o nome da cerveja."; $("pNome").focus(); return; }
-  const doc={nome,categoria:$("pCat").value,embalagem:$("pEmb").value,porCaixa:Math.max(1,Math.round(Number($("pCx").value)||1)),minimo:Math.max(0,Math.round(Number($("pMin").value)||0)),
+  const doc={nome,categoria:$("pCat").value,embalagem:$("pEmb").value,porCaixa:Math.max(1,Math.round(Number($("pCx").value)||1)),minimo:Math.max(0,Math.round(Number($("pMin").value)||0)),capacidade:Math.max(0,Math.round(Number($("pCap").value)||0)),
     consumoSemana:Math.max(0,Number($("pSem").value)||0),fornecedor:$("pForn").value.trim().slice(0,80),custoUnit:Math.max(0,num($("pCusto").value)),precoVenda:Math.max(0,num($("pVenda").value)),
     chaves:$("pChave").value.trim().slice(0,120),criadoEm:pEditing?.criadoEm||Date.now(),atualizadoEm:Date.now()};
   const b=$("pSave"); b.disabled=true;
