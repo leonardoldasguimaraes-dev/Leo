@@ -336,7 +336,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
       <div class="tools"><button class="btn" id="fAnt">+ Fiado do mês anterior</button><button class="btn" id="fPay">Receber pagamento</button></div>
     </div>
     <div class="field"><input id="fQ" type="search" placeholder="Buscar cliente" aria-label="Buscar cliente" autocomplete="off"></div>
-    <div class="chips"><button class="chip" id="fShowAll" aria-pressed="false">Mostrar quem já pagou</button></div>
+    <div class="chips"><button class="chip" id="fShowAll" aria-pressed="false">Mostrar quem já pagou</button><button class="chip" id="fOnlyFunc" aria-pressed="false">Só funcionários</button></div>
     <div class="list" id="fList"></div>
   </section>
 </main>
@@ -476,6 +476,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
       <button type="button" data-m="compra" aria-pressed="true">Fiado (cliente deve)</button><button type="button" data-m="pagamento" aria-pressed="false">Pagamento</button>
     </div>
     <div class="field"><label for="fCli">Cliente</label><input id="fCli" list="fCliList" placeholder="Nome do cliente" autocomplete="off"><datalist id="fCliList"></datalist></div>
+    <label class="chk" id="fFuncWrap"><input type="checkbox" id="fFuncChk"><span>Funcionário (desconta no salário, +18%)</span></label>
     <div class="field"><label for="fTel">Telefone / WhatsApp (opcional)</label><input id="fTel" type="tel" inputmode="tel" placeholder="(11) 98765-4321" autocomplete="off"></div>
     <div class="grid2">
       <div class="field"><label for="fVal">Valor (R$)</label><input id="fVal" class="money" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
@@ -495,7 +496,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="fiahead"><h3 id="cName">Cliente</h3><span class="num" id="cSaldo"></span></div>
     <div class="note" id="cInfo"></div>
     <div class="banner" id="cLib"></div>
-    <div class="tools"><button type="button" class="btn" id="cFecha">Fechar o mês</button><label class="chk" style="align-items:center"><input type="checkbox" id="cIsento"><span>Cliente antigo: sem acréscimo</span></label></div>
+    <div class="tools"><button type="button" class="btn" id="cFecha">Fechar o mês</button><label class="chk" style="align-items:center"><input type="checkbox" id="cIsento"><span>Cliente antigo: sem acréscimo</span></label><label class="chk" style="align-items:center"><input type="checkbox" id="cFunc"><span>Funcionário (desconta no salário, +18%)</span></label></div>
     <div class="field"><label for="cTel">Telefone / WhatsApp</label>
       <div class="inl"><input id="cTel" type="tel" inputmode="tel" placeholder="(11) 98765-4321" autocomplete="off" style="flex:1;min-width:0"><button type="button" class="btn" id="cTelSave">Salvar</button></div>
       <span class="note" id="cTelNote"></span></div>
@@ -1383,7 +1384,7 @@ $("qList").addEventListener("click", async e=>{ const b=e.target.closest("[data-
 $("qBtn").onclick=()=>{ const open=$("qBody").hidden; $("qBody").hidden=!open; $("qBtn").setAttribute("aria-expanded",open); renderQuebras(); };
 
 /* ---------- fiados ---------- */
-let fiaOwner=true;
+let fiaOwner=true, fOnlyFunc=false;
 let fiados=[], fMode="compra", fShowAll=false, fOpenKey=null;
 const ckey=n=>norm(n).replace(/[^a-z0-9 ]/g,"").trim();
 let clientesTel={};
@@ -1392,11 +1393,15 @@ function telDigits(t){ let d=String(t||"").replace(/\D/g,""); if(d.length===10||
 const telOk=d=>/^55\d{10,11}$/.test(d);
 function fmtTel(d){ d=String(d||""); const n=d.startsWith("55")?d.slice(2):d; return n.length===11?`(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`:n.length===10?`(${n.slice(0,2)}) ${n.slice(2,6)}-${n.slice(6)}`:d; }
 const telOf=k=>clientesTel[k]?.tel||"";
-async function saveTel(nome, tel){ const d=telDigits(tel), isen=!!clientesTel[ckey(nome)]?.semAcrescimo; await db.collection("clientes").doc(cid(ckey(nome))).set({nome, tel:d, semAcrescimo:isen, atualizadoEm:Date.now()}); clientesTel[ckey(nome)]={nome,tel:d,semAcrescimo:isen}; }
+async function saveCli(nome, patch){ const k=ckey(nome), cur=clientesTel[k]||{}; const doc={nome:cur.nome||nome, tel:cur.tel||"", semAcrescimo:!!cur.semAcrescimo, funcionario:!!cur.funcionario, ...patch, atualizadoEm:Date.now()};
+  await db.collection("clientes").doc(cid(k)).set(doc); clientesTel[k]=doc; }
+async function saveTel(nome, tel){ await saveCli(nome,{tel:telDigits(tel)}); }
 const saudacao=()=>{ const h=new Date().getHours(); return h<12?"Bom dia":h<18?"Boa tarde":"Boa noite"; };
 function avisoText(){ return `${saudacao()}! Aqui é o Léo do Simpatia. Estou adicionando seu número aqui, só para a gente ter um controle melhor. Obrigado!`; }
 function quitadoText(){ return `${saudacao()}, meu amigo! Recebi seu pagamento, sua continha aqui está quitada. Tá tudo certinho, tá joia! Obrigado pela confiança, boa semana e fica com Deus!`; }
 const isentoK=k=>!!clientesTel[k]?.semAcrescimo;
+const funcK=k=>!!clientesTel[k]?.funcionario;
+const taxaK=k=>funcK(k)?0.18:ACRESC;
 const ACRESC=0.16, LIMITE_FIADO=200, LIB_PCT=0.3, ACR_INICIO="2026-11-01";
 function baseAcrescimo(c){
   const acrs=c.hist.filter(f=>f.tipo==="acrescimo"); const ate=acrs.reduce((m,f)=>f.ate&&f.ate>m?f.ate:m,"");
@@ -1408,7 +1413,9 @@ function cobrancaText(c){
   const saud=saudacao(), lastPay=[...c.hist].reverse().find(f=>f.tipo==="pagamento");
   const acr=[...c.hist].reverse().find(f=>f.tipo==="acrescimo" && (!lastPay || (f.data>lastPay.data) || (f.data===lastPay.data && (f.criadoEm||0)>(lastPay.criadoEm||0))));
   const tot=Math.max(0,c.saldo), mes=acr?Math.round(((acr.base||0)+acr.valor)*100)/100:0;
-  const linha = acr ? `Fechei sua continha aqui: ${brl.format(acr.base||0)} de fiado do mês + ${Math.round(ACRESC*100)}% do prazo de 30 dias = ${brl.format(mes)}.${tot-mes>0.009?` Somando com o que já estava em aberto, o total ficou em ${brl.format(tot)}.`:""}` : `Fechei sua continha aqui, ficou em ${brl.format(tot)}.`;
+  const pctTxt=Math.round((acr?.pct||taxaK(c.key))*100);
+  if(funcK(c.key)) return `${saud}! Tudo bem?\nFechei sua conta do mês aqui no bar${acr?`: ${brl.format(acr.base||0)} + ${pctTxt}% = ${brl.format(mes)}`:`: ${brl.format(tot)}`}.${acr&&tot-mes>0.009?` Total em aberto: ${brl.format(tot)}.`:""}\nEsse valor vai ser descontado no seu salário. Qualquer dúvida, fala comigo.\nObrigado!`;
+  const linha = acr ? `Fechei sua continha aqui: ${brl.format(acr.base||0)} de fiado do mês + ${pctTxt}% do prazo de 30 dias = ${brl.format(mes)}.${tot-mes>0.009?` Somando com o que já estava em aberto, o total ficou em ${brl.format(tot)}.`:""}` : `Fechei sua continha aqui, ficou em ${brl.format(tot)}.`;
   return `${saud}, meu amigo!\n${linha}\nObrigado, boa semana e fica com Deus!`;
 }
 function liberacao(c){
@@ -1448,13 +1455,13 @@ function renderFiados(){
   $("fCliList").innerHTML=cs.map(c=>`<option value="${esc(c.nome)}">`).join("");
 
   const q=ckey($("fQ").value);
-  let rows=(fShowAll?cs:devendo).filter(c=>!q||c.key.includes(q)).sort((a,b)=>b.saldo-a.saldo||a.nome.localeCompare(b.nome));
+  let rows=(fShowAll?cs:devendo).filter(c=>(!q||c.key.includes(q))&&(!fOnlyFunc||funcK(c.key))).sort((a,b)=>b.saldo-a.saldo||a.nome.localeCompare(b.nome));
   if(!cs.length){ $("fList").innerHTML=`<div class="empty"><strong>Nenhum fiado lançado</strong>Comece pelos fiados do mês anterior: toque em <b>+ Fiado do mês anterior</b> e lance o total que cada cliente deve. Depois use <b>+ Novo fiado</b> no dia a dia.</div>`; return; }
   if(!rows.length){ $("fList").innerHTML=`<div class="empty"><strong>${q?"Nenhum cliente com esse nome":"Ninguém devendo"}</strong>${q?"":"Todos os fiados estão pagos."}</div>`; return; }
   $("fList").innerHTML=rows.map(c=>{ const dias=c.aberto?dayDiff(c.aberto,today()):0, st=c.saldo<=0.009?"ok":(c.ant-c.hist.filter(f=>f.tipo==="pagamento"&&f.data>=thisMonth()+"-01").reduce((t,f)=>t+f.valor,0))>0.009?"red":dias>15?"amb":"gray";
     const lbl={ok:"Pago",red:"Do mês anterior",amb:`${dias} dias`,gray:"Este mês"}[st];
     return `<button class="row" data-ck="${esc(c.key)}"><span class="stripe" style="background:${st==="red"?"var(--neg)":st==="amb"?"var(--accent)":st==="ok"?"var(--pos)":"var(--line)"}"></span>
-    <span class="main"><span class="t">${esc(c.nome)}</span><span class="s">${c.aberto?`<span>devendo desde ${ddmm(c.aberto)}</span>`:""}${telOk(telOf(c.key))?`<span>· ${fmtTel(telOf(c.key))}</span>`:""}<span>· último mov. ${ddmm(c.ult)}</span></span></span>
+    <span class="main"><span class="t">${esc(c.nome)}${funcK(c.key)?` <span class="badge b-gray">Funcionário</span>`:""}</span><span class="s">${c.aberto?`<span>devendo desde ${ddmm(c.aberto)}</span>`:""}${telOk(telOf(c.key))?`<span>· ${fmtTel(telOf(c.key))}</span>`:""}<span>· último mov. ${ddmm(c.ult)}</span></span></span>
     <span class="amt"><span class="num" style="color:${c.saldo>0.009?"var(--neg)":"var(--pos)"}">${brl.format(Math.max(0,c.saldo))}</span><br><span class="badge b-${st}">${lbl}</span>${!isentoK(c.key)&&liberacao(c).pode<=0.009?`<br><span class="badge b-red" style="margin-top:3px;display:inline-block">Sem fiado novo</span>`:""}</span></button>`; }).join("");
   if(!$("scrim7").hidden) renderClient();
 }
@@ -1466,14 +1473,14 @@ function setFMode(m){
 function openFiado(mode, cliente, opts={}){
   if(!db){ showStatus("Entre na sua conta do claude.ai para lançar fiados.",true); return; }
   if(!canWrite){ showStatus("Seu acesso é só de leitura.",true); return; }
-  setFMode(mode); $("fCli").value=cliente||""; $("fNote").textContent=""; $("fTel").value=cliente?fmtTel(telOf(ckey(cliente))):"";
+  setFMode(mode); $("fCli").value=cliente||""; $("fNote").textContent=""; $("fTel").value=cliente?fmtTel(telOf(ckey(cliente))):""; $("fFuncChk").checked=cliente?funcK(ckey(cliente)):false;
   const c=cliente?fClients().find(x=>x.key===ckey(cliente)):null;
   $("fVal").value = mode==="pagamento"&&c&&c.saldo>0 ? fmt2(c.saldo) : "";
   $("fDt").value = opts.anterior ? lastDayPrev() : today();
   $("fDesc2").value = opts.anterior ? `Fiado de ${ymLabel(shiftYm(thisMonth(),-1))}` : "";
   $("scrim6").hidden=false; setTimeout(()=>$(cliente?"fVal":"fCli").focus(),50);
 }
-$("fCli").addEventListener("change", ()=>{ const t=telOf(ckey($("fCli").value)); if(t && !$("fTel").value) $("fTel").value=fmtTel(t); });
+$("fCli").addEventListener("change", ()=>{ $("fFuncChk").checked=funcK(ckey($("fCli").value)); const t=telOf(ckey($("fCli").value)); if(t && !$("fTel").value) $("fTel").value=fmtTel(t); });
 $("fSeg").addEventListener("click", e=>{ const b=e.target.closest("[data-m]"); if(b) setFMode(b.dataset.m); });
 $("fDtAnt").onclick=()=>{ $("fDt").value=lastDayPrev(); if(!$("fDesc2").value) $("fDesc2").value=`Fiado de ${ymLabel(shiftYm(thisMonth(),-1))}`; };
 $("fForm").addEventListener("submit", async e=>{
@@ -1493,6 +1500,7 @@ $("fForm").addEventListener("submit", async e=>{
     const ref=db.collection("fiados").doc(), now=Date.now(), doc={cliente:nome,tipo:fMode,valor,data,desc:$("fDesc2").value.trim().slice(0,120),criadoEm:now};
     if(fMode==="pagamento"){ doc.forma=$("fForma").value; }
     await ref.set(doc);
+    if($("fFuncChk").checked!==funcK(ckey(nome))) await saveCli(nome,{funcionario:$("fFuncChk").checked}).catch(()=>{});
     const tv=$("fTel").value.trim(); let telNovo=false;
     if(tv && telOk(telDigits(tv)) && telDigits(tv)!==telOf(ckey(nome))){ await saveTel(nome,tv).then(()=>{telNovo=true;}).catch(()=>{}); }
     $("scrim6").hidden=true;
@@ -1513,6 +1521,7 @@ $("fNew").onclick=()=>openFiado("compra");
 $("fAnt").onclick=()=>openFiado("compra","",{anterior:true});
 $("fPay").onclick=()=>openFiado("pagamento");
 $("fQ").addEventListener("input", renderFiados);
+$("fOnlyFunc").onclick=()=>{ fOnlyFunc=!fOnlyFunc; $("fOnlyFunc").setAttribute("aria-pressed",fOnlyFunc); renderFiados(); };
 $("fShowAll").onclick=()=>{ fShowAll=!fShowAll; $("fShowAll").setAttribute("aria-pressed",fShowAll); renderFiados(); };
 $("fList").addEventListener("click", e=>{ const b=e.target.closest("[data-ck]"); if(!b) return; fOpenKey=b.dataset.ck; $("cCopyBox").innerHTML=""; $("cTelNote").dataset.msg=""; $("cTelNote").dataset.novo=""; $("cTelNote").dataset.quitou=""; renderClient(); $("scrim7").hidden=false; });
 function renderClient(){
@@ -1524,7 +1533,8 @@ function renderClient(){
   $("cIsento").checked=isento; $("cIsento").disabled=!(canWrite&&fiaOwner);
   const BA=baseAcrescimo(c);
   $("cFecha").hidden=!(canWrite&&fiaOwner&&db&&BA.base>0.009&&!isento);
-  $("cFecha").textContent=`Fechar o mês: +${Math.round(ACRESC*100)}% sobre ${brl.format(BA.base)} de fiado novo = ${brl.format(Math.round(BA.base*ACRESC*100)/100)}`;
+  const tx=taxaK(c.key); $("cFecha").textContent=`Fechar o mês: +${Math.round(tx*100)}% sobre ${brl.format(BA.base)} de fiado novo = ${brl.format(Math.round(BA.base*tx*100)/100)}`;
+  $("cFunc").checked=funcK(c.key); $("cFunc").disabled=!(canWrite&&fiaOwner);
   $("cInfo").textContent = c.saldo>0.009 ? `Devendo desde ${c.aberto?c.aberto.split("-").reverse().join("/"):"—"}${c.ant>0.009?` · ${brl.format(c.ant)} vem de antes de ${ymLabel(thisMonth())}`:""}` : "Sem saldo devedor.";
   const W=canWrite&&fiaOwner;
   $("cPay").hidden=!(c.saldo>0.009&&W); $("cAdd").hidden=!W;
@@ -1546,13 +1556,15 @@ $("cPay").onclick=()=>{ const c=fClients().find(x=>x.key===fOpenKey); $("scrim7"
 $("cAdd").onclick=()=>{ const c=fClients().find(x=>x.key===fOpenKey); $("scrim7").hidden=true; openFiado("compra",c?.nome); };
 $("cFecha").onclick=async ()=>{ const c=fClients().find(x=>x.key===fOpenKey); if(!c||!db) return; const b=$("cFecha");
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Toque de novo para confirmar"; setTimeout(()=>{ b.dataset.armed=""; renderClient(); },3000); return; }
-  b.dataset.armed=""; const BA=baseAcrescimo(c), base=BA.base, v=Math.round(base*ACRESC*100)/100; if(!(base>0)) return;
-  try{ await db.collection("fiados").doc().set({cliente:c.nome,tipo:"acrescimo",valor:v,base,ate:BA.ate,data:today(),desc:`${Math.round(ACRESC*100)}% do prazo sobre ${brl.format(base)} de fiado novo`,criadoEm:Date.now()});
-    showStatus(`Mês fechado para ${c.nome}: ${brl.format(base)} + ${Math.round(ACRESC*100)}% = ${brl.format(base+v)}.`); setTimeout(()=>showStatus(""),5000); }
+  b.dataset.armed=""; const BA=baseAcrescimo(c), base=BA.base, tx=taxaK(c.key), v=Math.round(base*tx*100)/100; if(!(base>0)) return;
+  try{ await db.collection("fiados").doc().set({cliente:c.nome,tipo:"acrescimo",valor:v,base,ate:BA.ate,data:today(),pct:tx,desc:`${Math.round(tx*100)}% do prazo sobre ${brl.format(base)} de fiado novo`,criadoEm:Date.now()});
+    showStatus(`Mês fechado para ${c.nome}: ${brl.format(base)} + ${Math.round(tx*100)}% = ${brl.format(base+v)}.`); setTimeout(()=>showStatus(""),5000); }
   catch(err){ showStatus("Não foi possível fechar: "+(err?.message||err?.code),true); } };
 $("cIsento").onchange=async ()=>{ const c=fClients().find(x=>x.key===fOpenKey); if(!c||!db) return; const v=$("cIsento").checked;
-  try{ const cur=clientesTel[c.key]||{nome:c.nome,tel:""}; await db.collection("clientes").doc(cid(c.key)).set({nome:cur.nome||c.nome,tel:cur.tel||"",semAcrescimo:v,atualizadoEm:Date.now()}); clientesTel[c.key]={...cur,semAcrescimo:v}; renderClient(); }
+  try{ await saveCli(c.nome,{semAcrescimo:v}); renderClient(); renderFiados(); }
   catch(err){ showStatus("Não foi possível salvar: "+(err?.message||err?.code),true); } };
+$("cFunc").onchange=async ()=>{ const c=fClients().find(x=>x.key===fOpenKey); if(!c||!db) return;
+  try{ await saveCli(c.nome,{funcionario:$("cFunc").checked}); renderClient(); renderFiados(); }catch(err){ showStatus("Não foi possível salvar: "+(err?.message||err?.code),true); } };
 $("cCopy").onclick=async ()=>{ const c=fClients().find(x=>x.key===fOpenKey); if(!c) return;
   const txt=cobrancaText(c);
   try{ await navigator.clipboard.writeText(txt); $("cCopy").textContent="Copiado!"; setTimeout(()=>$("cCopy").textContent="Copiar cobrança",2500); }
@@ -2024,7 +2036,7 @@ render();
   if(!db){ showStatus("Entre na sua conta do claude.ai para ver e salvar os lançamentos.",true); state.loaded=true; render(); return; }
   const timer=setTimeout(()=>showStatus("Não consegui buscar os lançamentos ainda. Verifique a conexão."),10000);
   db.collection("estoque").onSnapshot(sn=>{ produtos=sn.docs.map(x=>({id:x.id,...x.data()})).filter(p=>p.nome); renderEstoque(); }, ()=>{});
-  db.collection("clientes").onSnapshot(sn=>{ const m={}; for(const x of sn.docs){ const v=x.data(); if(v.nome) m[ckey(v.nome)]={nome:v.nome,tel:v.tel||"",semAcrescimo:!!v.semAcrescimo}; } clientesTel=m; renderFiados(); }, ()=>{});
+  db.collection("clientes").onSnapshot(sn=>{ const m={}; for(const x of sn.docs){ const v=x.data(); if(v.nome) m[ckey(v.nome)]={nome:v.nome,tel:v.tel||"",semAcrescimo:!!v.semAcrescimo,funcionario:!!v.funcionario}; } clientesTel=m; renderFiados(); }, ()=>{});
   db.collection("fiados").onSnapshot(sn=>{ fiados=sn.docs.map(x=>({id:x.id,...x.data()})).filter(f=>f.cliente&&typeof f.valor==="number"&&typeof f.data==="string"); renderFiados(); }, ()=>{});
   db.collection("historico").onSnapshot(sn=>{ historico=sn.docs.map(x=>({id:x.id,...x.data()})).filter(h=>h.docId&&h.quando); renderHist2(); }, ()=>{});
   db.collection("entregas").onSnapshot(sn=>{ entregas=sn.docs.map(x=>({id:x.id,...x.data()})).filter(e=>typeof e.valor==="number"&&typeof e.data==="string"); renderCaixa(); if(!$("scrim11").hidden) renderEntList(); }, ()=>{});
