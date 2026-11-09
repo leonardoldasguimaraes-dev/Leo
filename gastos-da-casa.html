@@ -567,7 +567,7 @@ const KW=[
 ];
 const KWRE=KW.map(([c,ws])=>[c,new RegExp('(^|[^a-z])('+ws.join('|')+')')]);
 function guessCat(t){const n=norm(t);for(const [c,re] of KWRE)if(re.test(n))return c;return'outros'}
-const SKIP=/m[ií]dia (oculta|omitida)|mensagem (foi )?apagada|apagou esta mensagem|omitid[oa]|<anexado:|arquivo anexado|figurinha|chamada de (voz|v[ií]deo)|^null$/i;
+const SKIP=/m[ií]dia (oculta|omitida)|(imagem|v[ií]deo|[áa]udio|figurinha|documento|gif) ocultad[oa]|criou o grupo|adicionou|mudou (a imagem|o nome|a descri)|saiu$|removeu|mensagem (foi )?apagada|apagou esta mensagem|omitid[oa]|<anexado:|arquivo anexado|figurinha|chamada de (voz|v[ií]deo)|^null$/i;
 function findValor(t){
   const s=t.replace(/\n/g,' ');
   const re=/(R\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/g;let m;const c=[];
@@ -607,8 +607,27 @@ function openImp(){
   $('impStep1').hidden=false;$('impStep2').hidden=true;$('impErr').hidden=true;$('impFile').value='';
   $('impScrim').hidden=false;
 }
+/* lê o .txt de dentro do .zip exportado pelo WhatsApp, sem biblioteca externa */
+async function unzipTxt(buf){
+  const dv=new DataView(buf);let e=buf.byteLength-22;
+  while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--;
+  if(e<0)throw new Error('zip');
+  const n=dv.getUint16(e+10,true);let off=dv.getUint32(e+16,true);
+  for(let i=0;i<n;i++){
+    if(dv.getUint32(off,true)!==0x02014b50)break;
+    const method=dv.getUint16(off+10,true),csize=dv.getUint32(off+20,true),nl=dv.getUint16(off+28,true),xl=dv.getUint16(off+30,true),cl=dv.getUint16(off+32,true),lho=dv.getUint32(off+42,true);
+    const name=new TextDecoder().decode(new Uint8Array(buf,off+46,nl));off+=46+nl+xl+cl;
+    if(!/\.txt$/i.test(name)||/(^|\/)__MACOSX\//.test(name))continue;
+    const data=new Uint8Array(buf,lho+30+dv.getUint16(lho+26,true)+dv.getUint16(lho+28,true),csize);
+    if(method===0)return new TextDecoder().decode(data);
+    if(method!==8)throw new Error('zip');
+    return await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+  }
+  throw new Error('notxt');
+}
 async function readFile(f){
   if(/\.zip$/i.test(f.name)||/zip/.test(f.type)){
+    if(window.DecompressionStream){try{return await unzipTxt(await f.arrayBuffer())}catch(e){if(e.message==='notxt'||!window.JSZip)throw e}}
     if(!window.JSZip)throw new Error('zip');
     const z=await JSZip.loadAsync(f);const e=Object.values(z.files).find(x=>!x.dir&&/\.txt$/i.test(x.name));
     if(!e)throw new Error('notxt');return e.async('string');
@@ -624,9 +643,11 @@ function buildImport(txt){
     if(!t||SKIP.test(t)){return}
     const v=findValor(t);
     if(!v){impSkipped.push(m);return}
-    let desc=t.replace(v.raw,' ').replace(/R\$/g,' ').replace(/\s+/g,' ').replace(/^[\s\-:,.]+|[\s\-:,.]+$/g,'').slice(0,80);
+    let data=m.data;if(/(^|[^a-z])ontem([^a-z]|$)/.test(norm(t))){const d=new Date(data+'T12:00:00');d.setDate(d.getDate()-1);data=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+    let desc=t.replace(v.raw,' ').replace(/R\$/g,' ').replace(/\b(reais|real|conto|contos|ontem|hoje)\b/gi,' ').replace(/\s+/g,' ').replace(/^[\s\-:,.]+|[\s\-:,.]+$/g,'').slice(0,80);
     const cat=guessCat(t);
-    impItems.push({id:hashId(m.data+m.hora+m.quem+t),data:m.data,mes:ymOf(m.data),hora:m.hora,quem:matchMembro(m.quem),texto:t,valor:v.v,cat,desc:desc||CAT[cat].nome,on:true});
+    const forma=/dinheiro|especie/.test(norm(t))?'Dinheiro':/(^|[^a-z])pix([^a-z]|$)/.test(norm(t))?'Pix':/credito|cartao/.test(norm(t))?'Crédito':/debito/.test(norm(t))?'Débito':'';
+    impItems.push({forma,id:hashId(m.data+m.hora+m.quem+t),data,mes:ymOf(data),hora:m.hora,quem:matchMembro(m.quem),texto:t,valor:v.v,cat,desc:desc||CAT[cat].nome,on:true});
   });
   if(!impItems.length){showErr('impErr','Li '+msgs.length+' mensagens, mas nenhuma tinha valor em reais. Confira se as mensagens têm o valor, como "mercado 150".');return}
   const meses=[...new Set(impItems.map(i=>i.mes))].sort().reverse();
@@ -687,7 +708,7 @@ $('impGo').onclick=async()=>{
   const btn=$('impGo');btn.disabled=true;let done=0,fail=null;
   const queue=on.slice();
   const worker=async()=>{while(queue.length&&!fail){const it=queue.shift();
-    try{await db.collection('gastos').doc(it.id).set({valor:it.valor,cat:it.cat,desc:it.desc,data:it.data,mes:it.mes,quem:it.quem,forma:'',origem:'whatsapp',criadoEm:Date.now(),atualizadoEm:Date.now()});done++;btn.textContent='Importando '+done+' de '+on.length+'…'}
+    try{await db.collection('gastos').doc(it.id).set({valor:it.valor,cat:it.cat,desc:it.desc,data:it.data,mes:it.mes,quem:it.quem,forma:it.forma||'',origem:'whatsapp',criadoEm:Date.now(),atualizadoEm:Date.now()});done++;btn.textContent='Importando '+done+' de '+on.length+'…'}
     catch(e){fail=e}}};
   await Promise.all([worker(),worker(),worker()]);
   if(fail){showErr('impErr2',(done?done+' importados. ':'')+dbMsg(fail));btn.disabled=false;impTotals();return}
