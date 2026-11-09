@@ -418,7 +418,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="note" id="payInfo"></div>
     <div class="grid2">
       <div class="field"><label for="payData">Data do pagamento</label><input id="payData" type="date"></div>
-      <div class="field"><label for="payForma">Forma</label><select id="payForma"><option>Pix</option><option>Boleto</option><option>Transferência</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option></select></div>
+      <div class="field"><label for="payForma">Forma</label><select id="payForma"><option>Pix</option><option>Boleto</option><option>Cheque</option><option>Transferência</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option></select></div>
     </div>
     <div class="attach">
       <div class="label">Comprovante</div>
@@ -662,7 +662,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="grid2">
       <div class="field"><label for="fForn" id="fFornLabel">Fornecedor</label><input id="fForn" autocomplete="off"></div>
       <div class="field"><label for="fPag">Pagamento</label>
-        <select id="fPag"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Boleto</option><option>Transferência</option><option>Misto</option></select>
+        <select id="fPag"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Boleto</option><option>Cheque</option><option>Transferência</option><option>Misto</option></select>
       </div>
     </div>
     <div class="field"><label for="fObs">Observação</label><textarea id="fObs" rows="2"></textarea></div>
@@ -1744,7 +1744,7 @@ $("pendList").addEventListener("click", async e=>{
 let payIt=null, payFile=null;
 function openPay(it){ payIt=it; payFile=null; $("payFile").value=""; $("payNote").textContent="";
   $("payInfo").textContent=`${it.descricao||it.categoria||"Conta"} · ${brl.format(it.valor)} · vence ${ddmm(it.data)}`;
-  $("payData").value=today(); $("payForma").value=["Pix","Boleto","Transferência","Dinheiro","Cartão de débito","Cartão de crédito"].includes(it.pagamento)?it.pagamento:"Pix";
+  $("payData").value=today(); $("payForma").value=["Pix","Boleto","Cheque","Transferência","Dinheiro","Cartão de débito","Cartão de crédito"].includes(it.pagamento)?it.pagamento:"Pix";
   $("payAttach").innerHTML=""; $("payFileLbl").hidden=!assets; if(!assets) $("payAttach").innerHTML=`<div class="note">Anexos ficam disponíveis para quem pode editar este app.</div>`;
   $("scrim8").hidden=false; }
 $("payFile").addEventListener("change", e=>{ const f=e.target.files[0]; if(!f) return;
