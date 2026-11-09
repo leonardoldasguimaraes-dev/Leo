@@ -148,6 +148,28 @@ h2{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
 .cfg-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
 .cfg-row .day-in{width:84px;padding:8px}
 .hint{font-size:13px;color:var(--muted)}
+.imp-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px;font-weight:700;font-size:15px}
+.imp-btn svg{width:22px;height:22px;fill:#1f9d55;flex:none}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:15px}
+.tip{background:var(--accent-soft);border-radius:12px;padding:10px 12px;font-size:14px}
+.tip code{font-family:inherit;font-weight:700}
+.file-btn{display:flex;align-items:center;justify-content:center;gap:8px;border:2px dashed var(--line);border-radius:14px;padding:18px;font-weight:700;color:var(--accent);cursor:pointer;text-align:center}
+.file-btn input{position:absolute;width:1px;height:1px;opacity:0}
+.file-btn:focus-within{border-color:var(--accent)}
+textarea.input{min-height:90px;resize:vertical;font-size:14px}
+details summary{cursor:pointer;color:var(--muted);font-size:14px;font-weight:600}
+.imp-sum{background:var(--accent);color:var(--accent-fg);border-radius:14px;padding:12px 14px;display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.imp-sum b{font-family:var(--f-display);font-size:24px;font-weight:800}
+.imp-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.imp-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:10px 12px;border-top:1px solid var(--line)}
+.imp-row:first-child{border-top:0}
+.imp-row.off{opacity:.5}
+.imp-row input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent)}
+.imp-row .tx{min-width:0;font-weight:600;overflow-wrap:anywhere}
+.imp-row .mt{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+.imp-row .val{width:96px;padding:7px 8px;font-size:15px;font-weight:700;text-align:right}
+.imp-row select{padding:6px 8px;font-size:13px;border-radius:8px;width:auto}
+.tag{background:var(--warn-soft);color:var(--warn);border-radius:99px;padding:1px 8px;font-weight:700;font-size:12px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:99px;font-weight:600;font-size:14px;z-index:30;box-shadow:var(--shadow)}
 </style>
 
@@ -174,6 +196,8 @@ h2{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
       <div class="budget-line num" id="budgetLine" style="margin-top:8px"></div>
     </div>
   </section>
+
+  <button type="button" class="imp-btn" id="btnImp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2l-.6-.2z"/></svg>Importar do grupo do WhatsApp</button>
 
   <section class="sec" id="billsSec" hidden>
     <div class="sec-head"><h2>Contas do mês</h2><span class="hint" id="billsCount"></span></div>
@@ -233,8 +257,39 @@ h2{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
   </form>
 </div>
 
+<div class="scrim" id="impScrim" hidden>
+  <div class="sheet" id="impSheet">
+    <div class="sheet-h"><h1>Importar do WhatsApp</h1><button type="button" class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div id="impStep1" class="sec" style="gap:14px">
+      <ol class="steps">
+        <li>No WhatsApp, abra o grupo dos gastos.</li>
+        <li>Toque no nome do grupo e depois em <b>Exportar conversa</b>.</li>
+        <li>Escolha <b>Sem mídia</b> e salve o arquivo.</li>
+        <li>Escolha o arquivo aqui embaixo.</li>
+      </ol>
+      <label class="file-btn">Escolher arquivo da conversa<input type="file" id="impFile" accept=".txt,.zip,text/plain,application/zip"></label>
+      <details><summary>Ou cole o texto da conversa</summary>
+        <div class="sec" style="margin-top:8px"><textarea class="input" id="impText" placeholder="[07/11/2026 14:32] Leonardo: mercado 152,90"></textarea>
+        <button type="button" class="btn ghost" id="impRead">Ler texto colado</button></div>
+      </details>
+      <div class="tip">Para o app entender, cada mensagem precisa ter o que foi e o valor. Exemplos: <code>mercado 152,90</code> · <code>farmácia 45</code> · <code>conta de luz 230,50</code></div>
+      <div class="err" id="impErr" hidden></div>
+    </div>
+    <div id="impStep2" class="sec" style="gap:12px" hidden>
+      <div class="field"><label for="impMes">Mês</label><select class="input" id="impMes"></select></div>
+      <div class="imp-sum num"><span id="impCount"></span><b id="impTotal"></b></div>
+      <p class="hint" id="impHint" style="margin:0"></p>
+      <div class="imp-list" id="impList"></div>
+      <details id="impSkipBox"><summary id="impSkipSum"></summary><div class="hint" id="impSkip" style="margin-top:8px;white-space:pre-wrap"></div></details>
+      <div class="err" id="impErr2" hidden></div>
+      <div class="actions"><button type="button" class="btn ghost" id="impBack" style="flex:0 0 auto;padding-inline:18px">Voltar</button><button type="button" class="btn" id="impGo">Importar</button></div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" hidden></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 const CATS=[
   {id:'mercado',nome:'Mercado'},{id:'farmacia',nome:'Farmácia'},{id:'luz',nome:'Luz'},{id:'agua',nome:'Água'},
@@ -409,9 +464,9 @@ function openForm(g,preset){
   $('formScrim').hidden=false;
   if(!g) setTimeout(()=>$('fValor').focus(),60);
 }
-function closeSheets(){ $('formScrim').hidden=true; $('cfgScrim').hidden=true }
+function closeSheets(){ $('formScrim').hidden=true; $('cfgScrim').hidden=true; $('impScrim').hidden=true }
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeSheets);
-['formScrim','cfgScrim'].forEach(id=>$(id).addEventListener('click',e=>{if(e.target.id===id)closeSheets()}));
+['formScrim','cfgScrim','impScrim'].forEach(id=>$(id).addEventListener('click',e=>{if(e.target.id===id)closeSheets()}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheets()});
 function showErr(id,msg){const e=$(id);e.textContent=msg;e.hidden=false}
 function dbMsg(e){
@@ -496,13 +551,157 @@ $('next').onclick=()=>{mes=shiftYm(mes,1);subscribeMonth()};
 $('fab').onclick=()=>openForm(null);
 $('btnCfg').onclick=openCfg;
 
+/* ---------- importar do WhatsApp ---------- */
+const norm=t=>t.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const KW=[
+ ['farmacia',['farmacia','remedio','drogaria','droga raia','raia','pacheco','drogasil','pague menos','venancio','vitamina']],
+ ['transporte',['gasolina','combustivel','etanol','alcool','posto(?![a-z])','uber','onibus','passagem','estacionamento','pedagio','oficina','mecanico','pneu']],
+ ['luz',['luz(?![a-z])','energia','light','enel','ampla']],
+ ['agua',['agua(?![a-z])','cedae','saae','aguas do']],
+ ['gas',['gas(?![a-z])','botijao']],
+ ['internet',['internet','wifi','wi-fi','celular','recarga','claro','vivo','tim(?![a-z])','oi fibra','net(?![a-z])']],
+ ['moradia',['aluguel','condominio','iptu']],
+ ['escola',['escola','colegio','material escolar','faculdade','curso','mensalidade','apostila','uniforme']],
+ ['lazer',['lanche','ifood','restaurante','pizza','hamburguer','cinema','passeio','sorvete','churrasco','festa','acai']],
+ ['mercado',['mercado','supermercado','assai','atacad','padaria','pao(?![a-z])','acougue','carne','frango','hortifruti','sacolao','feira','carrefour','guanabara','prezunic','mundial','compras','verdura','fruta','leite','ovo','arroz','feijao']]
+];
+const KWRE=KW.map(([c,ws])=>[c,new RegExp('(^|[^a-z])('+ws.join('|')+')')]);
+function guessCat(t){const n=norm(t);for(const [c,re] of KWRE)if(re.test(n))return c;return'outros'}
+const SKIP=/m[ií]dia (oculta|omitida)|mensagem (foi )?apagada|apagou esta mensagem|omitid[oa]|<anexado:|arquivo anexado|figurinha|chamada de (voz|v[ií]deo)|^null$/i;
+function findValor(t){
+  const s=t.replace(/\n/g,' ');
+  const re=/(R\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/g;let m;const c=[];
+  while((m=re.exec(s))){
+    const before=s[m.index-1]||'',after=s[re.lastIndex]||'';
+    if(/[\d\/:]/.test(before)||/[\d\/:%]/.test(after))continue;
+    if(/^\s*(x|kg|g|ml|l|un|unid|h|hs|min)\b/i.test(s.slice(re.lastIndex)))continue;
+    const v=parseMoney(m[2]);if(!(v>0)||v>=10000000)continue;
+    c.push({v,rs:!!m[1],dec:/[.,]\d{1,2}$/.test(m[2]),raw:m[0]});
+  }
+  if(!c.length)return null;
+  return c.find(x=>x.rs)||c.filter(x=>x.dec).pop()||c[c.length-1];
+}
+const HDR=[/^\[(\d{1,2})\/(\d{1,2})\/(\d{2,4}),? (\d{1,2}):(\d{2})(?::\d{2})?\] ([^:]{1,60}): ?([\s\S]*)$/,
+           /^(\d{1,2})\/(\d{1,2})\/(\d{2,4}),? (\d{1,2}):(\d{2})(?::\d{2})? - ([^:]{1,60}): ?([\s\S]*)$/];
+const HDR_ANY=/^\[?\d{1,2}\/\d{1,2}\/\d{2,4},? \d{1,2}:\d{2}/;
+function parseChat(txt){
+  const out=[];let cur=null;
+  txt.replace(/\r/g,'').split('\n').forEach(raw=>{
+    const line=raw.replace(/[‎‏‪-‮﻿]/g,'');
+    let m=null;for(const r of HDR){m=line.match(r);if(m)break}
+    if(m){let y=+m[3];if(y<100)y+=2000;cur={data:y+'-'+pad(+m[2])+'-'+pad(+m[1]),hora:pad(+m[4])+':'+m[5],quem:m[6].trim(),texto:m[7]};out.push(cur)}
+    else if(HDR_ANY.test(line))cur=null;
+    else if(cur&&line.trim())cur.texto+='\n'+line;
+  });
+  return out;
+}
+function matchMembro(nome){
+  const n=norm(nome).replace(/[^a-z ]/g,' ').trim(),first=n.split(/\s+/)[0]||'';
+  const ms=cfg.membros||[];
+  return ms.find(m=>norm(m)===n)||ms.find(m=>first&&norm(m).split(/\s+/)[0]===first)||ms.find(m=>n&&n.includes(norm(m)))||nome;
+}
+function hashId(t){let a=5381,b=52711;for(let i=0;i<t.length;i++){const c=t.charCodeAt(i);a=(a*33)^c;b=(b*31)^c}return'wa-'+(a>>>0).toString(36)+(b>>>0).toString(36)}
+let impItems=[],impSkipped=[],impExisting=new Set();
+function openImp(){
+  if(!canWrite){toast('Você só pode ver os gastos.');return}
+  $('impStep1').hidden=false;$('impStep2').hidden=true;$('impErr').hidden=true;$('impFile').value='';
+  $('impScrim').hidden=false;
+}
+async function readFile(f){
+  if(/\.zip$/i.test(f.name)||/zip/.test(f.type)){
+    if(!window.JSZip)throw new Error('zip');
+    const z=await JSZip.loadAsync(f);const e=Object.values(z.files).find(x=>!x.dir&&/\.txt$/i.test(x.name));
+    if(!e)throw new Error('notxt');return e.async('string');
+  }
+  return f.text();
+}
+function buildImport(txt){
+  const msgs=parseChat(txt);
+  if(!msgs.length){showErr('impErr','Não reconheci esse arquivo como uma conversa do WhatsApp. Exporte de novo pelo grupo, escolhendo "Sem mídia".');return}
+  impItems=[];impSkipped=[];
+  msgs.forEach(m=>{
+    const t=m.texto.trim();
+    if(!t||SKIP.test(t)){return}
+    const v=findValor(t);
+    if(!v){impSkipped.push(m);return}
+    let desc=t.replace(v.raw,' ').replace(/R\$/g,' ').replace(/\s+/g,' ').replace(/^[\s\-:,.]+|[\s\-:,.]+$/g,'').slice(0,80);
+    const cat=guessCat(t);
+    impItems.push({id:hashId(m.data+m.hora+m.quem+t),data:m.data,mes:ymOf(m.data),hora:m.hora,quem:matchMembro(m.quem),texto:t,valor:v.v,cat,desc:desc||CAT[cat].nome,on:true});
+  });
+  if(!impItems.length){showErr('impErr','Li '+msgs.length+' mensagens, mas nenhuma tinha valor em reais. Confira se as mensagens têm o valor, como "mercado 150".');return}
+  const meses=[...new Set(impItems.map(i=>i.mes))].sort().reverse();
+  const sel=$('impMes');sel.textContent='';
+  meses.forEach(mm=>{const o=document.createElement('option');o.value=mm;const n=impItems.filter(i=>i.mes===mm).length;const l=ymLabel(mm);o.textContent=l[0].toUpperCase()+l.slice(1)+' · '+n+(n===1?' gasto':' gastos');sel.appendChild(o)});
+  sel.value=meses.includes(mes)?mes:meses[0];
+  $('impStep1').hidden=true;$('impStep2').hidden=false;
+  loadExisting();
+}
+async function loadExisting(){
+  impExisting=new Set();renderImp();
+  if(!db)return;
+  try{const s=await db.collection('gastos').where('mes','==',$('impMes').value).get();
+    s.docs.forEach(d=>{if(d.id.startsWith('wa-'))impExisting.add(d.id)});
+    impItems.forEach(i=>{if(impExisting.has(i.id))i.on=false});renderImp()}catch(e){}
+}
+function renderImp(){
+  const mm=$('impMes').value, rows=impItems.filter(i=>i.mes===mm).sort((a,b)=>(a.data+a.hora).localeCompare(b.data+b.hora));
+  const list=$('impList');list.textContent='';
+  rows.forEach(it=>{
+    const r=document.createElement('div');r.className='imp-row'+(it.on?'':' off');
+    const cb=document.createElement('input');cb.type='checkbox';cb.checked=it.on;cb.setAttribute('aria-label','Importar '+it.desc);
+    cb.onchange=()=>{it.on=cb.checked;r.classList.toggle('off',!it.on);impTotals()};
+    const tx=document.createElement('span');tx.className='tx';tx.textContent=it.texto.replace(/\s+/g,' ').slice(0,120);
+    const val=document.createElement('input');val.className='input val num';val.inputMode='decimal';val.value=centsToInput(it.valor);val.setAttribute('aria-label','Valor');
+    val.oninput=()=>{const v=parseMoney(val.value);if(v>0){it.valor=v;impTotals()}};
+    const mt=document.createElement('div');mt.className='mt num';
+    const sl=document.createElement('select');sl.className='input';sl.setAttribute('aria-label','Categoria');
+    CATS.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.nome;sl.appendChild(o)});sl.value=it.cat;sl.onchange=()=>{if(it.desc===CAT[it.cat].nome)it.desc=CAT[sl.value].nome;it.cat=sl.value};
+    const inf=document.createElement('span');const [y,m2,d]=it.data.split('-');inf.textContent=d+'/'+m2+' · '+it.quem;
+    mt.append(sl,inf);
+    if(impExisting.has(it.id)){const tg=document.createElement('span');tg.className='tag';tg.textContent='já importado';mt.appendChild(tg)}
+    r.append(cb,tx,val,mt);list.appendChild(r);
+  });
+  const sk=impSkipped.filter(m=>ymOf(m.data)===mm);
+  $('impSkipBox').hidden=!sk.length;
+  $('impSkipSum').textContent=sk.length+(sk.length===1?' mensagem sem valor ficou de fora':' mensagens sem valor ficaram de fora');
+  $('impSkip').textContent=sk.slice(0,60).map(m=>m.quem+': '+m.texto.replace(/\s+/g,' ').slice(0,90)).join('\n');
+  $('impHint').textContent=impExisting.size?'Os gastos marcados como "já importado" estão no app e ficam desmarcados.':'Confira a categoria e o valor de cada um. Desmarque o que não for gasto.';
+  $('impErr2').hidden=true;
+  impTotals();
+}
+function impTotals(){
+  const mm=$('impMes').value, on=impItems.filter(i=>i.mes===mm&&i.on);
+  $('impCount').textContent=on.length+(on.length===1?' gasto para importar':' gastos para importar');
+  $('impTotal').textContent=fmt(on.reduce((s,i)=>s+i.valor,0));
+  $('impGo').disabled=!on.length;$('impGo').textContent=on.length?'Importar '+on.length+(on.length===1?' gasto':' gastos'):'Nada marcado';
+}
+$('btnImp').onclick=openImp;
+$('impFile').onchange=async()=>{const f=$('impFile').files[0];if(!f)return;$('impErr').hidden=true;
+  try{buildImport(await readFile(f))}catch(e){showErr('impErr',e&&e.message==='notxt'?'O arquivo .zip não tem a conversa dentro. Exporte de novo escolhendo "Sem mídia".':'Não consegui abrir esse arquivo. Tente exportar de novo ou cole o texto da conversa.')}};
+$('impRead').onclick=()=>{const t=$('impText').value;if(!t.trim()){showErr('impErr','Cole o texto da conversa primeiro.');return}$('impErr').hidden=true;buildImport(t)};
+$('impMes').onchange=loadExisting;
+$('impBack').onclick=()=>{$('impStep1').hidden=false;$('impStep2').hidden=true};
+$('impGo').onclick=async()=>{
+  if(!db)return;
+  const mm=$('impMes').value, on=impItems.filter(i=>i.mes===mm&&i.on);
+  const btn=$('impGo');btn.disabled=true;let done=0,fail=null;
+  const queue=on.slice();
+  const worker=async()=>{while(queue.length&&!fail){const it=queue.shift();
+    try{await db.collection('gastos').doc(it.id).set({valor:it.valor,cat:it.cat,desc:it.desc,data:it.data,mes:it.mes,quem:it.quem,forma:'',origem:'whatsapp',criadoEm:Date.now(),atualizadoEm:Date.now()});done++;btn.textContent='Importando '+done+' de '+on.length+'…'}
+    catch(e){fail=e}}};
+  await Promise.all([worker(),worker(),worker()]);
+  if(fail){showErr('impErr2',(done?done+' importados. ':'')+dbMsg(fail));btn.disabled=false;impTotals();return}
+  closeSheets();toast(done+(done===1?' gasto importado':' gastos importados')+' · '+fmt(on.reduce((s,i)=>s+i.valor,0)));
+  if(mm!==mes){mes=mm;subscribeMonth()}
+};
+
 render();
 (async()=>{
   if(!window.claude||!window.claude.use){loaded=false;note('Abra este app pelo link do Claude para ver e lançar os gastos da família.');render();return}
   db=await window.claude.use('db');
   if(!db){note('Entre na sua conta do Claude para ver e lançar os gastos da família.');render();return}
   const user=await window.claude.use('user');
-  if(user){try{const w=await user.can('data.write');if(w===false){canWrite=false;$('fab').hidden=true;note('Você pode ver os gastos, mas não lançar. Peça para ser convidado como Editor.')}}catch(e){}}
+  if(user){try{const w=await user.can('data.write');if(w===false){canWrite=false;$('fab').hidden=true;$('btnImp').hidden=true;note('Você pode ver os gastos, mas não lançar. Peça para ser convidado como Editor.')}}catch(e){}}
   db.doc('config/casa').onSnapshot(s=>{const d=s.exists?s.data():{};cfg={membros:d.membros||[],orcamento:Number(d.orcamento)||0,contas:d.contas||[]};render()},()=>{});
   subscribeMonth();
 })();
