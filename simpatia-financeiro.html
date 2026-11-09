@@ -84,6 +84,21 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .ckeys .fn{color:var(--neg)}
 .ctape{max-height:120px;overflow:auto;font-family:var(--mono);font-size:13.5px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
 .ctape button{all:unset;cursor:pointer;text-align:right}
+.lock{position:fixed;inset:0;z-index:100;background:var(--brand);color:var(--brand-ink);display:flex;align-items:center;justify-content:center;
+  padding:calc(20px + env(safe-area-inset-top,0px)) max(20px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px))}
+.lockin{width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
+.locktitle{font-size:18px;font-weight:600}
+.dots{display:flex;gap:16px}
+.dots i{width:16px;height:16px;border-radius:50%;border:2px solid var(--brand-ink);display:block}
+.dots i.f{background:var(--brand-ink)}
+.dots.err{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.lockmsg{min-height:20px;font-size:14px;color:#FFD58A}
+.lkeys{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%}
+.lkeys button{height:68px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:var(--brand-ink);font-family:var(--mono);font-size:28px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;width:68px;justify-self:center}
+.lkeys button.hit{background:rgba(255,255,255,.3)}
+.lkeys .lsm{font-family:var(--body);font-size:13px;border:0;background:none}
+.lockhelp{font-size:12.5px;opacity:.7}
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(255,255,255,.14)}
 
 /* totais */
@@ -294,7 +309,8 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
   <div class="top-in">
     <div class="brandrow">
       <div class="logo">Simpatia<small>Controle financeiro do bar</small></div>
-      <button class="sbtn calcbtn" id="calcBtn" aria-label="Abrir calculadora"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="2.5" width="16" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="7" y="5.5" width="10" height="4" rx="1" fill="currentColor"/><circle cx="8.5" cy="13.5" r="1.3" fill="currentColor"/><circle cx="12" cy="13.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="13.5" r="1.3" fill="currentColor"/><circle cx="8.5" cy="17.5" r="1.3" fill="currentColor"/><circle cx="12" cy="17.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="17.5" r="1.3" fill="currentColor"/></svg> Calculadora</button>
+      <button class="sbtn calcbtn" id="pinBtn" aria-label="Senha do app" style="margin-left:auto"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg> Senha</button>
+      <button class="sbtn calcbtn" id="calcBtn" style="margin-left:0" aria-label="Abrir calculadora"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="2.5" width="16" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="7" y="5.5" width="10" height="4" rx="1" fill="currentColor"/><circle cx="8.5" cy="13.5" r="1.3" fill="currentColor"/><circle cx="12" cy="13.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="13.5" r="1.3" fill="currentColor"/><circle cx="8.5" cy="17.5" r="1.3" fill="currentColor"/><circle cx="12" cy="17.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="17.5" r="1.3" fill="currentColor"/></svg> Calculadora</button>
       <div class="month" role="group" aria-label="Mês">
         <button id="prevM" aria-label="Mês anterior">‹</button>
         <span id="monthLabel">—</span>
@@ -671,6 +687,34 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="hist" id="entList"></div>
     <div class="actions"><div class="r"><button type="button" class="btn" id="entCancel">Cancelar</button><button type="submit" class="btn primary" id="entSave">Registrar entrega</button></div></div>
   </form>
+</div>
+
+<div class="lock" id="lock">
+  <div class="lockin">
+    <div class="logo" style="color:var(--brand-ink)">Simpatia<small>Controle financeiro do bar</small></div>
+    <div class="locktitle" id="lockTitle">Abrindo…</div>
+    <div class="dots" id="lockDots"><i></i><i></i><i></i><i></i></div>
+    <div class="lockmsg" id="lockMsg"></div>
+    <div class="lkeys" id="lockKeys" hidden>
+      <button data-l="1">1</button><button data-l="2">2</button><button data-l="3">3</button>
+      <button data-l="4">4</button><button data-l="5">5</button><button data-l="6">6</button>
+      <button data-l="7">7</button><button data-l="8">8</button><button data-l="9">9</button>
+      <button data-l="cancel" class="lsm" id="lockCancel">Cancelar</button><button data-l="0">0</button><button data-l="back" aria-label="Apagar">⌫</button>
+    </div>
+    <div class="lockhelp" id="lockHelp" hidden>Esqueceu a senha? Peça no chat do Claude para remover a senha do app.</div>
+  </div>
+</div>
+
+<div class="scrim" id="scrimPin" hidden>
+  <div class="sheet">
+    <div class="sechead"><h3>Senha do app</h3><button type="button" class="btn" id="pinClose">Fechar</button></div>
+    <div class="note" id="pinInfo"></div>
+    <div class="tools" style="flex-direction:column;align-items:stretch">
+      <button type="button" class="btn primary" id="pinLockNow">Bloquear agora</button>
+      <button type="button" class="btn" id="pinSet">Criar senha</button>
+      <button type="button" class="btn danger" id="pinDel">Remover senha</button>
+    </div>
+  </div>
 </div>
 
 <div class="scrim" id="scrimCalc" hidden>
@@ -1591,6 +1635,48 @@ document.querySelector(".tabs").addEventListener("click", e=>{ const b=e.target.
 window.addEventListener("hashchange", ()=>setTab(tabFromHash()));
 setTab(tabFromHash());
 
+/* ---------- senha do app ---------- */
+let pinRef=null, pinHash=null, pinUid="", lockMode="", lockBuf="", lockFirst="", hiddenAt=0;
+async function hashPin(pin){ const txt=`simpatia:${pinUid}:${pin}`;
+  try{ const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(txt)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
+  catch{ let h=0; for(const ch of txt) h=(h*31+ch.charCodeAt(0))|0; return "h"+h; } }
+function lockShow(mode){ lockMode=mode; lockBuf=""; $("lock").hidden=false; $("lockKeys").hidden=false; $("lockMsg").textContent="";
+  $("lockTitle").textContent={unlock:"Digite a senha",new:"Crie uma senha de 4 números",confirm:"Digite a senha de novo",old:"Digite a senha atual"}[mode]||"";
+  $("lockCancel").style.visibility = mode==="unlock" ? "hidden" : "visible"; $("lockHelp").hidden = mode!=="unlock"; lockDots(); }
+function lockDots(){ [...$("lockDots").children].forEach((d,i)=>d.classList.toggle("f",i<lockBuf.length)); }
+function lockHide(){ $("lock").hidden=true; lockMode=""; lockBuf=""; }
+function lockErr(msg){ $("lockMsg").textContent=msg; const d=$("lockDots"); d.classList.remove("err"); void d.offsetWidth; d.classList.add("err"); lockBuf=""; setTimeout(lockDots,250); }
+let pinAfterOld=null;
+async function lockDone(){
+  const v=lockBuf;
+  if(lockMode==="unlock"){ if(await hashPin(v)===pinHash) lockHide(); else lockErr("Senha errada. Tente de novo."); }
+  else if(lockMode==="new"){ lockFirst=v; lockShow("confirm"); }
+  else if(lockMode==="confirm"){ if(v!==lockFirst){ lockFirst=""; lockShow("new"); $("lockMsg").textContent="As senhas não bateram. Crie de novo."; return; }
+    try{ const h=await hashPin(v); await pinRef.set({hash:h,criadoEm:Date.now()}); pinHash=h; lockHide(); showStatus("Senha criada. O app vai pedir a senha ao abrir."); setTimeout(()=>showStatus(""),5000); }
+    catch(err){ lockErr("Não foi possível salvar a senha."); } }
+  else if(lockMode==="old"){ if(await hashPin(v)!==pinHash){ lockErr("Senha errada."); return; } const fn=pinAfterOld; pinAfterOld=null; lockHide(); fn&&fn(); }
+}
+$("lockKeys").addEventListener("pointerdown", e=>{ const b=e.target.closest("[data-l]"); if(!b) return; e.preventDefault(); b.classList.add("hit"); setTimeout(()=>b.classList.remove("hit"),120);
+  const k=b.dataset.l; if(k==="cancel"){ if(lockMode!=="unlock") lockHide(); return; } if(k==="back"){ lockBuf=lockBuf.slice(0,-1); lockDots(); return; }
+  if(lockBuf.length<4){ lockBuf+=k; lockDots(); if(lockBuf.length===4) setTimeout(lockDone,120); } });
+function renderPinSheet(){ $("pinInfo").textContent = pinHash ? "A senha está ativa: o app pede a senha ao abrir e depois de 1 minuto fora dele." : "Sem senha. Crie uma senha de 4 números para proteger o app.";
+  $("pinLockNow").hidden=!pinHash; $("pinDel").hidden=!pinHash; $("pinSet").textContent = pinHash ? "Trocar senha" : "Criar senha"; }
+$("pinBtn").onclick=()=>{ if(!pinRef){ showStatus("A senha só funciona com o app aberto pelo claude.ai.",true); return; } renderPinSheet(); $("scrimPin").hidden=false; };
+$("pinClose").onclick=()=>{ $("scrimPin").hidden=true; };
+$("scrimPin").addEventListener("click", e=>{ if(e.target===$("scrimPin")) $("scrimPin").hidden=true; });
+$("pinLockNow").onclick=()=>{ $("scrimPin").hidden=true; lockShow("unlock"); };
+$("pinSet").onclick=()=>{ $("scrimPin").hidden=true; if(pinHash){ pinAfterOld=()=>lockShow("new"); lockShow("old"); } else lockShow("new"); };
+$("pinDel").onclick=()=>{ $("scrimPin").hidden=true; pinAfterOld=async ()=>{ try{ await pinRef.delete(); pinHash=null; showStatus("Senha removida."); setTimeout(()=>showStatus(""),4000); }catch{ showStatus("Não foi possível remover a senha.",true); } }; lockShow("old"); };
+document.addEventListener("visibilitychange", ()=>{ if(document.hidden) hiddenAt=Date.now(); else if(pinHash && hiddenAt && Date.now()-hiddenAt>60000 && $("lock").hidden) lockShow("unlock"); });
+async function initPin(u){
+  try{ pinUid = u ? (await u.id()) || "" : ""; }catch{ pinUid=""; }
+  if(!pinUid || !db){ lockHide(); return; }
+  pinRef=db.doc(`data/users/${pinUid}/seguranca`);
+  const t=setTimeout(()=>{ if(lockMode==="") lockHide(); },6000);
+  try{ const d=await pinRef.get(); clearTimeout(t); pinHash = d.exists ? d.data().hash : null; }catch{ clearTimeout(t); pinHash=null; }
+  if(pinHash) lockShow("unlock"); else lockHide();
+}
+
 /* ---------- calculadora ---------- */
 let cExpr="", cTape=[], cJust=false;
 const OPS="+-*/";
@@ -2026,14 +2112,15 @@ $("exportCsv").onclick=async ()=>{
 /* ---------- conexão ---------- */
 render();
 (async ()=>{
-  if(!window.claude?.use){ showStatus("Abra este app pelo claude.ai para salvar seus lançamentos.",true); state.loaded=true; render(); return; }
+  if(!window.claude?.use){ lockHide(); showStatus("Abra este app pelo claude.ai para salvar seus lançamentos.",true); state.loaded=true; render(); return; }
   const [d,a,s,dl,u] = await Promise.all(["db","assets","sample","downloads","user"].map(n=>window.claude.use(n).catch(()=>null)));
   db=d; assets=a; sample=s; downloads=dl;
   if(u){ try{ const c=await u.can("data.write"); if(c===false) canWrite=false; }catch{} try{ const o=await u.isOwner(); if(o===false) fiaOwner=false; }catch{} }
   if(!fiaOwner){ ["fNew","fAnt","fPay"].forEach(id=>$(id).hidden=true); }
   if(!canWrite){ $("entBtn").hidden=true; $("addBtn").hidden=true; $("vendasBtn").hidden=true; $("eCountBtn").hidden=true; $("eLossBtn").hidden=true; $("eAddProd").hidden=true; $("eCatalog").hidden=true; $("fNew").hidden=true; $("fAnt").hidden=true; $("fPay").hidden=true; $("copyFixos").hidden=true; }
   if(sample){ try{ const l=await sample.limits(); aiImages=!!l?.images; aiMax=l?.images?.maxCount||3; }catch{} }
-  if(!db){ showStatus("Entre na sua conta do claude.ai para ver e salvar os lançamentos.",true); state.loaded=true; render(); return; }
+  if(!db){ lockHide(); showStatus("Entre na sua conta do claude.ai para ver e salvar os lançamentos.",true); state.loaded=true; render(); return; }
+  initPin(u);
   const timer=setTimeout(()=>showStatus("Não consegui buscar os lançamentos ainda. Verifique a conexão."),10000);
   db.collection("estoque").onSnapshot(sn=>{ produtos=sn.docs.map(x=>({id:x.id,...x.data()})).filter(p=>p.nome); renderEstoque(); }, ()=>{});
   db.collection("clientes").onSnapshot(sn=>{ const m={}; for(const x of sn.docs){ const v=x.data(); if(v.nome) m[ckey(v.nome)]={nome:v.nome,tel:v.tel||"",semAcrescimo:!!v.semAcrescimo,funcionario:!!v.funcionario}; } clientesTel=m; renderFiados(); }, ()=>{});
