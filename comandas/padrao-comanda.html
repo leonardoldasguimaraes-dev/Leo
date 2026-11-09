@@ -1,0 +1,117 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;600;700&family=Caveat:wght@600;700&display=swap">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#F3F5F1;font-family:Figtree,Arial,sans-serif;color:#16201B}
+.page{width:1240px;padding:48px 56px 40px}
+header{background:#1F4D3A;color:#F3F5F1;border-radius:22px;padding:28px 36px;display:flex;justify-content:space-between;align-items:flex-end}
+header h1{font-family:"Bricolage Grotesque",Arial,sans-serif;font-weight:800;font-size:54px;margin:0;letter-spacing:-.02em}
+header p{margin:6px 0 0;font-size:24px;opacity:.85}
+header .tag{font-size:20px;background:rgba(255,255,255,.14);padding:8px 16px;border-radius:999px}
+.rules{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:26px 0}
+.rule{background:#fff;border:2px solid #D6DDD3;border-radius:16px;padding:16px 18px}
+.rule b{display:block;font-family:"Bricolage Grotesque",Arial;font-size:26px;color:#C9821A}
+.rule span{font-size:20px;line-height:1.3}
+.grid{display:grid;grid-template-columns:1.25fr 1fr;gap:28px}
+h2{font-family:"Bricolage Grotesque",Arial;font-size:30px;margin:4px 0 12px}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden;border:2px solid #D6DDD3}
+th{background:#E8ECE6;text-align:left;font-size:17px;text-transform:uppercase;letter-spacing:.06em;color:#5C6A62;padding:10px 14px}
+td{padding:9px 14px;border-top:1px solid #E3E8E1;font-size:22px}
+td.code{font-family:"Bricolage Grotesque",Arial;font-weight:800;font-size:24px;letter-spacing:.01em}
+td.p{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+td.n{color:#5C6A62;font-size:19px}
+tr.sec td{background:#1F4D3A;color:#fff;font-weight:700;font-size:18px;text-transform:uppercase;letter-spacing:.08em;padding:7px 14px}
+.blank{color:#A0AAA4;font-weight:400}
+.pay{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.pay div{background:#fff;border:2px solid #D6DDD3;border-radius:12px;padding:10px;text-align:center}
+.pay b{display:block;font-family:"Bricolage Grotesque",Arial;font-size:28px}
+.pay span{font-size:16px;color:#5C6A62}
+.ticket{background:#FFFDF6;border:2px solid #CFC7B2;border-radius:10px;padding:22px 26px;box-shadow:0 8px 24px rgba(0,0,0,.12);position:relative;transform:rotate(-1.2deg)}
+.ticket:before{content:"";position:absolute;left:0;right:0;top:-2px;height:10px;background:radial-gradient(circle at 8px -2px,#F3F5F1 7px,transparent 8px) repeat-x;background-size:16px 10px}
+.thead{display:flex;justify-content:space-between;border-bottom:2px dashed #CFC7B2;padding-bottom:10px;margin-bottom:10px;font-size:18px;color:#5C6A62}
+.thead .no{font-family:"Bricolage Grotesque",Arial;font-weight:800;color:#B4382F;font-size:26px}
+.hand{font-family:Caveat,"Comic Sans MS",cursive;font-size:38px;color:#1B3A8C;line-height:1.2}
+.line{display:flex;justify-content:space-between;border-bottom:1px solid #E6E0CF;padding:2px 0}
+.lbl{font-size:16px;color:#8A8270;text-transform:uppercase;letter-spacing:.06em}
+.canc{text-decoration:line-through;color:#7A8BB8}
+.tot{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;border-top:2px solid #CFC7B2;padding-top:8px}
+.note{font-size:19px;color:#5C6A62;margin-top:14px;line-height:1.35}
+footer{margin-top:26px;font-size:18px;color:#5C6A62;display:flex;justify-content:space-between}
+</style></head><body><div class="page">
+<header><div><h1>Como anotar na comanda</h1><p>Bar Simpatia · todo mundo escreve igual</p></div><span class="tag">Guarde perto do caixa</span></header>
+
+<div class="rules">
+  <div class="rule"><b>1. Topo</b><span>MESA 1 a 6 ou BALCÃO + nome do cliente, a data e a inicial de quem atendeu.</span></div>
+  <div class="rule"><b>2. Na hora</b><span>Anote cada item assim que sair. Uma linha por item: <b style="display:inline;font-size:20px;color:#16201B">QTD + NOME</b>.</span></div>
+  <div class="rule"><b>3. Cancelou?</b><span>Risque com um traço e escreva CANC. Nunca rasgue nem jogue fora a comanda.</span></div>
+  <div class="rule"><b>4. Fechou</b><span>Escreva o TOTAL e a forma de pagamento com a sigla abaixo.</span></div>
+</div>
+
+<div class="grid">
+<div>
+  <h2>Nome padrão e preço</h2>
+  <table>
+    <tr><th>Escreva assim</th><th>Produto</th><th style="text-align:right">Preço</th></tr>
+    <tr class="sec"><td colspan="3">Litrão (1 litro)</td></tr>
+    <tr><td class="code">BRAHMA LT</td><td class="n">Brahma 1L</td><td class="p">13,00</td></tr>
+    <tr><td class="code">ANTARC LT</td><td class="n">Antarctica 1L</td><td class="p">13,00</td></tr>
+    <tr><td class="code">SKOL LT</td><td class="n">Skol 1L</td><td class="p">13,00</td></tr>
+    <tr class="sec"><td colspan="3">600 ml</td></tr>
+    <tr><td class="code">BRAHMA 600</td><td class="n">Brahma 600ml</td><td class="p">11,00</td></tr>
+    <tr><td class="code">ANTARC 600</td><td class="n">Antarctica 600ml</td><td class="p">11,00</td></tr>
+    <tr><td class="code">SKOL 600</td><td class="n">Skol 600ml</td><td class="p">11,00</td></tr>
+    <tr><td class="code">BUD 600</td><td class="n">Budweiser 600ml</td><td class="p">11,00</td></tr>
+    <tr><td class="code">ORIGINAL 600</td><td class="n">Original 600ml</td><td class="p">13,00</td></tr>
+    <tr><td class="code">STELLA 600</td><td class="n">Stella Artois 600ml</td><td class="p">13,00</td></tr>
+    <tr><td class="code">SPATEN 600</td><td class="n">Spaten 600ml</td><td class="p">13,00</td></tr>
+    <tr><td class="code">GOLD 600</td><td class="n">Stella Pure Gold 600ml</td><td class="p">16,00</td></tr>
+    <tr><td class="code">CORONA 600</td><td class="n">Corona 600ml</td><td class="p">16,00</td></tr>
+    <tr><td class="code">HEINEKEN 600</td><td class="n">Heineken 600ml</td><td class="p">16,00</td></tr>
+    <tr class="sec"><td colspan="3">Long neck (LN) e lata</td></tr>
+    <tr><td class="code">HEINEKEN LN</td><td class="n">Heineken 330ml</td><td class="p">10,00</td></tr>
+    <tr><td class="code">HEINEKEN ZERO</td><td class="n">Heineken Zero 330ml</td><td class="p">10,00</td></tr>
+    <tr><td class="code">SPATEN LN</td><td class="n">Spaten 330ml</td><td class="p">10,00</td></tr>
+    <tr><td class="code">GOLD LN</td><td class="n">Stella Pure Gold 330ml</td><td class="p">11,00</td></tr>
+    <tr><td class="code">BRAHMA LATA</td><td class="n">Brahma lata 473ml</td><td class="p">10,00</td></tr>
+    <tr><td class="code">ANTARC LATA</td><td class="n">Antarctica lata 473ml</td><td class="p">10,00</td></tr>
+    <tr class="sec"><td colspan="3">Refrigerante</td></tr>
+    <tr><td class="code">GUARANÁ ZERO</td><td class="n">Guaraná Zero 200ml</td><td class="p">5,00</td></tr>
+    <tr><td class="code">H2OH</td><td class="n">H2OH! Limão 500ml</td><td class="p">8,00</td></tr>
+    <tr class="sec"><td colspan="3">Comida (nome curto)</td></tr>
+    <tr><td class="code">BOL. CARNE</td><td class="n">Bolinho de carne</td><td class="p blank">____</td></tr>
+    <tr><td class="code">PORÇÃO ______</td><td class="n">Escreva o tipo da porção</td><td class="p blank">____</td></tr>
+  </table>
+</div>
+
+<div>
+  <h2>Forma de pagamento</h2>
+  <div class="pay">
+    <div><b>DIN</b><span>Dinheiro</span></div>
+    <div><b>DÉB</b><span>Débito</span></div>
+    <div><b>CRÉD</b><span>Crédito</span></div>
+    <div><b>PIX</b><span>Pix</span></div>
+    <div><b>VALE</b><span>Voucher Sicoob</span></div>
+    <div><b>ALELO</b><span>Alelo (Cielo)</span></div>
+    <div style="grid-column:span 2;border-color:#B4382F"><b style="color:#B4382F">FIADO + NOME</b><span>Passa para a folha do cliente</span></div>
+  </div>
+
+  <h2>Exemplo preenchido</h2>
+  <div class="ticket">
+    <div class="thead"><span>Comanda Nº <span class="no">0127</span></span><span>Bar Simpatia</span></div>
+    <div class="line"><span class="lbl">Mesa / Balcão</span><span class="hand">MESA 3</span></div>
+    <div class="line"><span class="lbl">Data · Atend.</span><span class="hand">10/11 · L</span></div>
+    <div style="margin-top:8px">
+      <div class="line hand"><span>2 BRAHMA LT</span><span>26,00</span></div>
+      <div class="line hand"><span>1 ANTARC 600</span><span>11,00</span></div>
+      <div class="line hand"><span>1 HEINEKEN LN</span><span>10,00</span></div>
+      <div class="line hand"><span class="canc">1 SKOL LT</span><span class="canc">CANC</span></div>
+      <div class="line hand"><span>1 GUARANÁ ZERO</span><span>5,00</span></div>
+    </div>
+    <div class="tot"><span class="lbl">Total</span><span class="hand" style="font-size:46px">52,00</span></div>
+    <div class="tot" style="border-top:0;margin-top:0;padding-top:0"><span class="lbl">Pagto</span><span class="hand">PIX 30,00 + DIN 22,00</span></div>
+  </div>
+  <p class="note">Pagou de duas formas? Escreva as duas com o valor de cada uma. No fim do dia, some as comandas por forma de pagamento e lance em <b>Vendas do dia</b>.</p>
+</div>
+</div>
+<footer><span>Preços de 09/11/2026 · confira a lousa se mudar</span><span>Cada garrafa vendida = um vasilhame vazio</span></footer>
+</div></body></html>
