@@ -531,7 +531,8 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
     <div class="fiahead"><h3 id="cName">Cliente</h3><span class="num" id="cSaldo"></span></div>
     <div class="note" id="cInfo"></div>
     <div class="banner" id="cLib"></div>
-    <div class="tools"><button type="button" class="btn" id="cFecha">Fechar o mês</button><label class="chk" style="align-items:center"><input type="checkbox" id="cIsento"><span>Cliente antigo: sem acréscimo</span></label><label class="chk" style="align-items:center"><input type="checkbox" id="cFunc"><span>Funcionário (desconta no salário, +18%)</span></label></div>
+    <div class="tools"><button type="button" class="btn" id="cFecha">Fechar o mês</button><label class="chk" style="align-items:center" id="cIsentoWrap"><input type="checkbox" id="cIsento"><span>Cliente antigo: sem acréscimo</span></label><label class="chk" style="align-items:center" id="cFuncWrap"><input type="checkbox" id="cFunc"><span>Funcionário (desconta no salário, +18%)</span></label></div>
+    <div class="note" id="cRate"></div>
     <div class="field"><label for="cTel">Telefone / WhatsApp</label>
       <div class="inl"><input id="cTel" type="tel" inputmode="tel" placeholder="(11) 98765-4321" autocomplete="off" style="flex:1;min-width:0"><button type="button" class="btn" id="cTelSave">Salvar</button></div>
       <span class="note" id="cTelNote"></span></div>
@@ -1550,7 +1551,7 @@ function setFMode(m){
 function openFiado(mode, cliente, opts={}){
   if(!db){ showStatus("Entre na sua conta do claude.ai para lançar fiados.",true); return; }
   if(!canWrite){ showStatus("Seu acesso é só de leitura.",true); return; }
-  setFMode(mode); $("fCli").value=cliente||""; $("fNote").textContent=""; $("fTel").value=cliente?fmtTel(telOf(ckey(cliente))):""; $("fFuncChk").checked=cliente?funcK(ckey(cliente)):false;
+  setFMode(mode); $("fCli").value=cliente||""; $("fNote").textContent=""; $("fTel").value=cliente?fmtTel(telOf(ckey(cliente))):""; $("fFuncChk").checked=cliente?funcK(ckey(cliente)):(fGrupo==="func"); $("fFuncWrap").hidden=!(fGrupo==="func"||(cliente&&funcK(ckey(cliente))));
   const c=cliente?fClients().find(x=>x.key===ckey(cliente)):null;
   $("fVal").value = mode==="pagamento"&&c&&c.saldo>0 ? fmt2(c.saldo) : "";
   $("fDt").value = opts.anterior ? lastDayPrev() : today();
@@ -1644,6 +1645,8 @@ function renderClient(){
   $("cFecha").hidden=!(canWrite&&fiaOwner&&db&&BA.base>0.009&&!isento);
   const tx=taxaK(c.key); $("cFecha").textContent=`Fechar o mês: +${Math.round(tx*100)}% sobre ${brl.format(BA.base)} de consumo novo = ${brl.format(Math.round(BA.base*tx*100)/100)}`;
   $("cFunc").checked=funcK(c.key); $("cFunc").disabled=!(canWrite&&fiaOwner);
+  $("cFuncWrap").hidden = !funcK(c.key); $("cIsentoWrap").hidden = funcK(c.key);
+  $("cRate").innerHTML = funcK(c.key) ? "<b>Fiado funcionário:</b> acréscimo de 18% no consumo novo, descontado no salário." : isento ? "<b>Fiado comum, cliente antigo:</b> sem acréscimo." : `<b>Fiado comum:</b> acréscimo de ${Math.round(ACRESC*100)}% no fiado novo, de novembro em diante.`;
   $("cInfo").textContent = c.saldo>0.009 ? `Devendo desde ${c.aberto?c.aberto.split("-").reverse().join("/"):"—"}${c.ant>0.009?` · ${brl.format(c.ant)} vem de antes de ${ymLabel(thisMonth())}`:""}` : "Sem saldo devedor.";
   const W=canWrite&&fiaOwner;
   $("cPay").hidden=!(c.saldo>0.009&&W); $("cAdd").hidden=!W;
