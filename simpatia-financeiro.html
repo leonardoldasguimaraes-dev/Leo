@@ -495,13 +495,10 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 
 <div class="scrim" id="scrimConf" hidden>
   <div class="sheet">
-    <div class="sechead"><h3>Conferir entrega</h3><button type="button" class="btn" id="cfClose">Fechar</button></div>
+    <div class="sechead"><h3>Itens da nota</h3><button type="button" class="btn" id="cfClose">Fechar</button></div>
     <div class="note" id="cfInfo"></div>
-    <div class="banner" id="cfProg"></div>
-    <div class="tools"><button type="button" class="btn" id="cfAll">Marcar tudo como certo</button></div>
     <div class="list" id="cfList"></div>
-    <div class="note" id="cfNote"></div>
-    <button type="button" class="btn primary" id="cfDone" style="padding:14px">Confirmar entrada e lançar no estoque</button>
+    <div class="banner" id="cfProg"></div>
   </div>
 </div>
 
@@ -948,7 +945,7 @@ function renderList(){
     return `<div class="row" style="cursor:default"><span class="stripe" style="background:var(--accent)"></span><span class="main"><span class="t">${esc(it.descricao||it.categoria||T.label)}</span>
       <span class="s"><span class="num">${ddmm(it.data)}</span><span class="tag" style="color:${T.color}">${T.label}</span>${it.fornecedor?`<span>${esc(it.fornecedor)}</span>`:""}${it.itens?.length?`<span>· ${it.itens.length} produto(s)</span>`:""}</span>
       <span class="s" style="margin-top:4px">${it.pendente?`<span class="badge b-amb">Mercadoria: aguardando</span>`:(it.itens?.length?`<span class="badge b-ok">Mercadoria: entrou</span>`:"")}${it.pago===false?`<span class="badge ${venc}">${venc==="b-red"?"Vencido":"A pagar"} · vence ${ddmm(it.data)}</span>`:`<span class="badge b-ok">Pago</span>`}</span>
-      ${ok?`<span class="inl" style="margin-top:6px">${it.pendente&&it.itens?.length?`<button type="button" class="btn primary" data-chk="${esc(it.id)}">Conferir entrega</button>`:""}${it.pendente?`<button type="button" class="btn${it.itens?.length?"":" primary"}" data-conf="${esc(it.id)}">Confirmar entrada</button>`:""}${it.pago===false?`<button type="button" class="btn primary" data-pay="${esc(it.id)}">Confirmar pagamento</button>`:""}<button type="button" class="btn" data-pedit="${esc(it.id)}">Abrir</button></span>`:""}</span>
+      ${ok?`<span class="inl" style="margin-top:6px">${it.itens?.length?`<button type="button" class="btn" data-chk="${esc(it.id)}">Ver nota</button>`:""}${it.pendente?`<button type="button" class="btn primary" data-conf="${esc(it.id)}">Confirmar entrada</button>`:""}${it.pago===false?`<button type="button" class="btn primary" data-pay="${esc(it.id)}">Confirmar pagamento</button>`:""}<button type="button" class="btn" data-pedit="${esc(it.id)}">Abrir</button></span>`:""}</span>
       <span class="amt num">${it.tipo==="entrada"?"+":"−"} ${brl.format(it.valor)}</span></div>`; }).join("");
   const F=[["todos","Todos"],["entrada","Entradas"],["fixo","Fixos"],["variavel","Variáveis"],["despesa","Despesas"],["notas","Com nota"]];
   $("filters").innerHTML=F.map(([k,l])=>`<button class="chip" data-f="${k}" aria-pressed="${state.filter===k}">${l} <span class="num">${counts[k]}</span></button>`).join("");
@@ -2170,41 +2167,15 @@ $("histList").addEventListener("click", async e=>{ const b=e.target.closest("[da
   b.disabled=true; try{ await desfazer(h); }catch(err){ b.disabled=false; showStatus("Não foi possível desfazer: "+(err?.message||err?.code),true); } });
 $("prodBtn").onclick=()=>{ const open=$("prodBody").hidden; $("prodBody").hidden=!open; $("prodBtn").setAttribute("aria-expanded",open); try{ localStorage.setItem("prodAberto",open?"1":""); }catch{} renderProducts(); };
 try{ if(localStorage.getItem("prodAberto")==="1"){ $("prodBody").hidden=false; $("prodBtn").setAttribute("aria-expanded","true"); } }catch{}
-let cfIt=null, cf={};
-function openConf(it){ cfIt=it; cf=JSON.parse(JSON.stringify(it.conferencia||{})); $("cfNote").textContent="";
-  it.itens.forEach((x,i)=>{ if(!cf[i]) cf[i]={ok:false,qtd:x.qtd||0}; });
-  $("cfInfo").textContent=`${it.descricao||"Pedido"} · ${it.itens.length} itens. Confira cada item que desceu do caminhão e toque no ✓. Se veio diferente, ajuste a quantidade com − e +.`;
-  renderConf(); $("scrimConf").hidden=false; }
-function renderConf(){ const it=cfIt; let ok=0, diff=0;
-  $("cfList").innerHTML=it.itens.map((x,i)=>{ const c=cf[i], d=c.qtd!==(x.qtd||0); if(c.ok) ok++; if(c.ok&&d) diff++;
-    return `<div class="cfrow${d?" diff":""}"><span><span class="t">${esc(x.nome)}</span><br><span class="s">Pedido: ${fmtQ(x.qtd)} ${esc(x.un||"")}${d?` · chegou ${fmtQ(c.qtd)}`:""}</span></span>
-      <span class="cfq"><button type="button" data-cfm="${i}" aria-label="Menos">−</button><span>${fmtQ(c.qtd)}</span><button type="button" data-cfp="${i}" aria-label="Mais">+</button></span>
-      <button type="button" class="cfok${c.ok?" on":""}" data-cfo="${i}" aria-label="Chegou certo">✓</button></div>`; }).join("");
-  const n=it.itens.length; $("cfProg").innerHTML=`<b>${ok} de ${n} conferidos</b>${diff?` · <span style="color:var(--neg)">${diff} com quantidade diferente</span>`:""}`;
-  $("cfDone").disabled = ok<n; $("cfDone").textContent = ok<n ? `Confira todos os itens (${n-ok} faltando)` : "Confirmar entrada e lançar no estoque"; }
-let cfSaveT=null; function cfSave(){ clearTimeout(cfSaveT); cfSaveT=setTimeout(()=>{ if(db&&cfIt) db.collection("lancamentos").doc(cfIt.id).update({conferencia:cf}).catch(()=>{}); },600); }
-$("cfList").addEventListener("click", e=>{ const o=e.target.closest("[data-cfo]"), m=e.target.closest("[data-cfm]"), pl=e.target.closest("[data-cfp]");
-  if(o){ const c=cf[+o.dataset.cfo]; c.ok=!c.ok; } else if(m){ const c=cf[+m.dataset.cfm]; c.qtd=Math.max(0,(c.qtd||0)-1); c.ok=true; } else if(pl){ const c=cf[+pl.dataset.cfp]; c.qtd=(c.qtd||0)+1; c.ok=true; } else return;
-  renderConf(); cfSave(); });
-$("cfAll").onclick=()=>{ cfIt.itens.forEach((x,i)=>{ cf[i].ok=true; }); renderConf(); cfSave(); };
+let cfIt=null;
+function openConf(it){ cfIt=it;
+  $("cfInfo").textContent=`${it.descricao||"Pedido"}${it.fornecedor?` · ${it.fornecedor}`:""} · ${it.itens.length} itens`;
+  $("cfList").innerHTML=it.itens.map(x=>`<div class="cfrow" style="grid-template-columns:1fr auto"><span><span class="t">${esc(x.nome)}</span><br><span class="s">${fmtQ(x.qtd)} ${esc(x.un||"")} × ${brl.format(x.vUnit||0)}</span></span><span class="num">${brl.format(x.vTotal||0)}</span></div>`).join("");
+  const sub=it.itens.reduce((t,x)=>t+(x.vTotal||0),0);
+  $("cfProg").innerHTML=`Soma dos itens: <b>${brl.format(sub)}</b> · Valor lançado: <b>${brl.format(it.valor)}</b>`;
+  $("scrimConf").hidden=false; }
 $("cfClose").onclick=()=>{ $("scrimConf").hidden=true; };
 $("scrimConf").addEventListener("click", e=>{ if(e.target===$("scrimConf")) $("scrimConf").hidden=true; });
-$("cfDone").onclick=async ()=>{ const it=cfIt; if(!it||!db) return; const b=$("cfDone"); b.disabled=true; b.textContent="Lançando…";
-  try{ let lanc=0, sem=[]; const diffs=[];
-    for(const [i,x] of it.itens.entries()){ const c=cf[i]; if(c.qtd!==(x.qtd||0)) diffs.push(`${x.nome}: pedido ${fmtQ(x.qtd)}, chegou ${fmtQ(c.qtd)}`);
-      const key=`${it.id}:${i}`; if(movs.some(m=>m.origem===key)) continue; if(!(c.qtd>0)) continue;
-      const p=matchProd(x.nome); if(!p){ sem.push(x.nome); continue; }
-      const units=CASE_UN.test(String(x.un||"").trim()) ? Math.round(c.qtd*(p.porCaixa||1)) : Math.round(c.qtd);
-      await db.collection("movimentos").doc().set({produtoId:p.id,tipo:"entrada",qtd:units,data:today(),origem:key,obs:`Entrega ${it.fornecedor||""}`.trim(),criadoEm:Date.now()+i});
-      const cu = x.vUnit && x.qtd ? Math.round(x.vUnit/((CASE_UN.test(String(x.un||"").trim())?(p.porCaixa||1):1))*100)/100 : 0;
-      if(cu) await db.collection("estoque").doc(p.id).update({custoUnit:cu,atualizadoEm:Date.now()}).catch(()=>{});
-      lanc++; }
-    const upd={pendente:false,confirmadoEm:today(),conferencia:cf,atualizadoEm:Date.now()};
-    if(diffs.length) upd.obs=((it.obs||"")+" | Diferenças na entrega: "+diffs.join("; ")).slice(0,900);
-    await db.collection("lancamentos").doc(it.id).update(upd); logChange(it.id,it,{...it,...upd},"confirmou");
-    $("scrimConf").hidden=true;
-    showStatus(`Entrega confirmada: ${lanc} produto(s) lançados no estoque.${diffs.length?` ${diffs.length} item(ns) com diferença: confira o valor do boleto.`:""}${sem.length?` Sem cadastro no estoque: ${sem.join(", ")}.`:""}`); setTimeout(()=>showStatus(""),9000); }
-  catch(err){ b.disabled=false; $("cfNote").textContent="Não foi possível confirmar: "+(err?.message||err?.code); renderConf(); } };
 $("prevM").onclick=()=>{ state.ym=shiftYm(state.ym,-1); render(); };
 $("nextM").onclick=()=>{ state.ym=shiftYm(state.ym,1); render(); };
 $("filters").addEventListener("click", e=>{ const b=e.target.closest("[data-f]"); if(b){ state.filter=b.dataset.f; renderList(); }});
