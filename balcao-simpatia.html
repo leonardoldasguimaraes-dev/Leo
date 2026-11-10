@@ -67,6 +67,13 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 .tag.fia{background:color-mix(in srgb,var(--neg) 16%,var(--surface));color:var(--neg)}
 .del{border:0;background:none;color:var(--muted);font-size:14px;padding:8px;cursor:pointer;border-radius:8px}
 .del[data-armed="1"]{background:var(--neg);color:#fff}
+.sug{display:flex;flex-wrap:wrap;gap:8px;max-height:260px;overflow:auto}
+.sg{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;gap:10px;align-items:baseline;cursor:pointer;font-weight:600}
+.sg span{font-family:var(--mono);font-size:14px;color:var(--muted);font-weight:500}
+.qtd{display:flex;align-items:center;gap:12px;background:var(--sunk);border-radius:12px;padding:8px 12px;flex-wrap:wrap}
+.qtd b{font-family:var(--mono);font-size:22px;min-width:28px;text-align:center}
+.qb{width:48px;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:24px;font-weight:700;cursor:pointer}
+.note{font-size:13px;color:var(--muted)}
 .vazio{color:var(--muted);text-align:center;padding:18px 0}
 @media (prefers-reduced-motion:no-preference){.card{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(6px)}}}
 </style>
@@ -92,9 +99,11 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
     <h2>Caderno</h2>
     <p class="hint">Só venda paga em dinheiro no balcão. Cartão e Pix: tire a notinha da máquina e grampeie no caderno.</p>
     <div class="grid2">
-      <div class="field"><label for="cadDesc">O que foi</label><input id="cadDesc" placeholder="ex.: 2 doses de pinga" autocomplete="off"></div>
+      <div class="field"><label for="cadDesc">O que foi</label><input id="cadDesc" placeholder="digite a 1ª letra: B, A, C…" autocomplete="off"></div>
       <div class="field"><label for="cadVal">Valor (R$)</label><input id="cadVal" class="m din" inputmode="numeric" placeholder="0,00" autocomplete="off"></div>
     </div>
+    <div class="sug" id="sug" hidden></div>
+    <div class="qtd" id="qtdBox" hidden><span>Quantidade</span><button type="button" class="qb" id="qMenos" aria-label="Diminuir">−</button><b id="qN">1</b><button type="button" class="qb" id="qMais" aria-label="Aumentar">+</button><span class="note" id="qUn"></span></div>
     <button class="btn primary" type="submit">Lançar no caderno</button>
   </form>
 
@@ -162,6 +171,22 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 function money(s){ s=String(s||"").replace(/[^\d,.-]/g,""); if(s.includes(",")) s=s.replace(/\./g,"").replace(",","."); const n=parseFloat(s); return isFinite(n)?Math.round(n*100)/100:NaN; }
 // valor em real: digita só números e a vírgula aparece sozinha (600 vira 6,00)
 document.querySelectorAll("input.din").forEach(i=>{ i.addEventListener("input",()=>{ const d=i.value.replace(/\D/g,"").replace(/^0+/,"").slice(0,7); if(!d){ i.value=""; return; } const n=Number(d)/100; i.value=n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }); });
+// produtos do bar com preço de venda (do app Simpatia Financeiro)
+const PRODUTOS=[["Antarctica litro",13],["Antarctica 600",11],["Antarctica lata 473",10],["Brahma litro",13],["Brahma 600",11],["Brahma lata 473",10],["Skol litro",13],["Skol 600",11],["Budweiser 600",11],["Original 600",13],["Spaten 600",13],["Spaten long neck",10],["Stella Artois 600",13],["Stella Artois long neck",11],["Stella Pure Gold 600",16],["Stella Pure Gold long neck",11],["Corona 600",16],["Heineken 600",16],["Heineken long neck",10],["Heineken Zero long neck",10],["Coca-Cola 200",4],["Coca-Cola Zero 200",4],["Coca-Cola lata 220",5],["Coca-Cola Zero lata 220",5],["Coca-Cola lata 350",8],["Coca-Cola Zero lata 350",8],["Coca-Cola KS 290",7],["Coca-Cola Zero KS 290",7],["Coca-Cola 1L vidro",10],["Coca-Cola Zero 1L",10],["Coca-Cola 2L",16],["Coca-Cola Zero 2L",16],["Guaraná 200",4],["Guaraná Zero 200",5],["H2OH limão 500",8],["Água sem gás 500",4],["Água com gás 500",5],["Água 1,5L",7],["Suco Del Valle lata",7],["Dose de barril (pinga)",3],["Dose de Salinas",3],["Linguiça",7],["Coxinha",3],["Bala",0.30]];
+const norm=x=>String(x).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+const fmt2=n=>n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+let sel=null;
+function sugere(){ const q=norm($("cadDesc").value).trim(); const box=$("sug");
+  if(!q||sel){ box.hidden=true; return; }
+  const qs=q.split(/[^a-z0-9]+/).filter(Boolean);
+  const hits=PRODUTOS.filter(([n])=>{ const ws=norm(n).split(/[^a-z0-9]+/).filter(Boolean); return ws[0].startsWith(qs[0]) && qs.slice(1).every(t=>ws.slice(1).some(w=>w.startsWith(t))); });
+  box.hidden=!hits.length; box.innerHTML=hits.map(([n,pr],i)=>`<button type="button" class="sg" data-p="${PRODUTOS.indexOf(PRODUTOS.find(x=>x[0]===n))}">${esc(n)} <span>${brl.format(pr)}</span></button>`).join(""); }
+function aplicaSel(){ if(!sel){ $("qtdBox").hidden=true; return; } $("qtdBox").hidden=false; $("qN").textContent=sel.q; $("qUn").textContent=`${brl.format(sel.p)} cada`;
+  $("cadDesc").value=(sel.q>1?`${sel.q}x `:"")+sel.n; $("cadVal").value=fmt2(Math.round(sel.p*sel.q*100)/100); $("sug").hidden=true; }
+$("cadDesc").addEventListener("input",()=>{ sel=null; $("qtdBox").hidden=true; sugere(); });
+$("sug").addEventListener("click",e=>{ const b=e.target.closest("[data-p]"); if(!b) return; const [n,p]=PRODUTOS[Number(b.dataset.p)]; sel={n,p,q:1}; aplicaSel(); });
+$("qMais").onclick=()=>{ if(sel){ sel.q=Math.min(99,sel.q+1); aplicaSel(); } };
+$("qMenos").onclick=()=>{ if(sel){ sel.q=Math.max(1,sel.q-1); aplicaSel(); } };
 let db=null, movs=[], tipo="caderno", forma="din", cor="branca", retT="gelo", stTimer=null;
 const FORMA={din:"Dinheiro",cart:"Cartão/Pix",ale:"Alelo",fia:"Fiado"}, RET={gelo:"Gelo",pass:"Passagem",outro:"Outro"};
 
@@ -198,7 +223,7 @@ async function lancar(doc,btn){
 $("fCaderno").addEventListener("submit",async e=>{ e.preventDefault(); const v=money($("cadVal").value), d=$("cadDesc").value.trim();
   if(!d){ status("Escreva o que foi vendido.","err"); $("cadDesc").focus(); return; }
   if(!(v>0)){ status("Digite o valor.","err"); $("cadVal").focus(); return; }
-  if(await lancar({tipo:"caderno",desc:d.slice(0,80),valor:v,forma:"din"},e.submitter||e.target.querySelector("button[type=submit]"))){ $("cadDesc").value=""; $("cadVal").value=""; status("Lançado no caderno.","ok"); $("cadDesc").focus(); } });
+  if(await lancar({tipo:"caderno",desc:d.slice(0,80),valor:v,forma:"din"},e.submitter||e.target.querySelector("button[type=submit]"))){ $("cadDesc").value=""; $("cadVal").value=""; sel=null; $("qtdBox").hidden=true; $("sug").hidden=true; status("Lançado no caderno.","ok"); $("cadDesc").focus(); } });
 
 $("fComanda").addEventListener("submit",async e=>{ e.preventDefault(); const v=money($("comVal").value), n=$("comNum").value.replace(/\D/g,""), nome=$("comNome").value.trim();
   if(!n){ status("Digite o número da comanda.","err"); $("comNum").focus(); return; }
