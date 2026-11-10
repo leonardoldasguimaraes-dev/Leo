@@ -89,22 +89,31 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
   <div class="banner" id="status" hidden></div>
 
   <div class="tipos" role="group" aria-label="O que lançar">
-    <button type="button" class="tipo" data-t="caderno" aria-pressed="true"><b>Caderno</b><span>Venda no balcão em dinheiro</span></button>
+    <button type="button" class="tipo" data-t="caderno" aria-pressed="true"><b>Balcão</b><span>Venda no balcão: dinheiro ou cartão</span></button>
     <button type="button" class="tipo" data-t="comanda" aria-pressed="false"><b>Comanda</b><span>Mesa paga ou no fiado</span></button>
     <button type="button" class="tipo" data-t="retirada" aria-pressed="false"><b>Retirada</b><span>Gelo e passagens</span></button>
     <button type="button" class="tipo" data-t="cascos" aria-pressed="false"><b>Cascos</b><span>Vazios no fim do turno</span></button>
   </div>
 
   <form class="card" id="fCaderno" novalidate>
-    <h2>Caderno</h2>
-    <p class="hint">Só venda paga em dinheiro no balcão. Cartão e Pix: tire a notinha da máquina e grampeie no caderno.</p>
+    <h2>Venda no balcão</h2>
+    <div class="field"><label>Como pagou</label>
+      <div class="chips" id="cadForma" role="group" aria-label="Como pagou">
+        <button type="button" class="chip" data-f="din" aria-pressed="true">Dinheiro</button>
+        <button type="button" class="chip" data-f="deb" aria-pressed="false">Débito</button>
+        <button type="button" class="chip" data-f="cre" aria-pressed="false">Crédito</button>
+        <button type="button" class="chip" data-f="pix" aria-pressed="false">Pix</button>
+        <button type="button" class="chip" data-f="vou" aria-pressed="false">Voucher</button>
+      </div>
+    </div>
+    <p class="hint" id="cadHint">Dinheiro: anote também no caderno.</p>
     <div class="grid2">
       <div class="field"><label for="cadDesc">O que foi</label><input id="cadDesc" placeholder="digite a 1ª letra: B, A, C…" autocomplete="off"></div>
       <div class="field"><label for="cadVal">Valor (R$)</label><input id="cadVal" class="m din" inputmode="numeric" placeholder="0,00" autocomplete="off"></div>
     </div>
     <div class="sug" id="sug" hidden></div>
     <div class="qtd" id="qtdBox" hidden><span>Quantidade</span><button type="button" class="qb" id="qMenos" aria-label="Diminuir">−</button><b id="qN">1</b><button type="button" class="qb" id="qMais" aria-label="Aumentar">+</button><span class="note" id="qUn"></span></div>
-    <button class="btn primary" type="submit">Lançar no caderno</button>
+    <button class="btn primary" type="submit" id="cadBtn">Lançar venda</button>
   </form>
 
   <form class="card" id="fComanda" novalidate hidden>
@@ -175,7 +184,10 @@ document.querySelectorAll("input.din").forEach(i=>{ i.addEventListener("input",(
 const PRODUTOS=[["Antarctica litro",13],["Antarctica 600",11],["Antarctica lata 473",10],["Brahma litro",13],["Brahma 600",11],["Brahma lata 473",10],["Skol litro",13],["Skol 600",11],["Budweiser 600",11],["Original 600",13],["Spaten 600",13],["Spaten long neck",10],["Stella Artois 600",13],["Stella Artois long neck",11],["Stella Pure Gold 600",16],["Stella Pure Gold long neck",11],["Corona 600",16],["Heineken 600",16],["Heineken long neck",10],["Heineken Zero long neck",10],["Coca-Cola 200",4],["Coca-Cola Zero 200",4],["Coca-Cola lata 220",5],["Coca-Cola Zero lata 220",5],["Coca-Cola lata 350",8],["Coca-Cola Zero lata 350",8],["Coca-Cola KS 290",7],["Coca-Cola Zero KS 290",7],["Coca-Cola 1L vidro",10],["Coca-Cola Zero 1L",10],["Coca-Cola 2L",16],["Coca-Cola Zero 2L",16],["Guaraná 200",4],["Guaraná Zero 200",5],["H2OH limão 500",8],["Água sem gás 500",4],["Água com gás 500",5],["Água 1,5L",7],["Suco Del Valle lata",7],["Dose de barril (pinga)",3],["Dose de Salinas",3],["Linguiça",7],["Coxinha",3],["Bala",0.30]];
 const norm=x=>String(x).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const fmt2=n=>n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
-let sel=null;
+let sel=null, cadF="din";
+const CADF={din:"Dinheiro",deb:"Débito Sicoob",cre:"Crédito Sicoob",pix:"Pix Sicoob",vou:"Voucher Sicoob"};
+$("cadForma").addEventListener("click",e=>{ const b=e.target.closest("[data-f]"); if(!b) return; cadF=b.dataset.f; [...$("cadForma").children].forEach(x=>x.setAttribute("aria-pressed",x===b));
+  $("cadHint").textContent=cadF==="din"?"Dinheiro: anote também no caderno.":"Cartão/Pix na Sicoob: passe na máquina, lance aqui e grampeie a notinha no caderno."; });
 function sugere(){ const q=norm($("cadDesc").value).trim(); const box=$("sug");
   if(!q||sel){ box.hidden=true; return; }
   const qs=q.split(/[^a-z0-9]+/).filter(Boolean);
@@ -223,7 +235,7 @@ async function lancar(doc,btn){
 $("fCaderno").addEventListener("submit",async e=>{ e.preventDefault(); const v=money($("cadVal").value), d=$("cadDesc").value.trim();
   if(!d){ status("Escreva o que foi vendido.","err"); $("cadDesc").focus(); return; }
   if(!(v>0)){ status("Digite o valor.","err"); $("cadVal").focus(); return; }
-  if(await lancar({tipo:"caderno",desc:d.slice(0,80),valor:v,forma:"din"},e.submitter||e.target.querySelector("button[type=submit]"))){ $("cadDesc").value=""; $("cadVal").value=""; sel=null; $("qtdBox").hidden=true; $("sug").hidden=true; status("Lançado no caderno.","ok"); $("cadDesc").focus(); } });
+  if(await lancar({tipo:"caderno",desc:d.slice(0,80),valor:v,forma:cadF},e.submitter||e.target.querySelector("button[type=submit]"))){ $("cadDesc").value=""; $("cadVal").value=""; sel=null; $("qtdBox").hidden=true; $("sug").hidden=true; status(`Venda lançada (${CADF[cadF]}).`,"ok"); $("cadForma").querySelector('[data-f="din"]').click(); $("cadDesc").focus(); } });
 
 $("fComanda").addEventListener("submit",async e=>{ e.preventDefault(); const v=money($("comVal").value), n=$("comNum").value.replace(/\D/g,""), nome=$("comNome").value.trim();
   if(!n){ status("Digite o número da comanda.","err"); $("comNum").focus(); return; }
@@ -246,7 +258,7 @@ function render(){ const L=movs.filter(m=>m.data===hoje()).sort((a,b)=>(b.criado
   if(!L.length){ $("lista").innerHTML=`<div class="vazio">Nada lançado hoje ainda. Escolha acima o que lançar.</div>`; return; }
   $("lista").innerHTML=L.map(m=>{ const h=new Date(m.criadoEm||0); const hh=`${pad(h.getHours())}:${pad(h.getMinutes())}`;
     let t="",s="",v="";
-    if(m.tipo==="caderno"){ t=esc(m.desc); s="Caderno · dinheiro"; v=brl.format(m.valor); }
+    if(m.tipo==="caderno"){ t=esc(m.desc); s=`Balcão · ${(CADF[m.forma]||"Dinheiro")}`; v=brl.format(m.valor); }
     else if(m.tipo==="comanda"){ t=`Comanda ${COR[corDe(m)]} ${esc(m.numero)}`; s=`${m.forma==="fia"?`<span class="tag fia">Fiado</span> ${esc(m.nome)}`:FORMA[m.forma]||""}`; v=brl.format(m.valor); }
     else if(m.tipo==="retirada"){ t=`${RET[m.ret]||"Retirada"}${m.nome?` · ${esc(m.nome)}`:""}`; s="Retirada do caixa"; v=brl.format(m.valor); }
     else if(m.tipo==="cascos"){ t=`Cascos: ${m.litros||0} litrões · ${m.seiscentos||0} de 600`; s="Contagem de vazios"; v=""; }
