@@ -1909,7 +1909,9 @@ function cxRender(){ const c=cxCur, k=cxCalc(c);
   const r=[];
   r.push(`<div><span>Caderno (dinheiro)</span><span class="num">${brl.format(k.cad)}</span></div>`);
   r.push(`<div><span>Comandas</span><span class="num">${brl.format(k.com)}</span></div>`);
-  r.push(`<div><span><b>Total vendido</b> <span class="note">(dinheiro + Sicoob + Cielo; fiado fora)</span></span><span class="num"><b>${brl.format(k.tot)}</b></span></div>`);
+  r.push(`<div><span><b>Total de vendas do dia</b> <span class="note">(dinheiro + Sicoob + Cielo)</span></span><span class="num"><b>${brl.format(k.tot)}</b></span></div>`);
+  r.push(`<div><span><b>Fiados do dia</b> <span class="note">(não entrou dinheiro; lance no Fiados)</span></span><span class="num" style="color:var(--neg)"><b>${brl.format(k.by.fia)}</b></span></div>`);
+  r.push(`<div><span>Vendas + fiados <span class="note">(tudo que saiu do bar)</span></span><span class="num">${brl.format(k.tot+k.by.fia)}</span></div>`);
   r.push(`<div><span>Em dinheiro (anotado) + troco ${brl.format(k.troco)}</span><span class="num">${brl.format(k.esp)}</span></div>`);
   r.push(`<div><span>Gaveta</span><span>${c.gav==null?"falta contar":difTxt(dg)}</span></div>`);
   r.push(`<div><span>Maquininha Sicoob${c.ale!=null?" + Alelo":""}</span><span class="num">${k.maq==null&&c.ale==null?"falta o relatório":brl.format((k.maq??0)+(c.ale??0))}</span></div>`);
@@ -1917,19 +1919,17 @@ function cxRender(){ const c=cxCur, k=cxCalc(c);
   if(k.maq!=null||c.ale!=null){ r.push(`<div><span>Sobra da máquina = balcão no cartão</span><span class="num">${brl.format(k.balc)}</span></div>`);
     if(k.balc<-0.009) r.push(`<div><span>Comandas no cartão passam do relatório da máquina</span><span class="bad">confira</span></div>`);
     else if(c.not!=null) r.push(`<div><span>Notinhas grampeadas ${brl.format(c.not)}</span><span>${difTxt(c.not-k.balc)}</span></div>`); }
-  if(k.by.fia) r.push(`<div><span>Vendido no fiado (não entra no total; lance no Fiados)</span><span class="num" style="color:var(--neg)">${brl.format(k.by.fia)}</span></div>`);
   if(c.CL!=null||c.AL!=null){ const d=(c.CL||0)-(c.AL||0); r.push(`<div><span>Litrões: ${c.CL??0} vazios × ${c.AL??0} anotados</span><span>${d===0?`<span class="ok">Bateu</span>`:d>0?`<span class="bad">${d} sem anotar</span>`:`<span class="ok">${-d} a mais anotado</span>`}</span></div>`); }
   if(c.C6!=null||c.A6!=null){ const d=(c.C6||0)-(c.A6||0); r.push(`<div><span>600: ${c.C6??0} vazios × ${c.A6??0} anotados</span><span>${d===0?`<span class="ok">Bateu</span>`:d>0?`<span class="bad">${d} sem anotar</span>`:`<span class="ok">${-d} a mais anotado</span>`}</span></div>`); }
   $("cxRes").innerHTML=r.join("");
   [["cxFCad",cxFCad],["cxFCom",cxFCom]].forEach(([id,f])=>[...$(id).children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.f===f))); }
 function cxResumoTxt(){ const c=cxCur,k=cxCalc(c); const dg=c.gav!=null?c.gav-k.esp:null; const f=v=>brl.format(v);
-  const L=[`Caixa ${ddmm(c.data)}`,`Caderno (dinheiro): ${f(k.cad)}`,`Comandas: ${f(k.com)}`,`Total vendido: ${f(k.tot)}`,`Dinheiro anotado: ${f(k.by.din)} + troco ${f(k.troco)} = ${f(k.esp)}`];
+  const L=[`Caixa ${ddmm(c.data)}`,`Caderno (dinheiro): ${f(k.cad)}`,`Comandas: ${f(k.com)}`,`Total de vendas do dia: ${f(k.tot)}`,`Fiados do dia: ${f(k.by.fia)}`,`Vendas + fiados: ${f(k.tot+k.by.fia)}`,`Dinheiro anotado: ${f(k.by.din)} + troco ${f(k.troco)} = ${f(k.esp)}`];
   if(c.gav!=null) L.push(`Gaveta contada: ${f(c.gav)} (${Math.abs(dg)<0.01?"bateu":dg>0?"sobrou "+f(dg):"faltou "+f(-dg)})`);
   if(k.maq!=null) L.push(`Maquininha: ${f(k.maq)} (débito ${f(c.deb||0)}, crédito ${f(c.cre||0)}, pix ${f(c.pix||0)}, voucher ${f(c.vou||0)})`);
   if(c.ale!=null) L.push(`Alelo (Cielo): ${f(c.ale)}`);
   L.push(`Comandas no cartão/Pix/Alelo: ${f(k.by.cart+k.by.ale)}`);
   if(k.maq!=null||c.ale!=null) L.push(`Balcão no cartão (sobra da máquina): ${f(k.balc)}`+(c.not!=null?` · notinhas ${f(c.not)}`:""));
-  if(k.by.fia) L.push(`Vendido no fiado (fora do total): ${f(k.by.fia)}`);
   if(c.CL!=null||c.AL!=null) L.push(`Litrões: ${c.CL??0} vazios, ${c.AL??0} anotados`);
   if(c.C6!=null||c.A6!=null) L.push(`600: ${c.C6??0} vazios, ${c.A6??0} anotados`);
   if(c.obs) L.push(`Obs.: ${c.obs}`); return L.join("\n"); }
