@@ -111,6 +111,8 @@ body.privado .ctape{filter:none}
 
 /* totais */
 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.tile.tbtn{border:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.tile .tver{font-size:12px;color:var(--muted);font-weight:600}
 .tile{background:var(--surface);padding:12px 12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
 .tile .v{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile .dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:1px}
@@ -542,8 +544,11 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
   </section>
 
   <section class="sec" id="pendSec" hidden>
-    <div class="sechead"><h2>Pendências</h2><span class="note" id="pendNote"></span></div>
-    <div class="list" id="pendList"></div>
+    <button type="button" class="card fiabtn" id="pendBtn" aria-expanded="false" aria-controls="pendBody">
+      <span><span class="vh">Pendências</span><br><span class="note" id="pendNote">Contas a pagar e mercadoria a conferir</span></span>
+      <span class="extarrow" aria-hidden="true"></span>
+    </button>
+    <div id="pendBody" class="sec" hidden><div class="list" id="pendList"></div></div>
   </section>
 
   <section class="sec" id="fiaSumSec">
@@ -587,6 +592,15 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 
 <div class="fabs" id="fiaFab"><button class="fab alt" id="fiaBack2" aria-label="Voltar para a página inicial"><span>←</span> Voltar</button><button class="fab" id="fNew"><span>+</span> Novo fiado</button></div>
 
+<div class="scrim" id="scrimTipo" hidden>
+  <div class="sheet">
+    <div class="sechead"><h3 id="tpTitle">Lançamentos</h3><button type="button" class="btn" id="tpClose">Fechar</button></div>
+    <div class="note" id="tpInfo"></div>
+    <div class="list" id="tpList"></div>
+    <div class="note" id="tpPendTit" hidden><b>A pagar (ainda não desconta)</b></div>
+    <div class="list" id="tpPend"></div>
+  </div>
+</div>
 <div class="scrim" id="scrimConf" hidden>
   <div class="sheet">
     <div class="sechead"><h3>Itens da nota</h3><button type="button" class="btn" id="cfClose">Fechar</button></div>
@@ -992,7 +1006,8 @@ function render(){
   const sit = t.entrada===0&&t.saidas===0 ? "" : Math.abs(t.resultado)<1 ? "Empatou" : t.resultado>0 ? "Lucro" : "Prejuízo";
   $("margem").textContent = sit ? (t.entrada>0 ? `${sit} · margem ${(t.resultado/t.entrada*100).toLocaleString("pt-BR",{maximumFractionDigits:1})}%` : sit) : "Sem lançamentos";
 
-  $("tiles").innerHTML = ORDER.map(k=>`<div class="tile"><span class="label"><i class="dot" style="background:${TYPES[k].color}"></i>${TYPES[k].plural}</span><span class="v num" style="${k==="entrada"?"color:var(--pos)":""}">${brl.format(t[k])}</span></div>`).join("");
+  $("tiles").innerHTML = ORDER.map(k=>`<button type="button" class="tile tbtn" data-tt="${k}"><span class="label"><i class="dot" style="background:${TYPES[k].color}"></i>${TYPES[k].plural}</span><span class="v num" style="${k==="entrada"?"color:var(--pos)":""}">${brl.format(t[k])}</span><span class="tver">ver ›</span></button>`).join("");
+  if(!$("scrimTipo").hidden) renderTipo();
 
   if(document.body.classList.contains("est")) renderEstoque();
   renderVendas(); renderChart(); renderCats(); renderList(); renderProducts();
@@ -1038,7 +1053,7 @@ function renderList(){
   const pend=state.items.filter(it=>it.pendente||it.pago===false).sort((a,b)=>a.data.localeCompare(b.data));
   $("pendSec").hidden=!pend.length;
   const apagar=pend.filter(it=>it.pago===false).reduce((t,it)=>t+it.valor,0);
-  $("pendNote").textContent=apagar?`A pagar: ${brl.format(apagar)}`:"";
+  $("pendNote").textContent=`${pend.length} ${pend.length===1?"conta":"contas"}${apagar?` · a pagar ${brl.format(apagar)}`:""}`;
   const ok=canWrite&&db, hoje=today();
   $("pendList").innerHTML=pend.map(it=>{ const T=TYPES[it.tipo], venc=it.pago===false&&it.data<hoje?"b-red":"b-amb";
     return `<div class="row" style="cursor:default"><span class="stripe" style="background:var(--accent)"></span><span class="main"><span class="t">${esc(it.descricao||it.categoria||T.label)}</span>
@@ -2389,6 +2404,28 @@ $("payForm").addEventListener("submit", async e=>{ e.preventDefault(); if(!payIt
   finally{ b.disabled=false; b.textContent="Confirmar pagamento"; } });
 $("payCancel").onclick=()=>{ $("scrim8").hidden=true; };
 $("scrim8").addEventListener("click", e=>{ if(e.target===$("scrim8")) $("scrim8").hidden=true; });
+$("pendBtn").onclick=()=>{ const open=$("pendBody").hidden; $("pendBody").hidden=!open; $("pendBtn").setAttribute("aria-expanded",open); try{ localStorage.setItem("pendAberto",open?"1":""); }catch{} };
+try{ if(localStorage.getItem("pendAberto")==="1"){ $("pendBody").hidden=false; $("pendBtn").setAttribute("aria-expanded","true"); } }catch{}
+/* janela por tipo (entradas, fixos, variáveis, despesas) */
+let tpTipo=null;
+function renderTipo(){ const k=tpTipo, T=TYPES[k], ym=state.ym;
+  const its=state.items.filter(it=>it.tipo===k && conta(it) && ymOf(dataEf(it))===ym).sort((a,b)=>dataEf(b).localeCompare(dataEf(a)));
+  const pend=k==="entrada"?[]:state.items.filter(it=>it.tipo===k && ymOf(it.data)===ym && !conta(it)).sort((a,b)=>a.data.localeCompare(b.data));
+  const tot=its.reduce((t,it)=>t+it.valor,0);
+  $("tpTitle").textContent=`${T.plural} · ${ymLabel(ym)}`;
+  let info=`Total: <b class="num">${brl.format(tot)}</b> em ${its.length} lançamento(s).`;
+  if(k==="entrada"){ let din=0,car=0,ale=0; for(const it of its){ const v=it.vendas||{}; din+=v.dinheiro||0; car+=(v.debito||0)+(v.credito||0)+(v.pix||0)+(v.voucher||0); ale+=v.alelo||0; }
+    info+=`<br>Dinheiro: <b class="num">${brl.format(din)}</b> · Cartão/Pix: <b class="num">${brl.format(car)}</b>${ale?` · Alelo: <b class="num">${brl.format(ale)}</b>`:""}`; }
+  else info+=`<br>${{fixo:"Contas de todo mês (aluguel, luz, água, pró-labore…).",variavel:"Mercadoria e gastos que acompanham a venda (Ambev, Coca, taxas…).",despesa:"Gastos de vez em quando (conserto, limpeza, material…)."}[k]}`;
+  $("tpInfo").innerHTML=info;
+  const row=it=>{ const v=it.vendas, det=v?[["din",v.dinheiro],["déb",v.debito],["créd",v.credito],["pix",v.pix],["vale",v.voucher],["alelo",v.alelo]].filter(x=>x[1]).map(x=>`${x[0]} ${brl.format(x[1])}`).join(" · "):"";
+    return `<button class="row" data-tpid="${esc(it.id)}"><span class="stripe" style="background:${T.color}"></span><span class="main"><span class="t">${esc(it.descricao||it.categoria||T.label)}</span><span class="s"><span class="num">${ddmm(dataEf(it))}</span>${it.categoria&&!v?`<span>${esc(it.categoria)}</span>`:""}${det?`<span>${det}</span>`:""}${it.pago===true&&it.pagoEm?`<span>· pago ${ddmm(it.pagoEm)}</span>`:""}</span></span><span class="amt num" style="color:${k==="entrada"?"var(--pos)":"var(--ink)"}">${brl.format(it.valor)}</span></button>`; };
+  $("tpList").innerHTML=its.length?its.map(row).join(""):`<div class="empty">Nada neste mês.</div>`;
+  $("tpPendTit").hidden=!pend.length; $("tpPend").innerHTML=pend.map(it=>`<button class="row" data-tpid="${esc(it.id)}"><span class="stripe" style="background:var(--accent)"></span><span class="main"><span class="t">${esc(it.descricao||it.categoria||T.label)}</span><span class="s"><span class="num">vence ${ddmm(it.data)}</span>${it.pendente?`<span>· mercadoria a conferir</span>`:""}</span></span><span class="amt num" style="color:var(--muted)">${brl.format(it.valor)}</span></button>`).join("");
+}
+$("tiles").addEventListener("click", e=>{ const b=e.target.closest("[data-tt]"); if(!b) return; tpTipo=b.dataset.tt; renderTipo(); $("scrimTipo").hidden=false; });
+$("tpClose").onclick=()=>{ $("scrimTipo").hidden=true; };
+$("scrimTipo").addEventListener("click", e=>{ if(e.target===$("scrimTipo")){ $("scrimTipo").hidden=true; return; } const r=e.target.closest("[data-tpid]"); if(!r) return; const it=state.items.find(x=>x.id===r.dataset.tpid); if(it && db && canWrite){ $("scrimTipo").hidden=true; openForm(it); } });
 $("extBtn").onclick=()=>{ const open=$("extBody").hidden; $("extBody").hidden=!open; $("extBtn").setAttribute("aria-expanded",open); try{ localStorage.setItem("extAberto",open?"1":""); }catch{} renderList(); };
 try{ if(localStorage.getItem("extAberto")==="1"){ $("extBody").hidden=false; $("extBtn").setAttribute("aria-expanded","true"); } }catch{}
 $("histBtn").onclick=()=>{ const open=$("histBody").hidden; $("histBody").hidden=!open; $("histBtn").setAttribute("aria-expanded",open); renderHist2(); };
