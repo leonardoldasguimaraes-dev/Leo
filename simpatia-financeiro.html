@@ -444,6 +444,15 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
   </section>
 
   <section class="sec card">
+    <div class="sechead"><h2>Retiradas do caixa</h2><span class="note">Despesa do restaurante paga com o dinheiro do bar</span></div>
+    <div class="seg" id="cxFRet" style="grid-template-columns:repeat(3,1fr)" role="group" aria-label="Tipo de retirada"><button type="button" data-f="pass" aria-pressed="true">Passagem</button><button type="button" data-f="gelo" aria-pressed="false">Gelo</button><button type="button" data-f="outro" aria-pressed="false">Outro</button></div>
+    <div class="cxadd"><input id="cxRetD" placeholder="Nome (ex.: Juliana)" autocomplete="off" aria-label="Nome"><input id="cxRetV" class="m" inputmode="decimal" placeholder="0,00" autocomplete="off" aria-label="Valor"></div>
+    <button type="button" class="btn primary" id="cxRetAdd">+ Adicionar retirada</button>
+    <div class="cxl" id="cxRetL"></div>
+    <div class="note" id="cxRetMes"></div>
+  </section>
+
+  <section class="sec card">
     <div class="sechead"><h2>4. Maquininha e Alelo</h2><span class="note">Do relatório de fechamento</span></div>
     <div class="grid2">
       <div class="field"><label for="cxDeb">Débito</label><input id="cxDeb" class="money cxin" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
@@ -1890,13 +1899,13 @@ $("fiaBack").onclick=voltarInicio; $("fiaBack2").onclick=voltarInicio;
 // abas
 const TAB_HASH={fin:"",est:"#estoque",fia:"#fiados",cx:"#caixa"};
 /* ---------- caixa do dia (rascunho; não lança nada no Financeiro) ---------- */
-let cxDocs={}, cxCur=null, cxDirty=false, cxTimer=null, cxFCad="din", cxFCom="din";
+let cxDocs={}, cxCur=null, cxDirty=false, cxTimer=null, cxFCad="din", cxFCom="din", cxFRet="pass";
 const CXF={din:"Dinheiro",cart:"Cartão/Pix",ale:"Alelo",fia:"Fiado"};
 const CXN=["Troco","Deb","Cre","Pix","Vou","Ale","Gav","Not"], CXI=["CL","AL","C6","A6"];
-function cxBlank(d){ return {data:d,troco:32,caderno:[],comandas:[],deb:null,cre:null,pix:null,vou:null,ale:null,gav:null,not:null,CL:null,AL:null,C6:null,A6:null,obs:""}; }
+function cxBlank(d){ return {data:d,troco:32,caderno:[],comandas:[],retiradas:[],deb:null,cre:null,pix:null,vou:null,ale:null,gav:null,not:null,CL:null,AL:null,C6:null,A6:null,obs:""}; }
 const mstr=v=>v==null||v===""?"":String(Number(v).toFixed(2)).replace(".",",");
 function cxLoad(){ if(!$("cxData").value) $("cxData").value=today(); const d=$("cxData").value;
-  cxCur={...cxBlank(d),...(cxDocs[d]||{})}; cxCur.caderno=[...(cxCur.caderno||[])]; cxCur.comandas=[...(cxCur.comandas||[])];
+  cxCur={...cxBlank(d),...(cxDocs[d]||{})}; cxCur.caderno=[...(cxCur.caderno||[])]; cxCur.comandas=[...(cxCur.comandas||[])]; cxCur.retiradas=[...(cxCur.retiradas||[])];
   for(const k of CXN){ const key=k==="Troco"?"troco":k.toLowerCase(); $("cx"+k).value=mstr(cxCur[key]); }
   for(const k of CXI) $("cx"+k).value=cxCur[k]==null?"":String(cxCur[k]);
   $("cxObs").value=cxCur.obs||""; $("cxSave").textContent=cxDocs[d]?"Salvo.":""; cxRender(); }
@@ -1912,11 +1921,17 @@ function cxCalc(c){ const by={din:0,cart:0,ale:0,fia:0}; for(const x of [...c.ca
   // cartão e Alelo das comandas já estão dentro da maquininha/Cielo; o resto da máquina é balcão (notinhas)
   const balc=(maq??0)+(c.ale??0)-by.cart-by.ale;
   const tot=by.din+Math.max(maq??0,by.cart)+Math.max(c.ale??0,by.ale); // fiado não entra: o dinheiro não entrou
-  return {by,cad,com,tot,troco,esp:troco+by.din,maq,balc}; }
+  const ret=(c.retiradas||[]).reduce((t,x)=>t+(x.v||0),0);
+  return {by,cad,com,tot,troco,ret,esp:troco+by.din-ret,maq,balc}; }
 function difTxt(d){ if(Math.abs(d)<0.01) return `<span class="ok">Bateu</span>`; return d>0?`<span class="ok">Sobrou ${brl.format(d)}</span>`:`<span class="bad">Faltou ${brl.format(-d)}</span>`; }
 function cxRender(){ const c=cxCur, k=cxCalc(c);
   const lst=(arr,tipo)=>arr.length?arr.map((x,i)=>`<div><span>${tipo==="com"?`Comanda ${esc(x.d||"?")}`:esc(x.d||"—")}</span><span class="badge ${x.f==="fia"?"b-red":x.f==="din"?"b-ok":"b-amb"}">${CXF[x.f]}</span><span class="num">${brl.format(x.v||0)}</span><button type="button" data-cxdel="${tipo}:${i}" aria-label="Apagar">×</button></div>`).join("")+`<div class="cxtot" style="display:flex"><span>Total</span><span class="num">${brl.format(arr.reduce((t,x)=>t+(x.v||0),0))}</span></div>`:`<span class="note">Nada anotado ainda.</span>`;
   $("cxCadL").innerHTML=lst(c.caderno,"cad"); $("cxComL").innerHTML=lst(c.comandas,"com");
+  const RN={pass:"Passagem",gelo:"Gelo",outro:"Outro"};
+  $("cxRetL").innerHTML=c.retiradas.length?c.retiradas.map((x,i)=>`<div><span>${RN[x.t]||"Retirada"}${x.d?` · ${esc(x.d)}`:""}</span><span></span><span class="num">${brl.format(x.v||0)}</span><button type="button" data-cxdel="ret:${i}" aria-label="Apagar">×</button></div>`).join("")+`<div class="cxtot" style="display:flex"><span>Total retirado</span><span class="num">${brl.format(k.ret)}</span></div>`:`<span class="note">Nenhuma retirada hoje.</span>`;
+  { const ym=c.data.slice(0,7), m={pass:0,gelo:0,outro:0}; for(const [d,doc] of Object.entries({...cxDocs,[c.data]:c})) if(d.slice(0,7)===ym) for(const x of (doc.retiradas||[])) m[x.t in m?x.t:"outro"]+=x.v||0;
+    const tm=m.pass+m.gelo+m.outro; $("cxRetMes").innerHTML=tm?`Despesa do restaurante em ${ymLabel(ym)}: <b class="num">${brl.format(tm)}</b> (passagens ${brl.format(m.pass)} · gelo ${brl.format(m.gelo)}${m.outro?` · outros ${brl.format(m.outro)}`:""})`:""; }
+  [...$("cxFRet").children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.f===cxFRet));
   const tile=(l,v,st="")=>`<div class="tile"><span class="label">${l}</span><span class="v num"${st}>${v}</span></div>`;
   const dg=c.gav!=null?c.gav-k.esp:null;
   $("cxTiles").innerHTML=tile("Vendido no dia",brl.format(k.tot))+tile("Tem que ter na gaveta",brl.format(k.esp))+tile("Gaveta contada",c.gav!=null?brl.format(c.gav):"—")+
@@ -1927,7 +1942,8 @@ function cxRender(){ const c=cxCur, k=cxCalc(c);
   r.push(`<div><span><b>Total de vendas do dia</b> <span class="note">(dinheiro + Sicoob + Cielo)</span></span><span class="num"><b>${brl.format(k.tot)}</b></span></div>`);
   r.push(`<div><span><b>Fiados do dia</b> <span class="note">(não entrou dinheiro; lance no Fiados)</span></span><span class="num" style="color:var(--neg)"><b>${brl.format(k.by.fia)}</b></span></div>`);
   r.push(`<div><span>Vendas + fiados <span class="note">(tudo que saiu do bar)</span></span><span class="num">${brl.format(k.tot+k.by.fia)}</span></div>`);
-  r.push(`<div><span>Em dinheiro (anotado) + troco ${brl.format(k.troco)}</span><span class="num">${brl.format(k.esp)}</span></div>`);
+  if(k.ret) r.push(`<div><span>Retiradas do caixa (restaurante)</span><span class="num" style="color:var(--neg)">− ${brl.format(k.ret)}</span></div>`);
+  r.push(`<div><span>Em dinheiro (anotado) + troco ${brl.format(k.troco)}${k.ret?` − retiradas`:""}</span><span class="num">${brl.format(k.esp)}</span></div>`);
   r.push(`<div><span>Gaveta</span><span>${c.gav==null?"falta contar":difTxt(dg)}</span></div>`);
   r.push(`<div><span>Maquininha Sicoob${c.ale!=null?" + Alelo":""}</span><span class="num">${k.maq==null&&c.ale==null?"falta o relatório":brl.format((k.maq??0)+(c.ale??0))}</span></div>`);
   r.push(`<div><span>Comandas no cartão/Pix/Alelo</span><span class="num">${brl.format(k.by.cart+k.by.ale)}</span></div>`);
@@ -1939,7 +1955,8 @@ function cxRender(){ const c=cxCur, k=cxCalc(c);
   $("cxRes").innerHTML=r.join("");
   [["cxFCad",cxFCad],["cxFCom",cxFCom]].forEach(([id,f])=>[...$(id).children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.f===f))); }
 function cxResumoTxt(){ const c=cxCur,k=cxCalc(c); const dg=c.gav!=null?c.gav-k.esp:null; const f=v=>brl.format(v);
-  const L=[`Caixa ${ddmm(c.data)}`,`Caderno (dinheiro): ${f(k.cad)}`,`Comandas: ${f(k.com)}`,`Total de vendas do dia: ${f(k.tot)}`,`Fiados do dia: ${f(k.by.fia)}`,`Vendas + fiados: ${f(k.tot+k.by.fia)}`,`Dinheiro anotado: ${f(k.by.din)} + troco ${f(k.troco)} = ${f(k.esp)}`];
+  const L=[`Caixa ${ddmm(c.data)}`,`Caderno (dinheiro): ${f(k.cad)}`,`Comandas: ${f(k.com)}`,`Total de vendas do dia: ${f(k.tot)}`,`Fiados do dia: ${f(k.by.fia)}`,`Vendas + fiados: ${f(k.tot+k.by.fia)}`,`Dinheiro anotado: ${f(k.by.din)} + troco ${f(k.troco)}${k.ret?` − retiradas ${f(k.ret)}`:""} = ${f(k.esp)}`];
+  for(const x of (c.retiradas||[])) L.push(`Retirada (restaurante): ${{pass:"passagem",gelo:"gelo",outro:"outro"}[x.t]||"retirada"}${x.d?` ${x.d}`:""} ${f(x.v||0)}`);
   if(c.gav!=null) L.push(`Gaveta contada: ${f(c.gav)} (${Math.abs(dg)<0.01?"bateu":dg>0?"sobrou "+f(dg):"faltou "+f(-dg)})`);
   if(k.maq!=null) L.push(`Maquininha: ${f(k.maq)} (débito ${f(c.deb||0)}, crédito ${f(c.cre||0)}, pix ${f(c.pix||0)}, voucher ${f(c.vou||0)})`);
   if(c.ale!=null) L.push(`Alelo (Cielo): ${f(c.ale)}`);
@@ -1956,9 +1973,13 @@ $("cxCadAdd").onclick=()=>cxAdd("cad"); $("cxComAdd").onclick=()=>cxAdd("com");
 ["cxCadV","cxComV"].forEach(id=>$(id).addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); cxAdd(id==="cxCadV"?"cad":"com"); } }));
 $("cxFCad").addEventListener("click",e=>{ const b=e.target.closest("[data-f]"); if(b){ cxFCad=b.dataset.f; cxRender(); } });
 $("cxFCom").addEventListener("click",e=>{ const b=e.target.closest("[data-f]"); if(b){ cxFCom=b.dataset.f; cxRender(); } });
-["cxCadL","cxComL"].forEach(id=>$(id).addEventListener("click",e=>{ const b=e.target.closest("[data-cxdel]"); if(!b) return;
+$("cxFRet").addEventListener("click",e=>{ const b=e.target.closest("[data-f]"); if(b){ cxFRet=b.dataset.f; cxRender(); } });
+$("cxRetAdd").onclick=()=>{ const v=parseMoney($("cxRetV").value); if(!(v>0)){ showStatus("Digite o valor da retirada.",true); setTimeout(()=>showStatus(""),2500); $("cxRetV").focus(); return; }
+  cxCur.retiradas.push({t:cxFRet,d:$("cxRetD").value.trim().slice(0,60),v}); $("cxRetD").value=""; $("cxRetV").value=""; cxRender(); cxSave(); };
+$("cxRetV").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("cxRetAdd").click(); } });
+["cxCadL","cxComL","cxRetL"].forEach(id=>$(id).addEventListener("click",e=>{ const b=e.target.closest("[data-cxdel]"); if(!b) return;
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="apagar?"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="×"; },3000); return; }
-  const [t,i]=b.dataset.cxdel.split(":"); (t==="cad"?cxCur.caderno:cxCur.comandas).splice(Number(i),1); cxRender(); cxSave(); }));
+  const [t,i]=b.dataset.cxdel.split(":"); (t==="cad"?cxCur.caderno:t==="ret"?cxCur.retiradas:cxCur.comandas).splice(Number(i),1); cxRender(); cxSave(); }));
 document.querySelectorAll(".cxin").forEach(i=>i.addEventListener("input",()=>{ cxRead(); cxRender(); cxSave(); }));
 $("cxData").addEventListener("change",()=>{ if(!$("cxData").value) $("cxData").value=today(); cxLoad(); });
 $("cxPrev").onclick=()=>{ $("cxData").value=addDays($("cxData").value||today(),-1); cxLoad(); };
