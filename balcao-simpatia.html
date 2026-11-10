@@ -93,7 +93,7 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
     <p class="hint">Só venda paga em dinheiro no balcão. Cartão e Pix: tire a notinha da máquina e grampeie no caderno.</p>
     <div class="grid2">
       <div class="field"><label for="cadDesc">O que foi</label><input id="cadDesc" placeholder="ex.: 2 doses de pinga" autocomplete="off"></div>
-      <div class="field"><label for="cadVal">Valor (R$)</label><input id="cadVal" class="m" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="cadVal">Valor (R$)</label><input id="cadVal" class="m din" inputmode="numeric" placeholder="0,00" autocomplete="off"></div>
     </div>
     <button class="btn primary" type="submit">Lançar no caderno</button>
   </form>
@@ -108,7 +108,7 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
     </div>
     <div class="grid2">
       <div class="field"><label for="comNum">Número da comanda</label><input id="comNum" class="m" inputmode="numeric" placeholder="0002" autocomplete="off"></div>
-      <div class="field"><label for="comVal">Valor total (R$)</label><input id="comVal" class="m" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="comVal">Valor total (R$)</label><input id="comVal" class="m din" inputmode="numeric" placeholder="0,00" autocomplete="off"></div>
     </div>
     <div class="field"><label>Como pagou</label>
       <div class="chips" id="comForma" role="group" aria-label="Como pagou">
@@ -132,7 +132,7 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
     </div>
     <div class="grid2">
       <div class="field"><label for="retNome" id="retNomeLbl">Observação</label><input id="retNome" placeholder="" autocomplete="off"></div>
-      <div class="field"><label for="retVal">Valor (R$)</label><input id="retVal" class="m" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="retVal">Valor (R$)</label><input id="retVal" class="m din" inputmode="numeric" placeholder="0,00" autocomplete="off"></div>
     </div>
     <button class="btn primary" type="submit">Lançar retirada</button>
   </form>
@@ -160,6 +160,8 @@ const hoje=()=>{ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth
 const brl=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"});
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function money(s){ s=String(s||"").replace(/[^\d,.-]/g,""); if(s.includes(",")) s=s.replace(/\./g,"").replace(",","."); const n=parseFloat(s); return isFinite(n)?Math.round(n*100)/100:NaN; }
+// valor em real: digita só números e a vírgula aparece sozinha (600 vira 6,00)
+document.querySelectorAll("input.din").forEach(i=>{ i.addEventListener("input",()=>{ const d=i.value.replace(/\D/g,"").replace(/^0+/,"").slice(0,7); if(!d){ i.value=""; return; } const n=Number(d)/100; i.value=n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }); });
 let db=null, movs=[], tipo="caderno", forma="din", cor="branca", retT="gelo", stTimer=null;
 const FORMA={din:"Dinheiro",cart:"Cartão/Pix",ale:"Alelo",fia:"Fiado"}, RET={gelo:"Gelo",pass:"Passagem",outro:"Outro"};
 
