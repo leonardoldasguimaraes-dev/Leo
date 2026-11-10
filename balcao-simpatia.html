@@ -34,8 +34,8 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 .banner{border-radius:12px;padding:12px 14px;background:var(--sunk);font-weight:600}
 .banner.ok{background:color-mix(in srgb,var(--pos) 16%,var(--surface));color:var(--pos)}
 .banner.err{background:color-mix(in srgb,var(--neg) 14%,var(--surface));color:var(--neg)}
-.tipos{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-@media (max-width:560px){.tipos{grid-template-columns:repeat(2,1fr)}}
+.tipos{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media (max-width:480px){.tipos{grid-template-columns:1fr}}
 .tipo{border:2px solid var(--line);background:var(--surface);border-radius:var(--r);padding:16px 12px;text-align:left;display:flex;flex-direction:column;gap:4px;cursor:pointer;min-height:92px}
 .tipo b{font-family:var(--display);font-size:19px}
 .tipo span{font-size:13px;color:var(--muted)}
@@ -97,7 +97,6 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
     <button type="button" class="tipo" data-t="caderno" aria-pressed="true"><b>Balcão</b><span>Venda no balcão: dinheiro ou cartão</span></button>
     <button type="button" class="tipo" data-t="comanda" aria-pressed="false"><b>Comanda</b><span>Mesa paga ou no fiado</span></button>
     <button type="button" class="tipo" data-t="retirada" aria-pressed="false"><b>Retirada</b><span>Gelo e passagens</span></button>
-    <button type="button" class="tipo" data-t="cascos" aria-pressed="false"><b>Cascos</b><span>Vazios no fim do turno</span></button>
   </div>
 
   <form class="card" id="fCaderno" novalidate>
@@ -182,15 +181,6 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
     <button class="btn primary" type="submit">Lançar retirada</button>
   </form>
 
-  <form class="card" id="fCascos" novalidate hidden>
-    <h2>Cascos vazios</h2>
-    <p class="hint">Conte as garrafas vazias nos engradados no fim do turno.</p>
-    <div class="grid2">
-      <div class="field"><label for="casL">Litrões vazios</label><input id="casL" class="m" inputmode="numeric" placeholder="0" autocomplete="off"></div>
-      <div class="field"><label for="cas6">600 ml vazios</label><input id="cas6" class="m" inputmode="numeric" placeholder="0" autocomplete="off"></div>
-    </div>
-    <button class="btn primary" type="submit">Lançar cascos</button>
-  </form>
 
   <section class="card">
     <h2>Lançado hoje</h2>
@@ -242,7 +232,7 @@ try{ $("quem").value=localStorage.getItem("quem")||""; }catch{}
 $("quem").addEventListener("input",()=>{ try{ localStorage.setItem("quem",$("quem").value.trim()); }catch{} });
 
 function setTipo(t){ tipo=t; document.querySelectorAll(".tipo").forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===t));
-  $("fCaderno").hidden=t!=="caderno"; $("fComanda").hidden=t!=="comanda"; $("fRetirada").hidden=t!=="retirada"; $("fCascos").hidden=t!=="cascos";
+  $("fCaderno").hidden=t!=="caderno"; $("fComanda").hidden=t!=="comanda"; $("fRetirada").hidden=t!=="retirada";
   if(t==="comanda" && !$("comNum").value) $("comNum").value=proxComanda(); }
 document.querySelector(".tipos").addEventListener("click",e=>{ const b=e.target.closest("[data-t]"); if(b) setTipo(b.dataset.t); });
 $("comForma").addEventListener("click",e=>{ const b=e.target.closest("[data-f]"); if(!b) return; forma=b.dataset.f; [...$("comForma").children].forEach(x=>x.setAttribute("aria-pressed",x===b)); $("comNomeWrap").hidden=forma!=="fia"; });
@@ -315,9 +305,6 @@ $("fRetirada").addEventListener("submit",async e=>{ e.preventDefault(); const v=
   if(!(v>0)){ status("Digite o valor.","err"); $("retVal").focus(); return; }
   if(await lancar({tipo:"retirada",ret:retT,nome:nome.slice(0,40),valor:v},e.submitter||e.target.querySelector("button[type=submit]"))){ $("retNome").value=""; $("retVal").value=""; status(`${RET[retT]} lançado.`,"ok"); } });
 
-$("fCascos").addEventListener("submit",async e=>{ e.preventDefault(); const l=$("casL").value.replace(/\D/g,""), s=$("cas6").value.replace(/\D/g,"");
-  if(l===""&&s===""){ status("Digite quantos cascos vazios tem.","err"); $("casL").focus(); return; }
-  if(await lancar({tipo:"cascos",litros:Number(l||0),seiscentos:Number(s||0)},e.submitter||e.target.querySelector("button[type=submit]"))){ $("casL").value=""; $("cas6").value=""; status("Cascos lançados.","ok"); } });
 
 function render(){ const L=movs.filter(m=>m.data===hoje()).sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
   if(!L.length){ $("lista").innerHTML=`<div class="vazio">Nada lançado hoje ainda. Escolha acima o que lançar.</div>`; return; }
