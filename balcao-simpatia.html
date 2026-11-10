@@ -185,7 +185,8 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 
 
   <section class="card">
-    <h2>Lançado hoje</h2>
+    <h2 id="listaTit">Lançado hoje</h2>
+    <div class="field"><input id="busca" type="search" placeholder="Buscar: amarela 5, branca 12, Nei, Brahma…" autocomplete="off" aria-label="Buscar lançamento"></div>
     <div class="lista" id="lista"><div class="vazio">Carregando…</div></div>
   </section>
 </main>
@@ -312,16 +313,27 @@ $("fRetirada").addEventListener("submit",async e=>{ e.preventDefault(); const v=
   if(await lancar({tipo:"retirada",ret:retT,nome:nome.slice(0,40),valor:v},e.submitter||e.target.querySelector("button[type=submit]"))){ $("retNome").value=""; $("retVal").value=""; status(`${RET[retT]} lançado.`,"ok"); } });
 
 
-function render(){ const L=movs.filter(m=>m.data===hoje()).sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
+// busca: "amarela 5" acha a comanda; texto acha produto, nome ou quem lançou (em todos os dias)
+function bate(m,q){ const ws=norm(q).split(/\s+/).filter(Boolean); if(!ws.length) return true;
+  const nums=ws.filter(w=>/^\d+$/.test(w)).map(Number), txt=ws.filter(w=>!/^\d+$/.test(w));
+  if(nums.length && !(m.tipo==="comanda" && nums.includes(parseInt(m.numero,10)))) return false;
+  const hay=norm([m.tipo==="comanda"?`comanda ${COR[corDe(m)]}`:"",m.desc,m.nome,m.quem,FORMA[m.forma]||CADF[m.forma]||"",RET[m.ret]||"",...(m.itens||[]).map(x=>x.d)].join(" "));
+  return txt.every(w=>hay.includes(w)); }
+function render(){ const q=$("busca").value.trim();
+  const L=movs.filter(m=>q?bate(m,q):m.data===hoje()).sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
+  $("listaTit").textContent=q?`Busca: ${L.length} resultado(s)`:"Lançado hoje";
+  if(!L.length&&q){ $("lista").innerHTML=`<div class="vazio">Nada encontrado para "${esc(q)}".</div>`; return; }
   if(!L.length){ $("lista").innerHTML=`<div class="vazio">Nada lançado hoje ainda. Escolha acima o que lançar.</div>`; return; }
-  $("lista").innerHTML=L.map(m=>{ const h=new Date(m.criadoEm||0); const hh=`${pad(h.getHours())}:${pad(h.getMinutes())}`;
+  $("lista").innerHTML=L.map(m=>{ const h=new Date(m.criadoEm||0); const hh=(m.data!==hoje()?`${m.data.slice(8)}/${m.data.slice(5,7)} `:"")+`${pad(h.getHours())}:${pad(h.getMinutes())}`;
     let t="",s="",v="";
     if(m.tipo==="caderno"){ t=esc(m.desc); s=`Balcão · ${(CADF[m.forma]||"Dinheiro")}`; v=brl.format(m.valor); }
     else if(m.tipo==="comanda"){ t=`Comanda ${COR[corDe(m)]} ${esc(m.numero)}${m.itens?.length?` <span class="note">(${m.itens.length} itens)</span>`:""}`; s=m.status==="aberta"?`<span class="tag">Aberta</span>`:`${m.forma==="fia"?`<span class="tag fia">Fiado</span> ${esc(m.nome)}`:FORMA[m.forma]||""}`; v=brl.format(m.valor||0); }
     else if(m.tipo==="retirada"){ t=`${RET[m.ret]||"Retirada"}${m.nome?` · ${esc(m.nome)}`:""}`; s="Retirada do caixa"; v=brl.format(m.valor); }
     else if(m.tipo==="cascos"){ t=`Cascos: ${m.litros||0} litrões · ${m.seiscentos||0} de 600`; s="Contagem de vazios"; v=""; }
-    return `<div class="item"><span class="hora">${hh}</span><span><span class="t">${t}</span><br><span class="s">${s}${m.quem?` · ${esc(m.quem)}`:""}</span></span><span class="v">${v}</span><button type="button" class="del" data-del="${esc(m.id)}" aria-label="Apagar lançamento">Apagar</button></div>`; }).join("");
+    const its=m.tipo==="comanda"&&m.itens?.length?`<br><span class="s">${m.itens.map(x=>`${esc(x.d)} ${brl.format(x.v)}`).join(" · ")}</span>`:"";
+    return `<div class="item"><span class="hora">${hh}</span><span><span class="t">${t}</span><br><span class="s">${s}${m.quem?` · ${esc(m.quem)}`:""}</span>${its}</span><span class="v">${v}</span><button type="button" class="del" data-del="${esc(m.id)}" aria-label="Apagar lançamento">Apagar</button></div>`; }).join("");
 }
+$("busca").addEventListener("input",render);
 $("lista").addEventListener("click",async e=>{ const b=e.target.closest("[data-del]"); if(!b||!db) return;
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Apagar"; },3000); return; }
   try{ await db.collection("mov").doc(b.dataset.del).delete(); status("Lançamento apagado.","ok"); }catch(err){ status("Não apagou: "+(err?.message||err?.code),"err"); } });
