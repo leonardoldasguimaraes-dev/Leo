@@ -112,6 +112,9 @@ body.privado .ctape{filter:none}
 /* totais */
 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 .tile.tbtn{border:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.tpday{border-top:1px solid var(--line)}.tpday:first-child{border-top:0}
+.tpdh{display:flex;gap:8px;align-items:baseline;padding:12px 14px 4px;background:var(--sunk)}.tpdh .num{margin-left:auto;font-weight:700}
+.tpday .row{border-top:0;padding-top:8px;padding-bottom:8px}
 .tile .tver{font-size:12px;color:var(--muted);font-weight:600}
 .tile{background:var(--surface);padding:12px 12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
 .tile .v{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -2441,6 +2444,20 @@ function renderTipo(){ const k=tpTipo, T=TYPES[k], ym=state.ym;
   $("tpInfo").innerHTML=info;
   const row=it=>{ const v=it.vendas, det=v?[["din",v.dinheiro],["déb",v.debito],["créd",v.credito],["pix",v.pix],["vale",v.voucher],["alelo",v.alelo]].filter(x=>x[1]).map(x=>`${x[0]} ${brl.format(x[1])}`).join(" · "):"";
     return `<button class="row" data-tpid="${esc(it.id)}"><span class="stripe" style="background:${T.color}"></span><span class="main"><span class="t">${esc(it.descricao||it.categoria||T.label)}</span><span class="s"><span class="num">${ddmm(dataEf(it))}</span>${it.categoria&&!v?`<span>${esc(it.categoria)}</span>`:""}${det?`<span>${det}</span>`:""}${it.pago===true&&it.pagoEm?`<span>· pago ${ddmm(it.pagoEm)}</span>`:""}</span></span><span class="amt num" style="color:${k==="entrada"?"var(--pos)":"var(--ink)"}">${brl.format(it.valor)}</span></button>`; };
+  if(k==="entrada" && its.length){
+    // agrupa por dia: Dinheiro, Sicoob (débito, crédito, Pix, voucher), Alelo
+    const dias={}; for(const it of its){ (dias[it.data] ||= []).push(it); }
+    const DS=["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
+    $("tpList").innerHTML=Object.keys(dias).sort().reverse().map(d=>{ const L=dias[d]; let din=0,deb=0,cre=0,pix=0,vou=0,ale=0,out=0,idD="",idM="",idA="",idO="";
+      for(const it of L){ const v=it.vendas; if(!v){ out+=it.valor; idO=idO||it.id; continue; }
+        if(v.dinheiro){ din+=v.dinheiro; idD=idD||it.id; } if(v.debito||v.credito||v.pix||v.voucher){ deb+=v.debito||0; cre+=v.credito||0; pix+=v.pix||0; vou+=v.voucher||0; idM=idM||it.id; } if(v.alelo){ ale+=v.alelo; idA=idA||it.id; } if(v.outros){ out+=v.outros; idO=idO||it.id; } }
+      const maq=deb+cre+pix+vou, tot=L.reduce((t,it)=>t+it.valor,0), wd=DS[new Date(d+"T12:00:00").getDay()];
+      const ln=(id,t,s,v)=>`<button class="row" data-tpid="${esc(id)}"><span class="stripe" style="background:${T.color}"></span><span class="main"><span class="t">${t}</span>${s?`<span class="s">${s}</span>`:""}</span><span class="amt num" style="color:var(--pos)">${brl.format(v)}</span></button>`;
+      return `<div class="tpday"><div class="tpdh"><b>Vendas do dia ${ddmm(d)}</b> <span class="note">${wd}</span><span class="num">${brl.format(tot)}</span></div>`+
+        (din?ln(idD,"Dinheiro","",din):"")+
+        (maq?ln(idM,"Sicoob",[["Débito",deb],["Crédito",cre],["Pix",pix],["Voucher",vou]].filter(x=>x[1]).map(x=>`${x[0]} ${brl.format(x[1])}`).join(" · "),maq):"")+
+        (ale?ln(idA,"Alelo (Cielo)","",ale):"")+(out?ln(idO,"Outros","",out):"")+`</div>`; }).join("");
+  } else
   $("tpList").innerHTML=its.length?its.map(row).join(""):`<div class="empty">Nada neste mês.</div>`;
   $("tpPendTit").hidden=!pend.length; $("tpPend").innerHTML=pend.map(it=>`<button class="row" data-tpid="${esc(it.id)}"><span class="stripe" style="background:var(--accent)"></span><span class="main"><span class="t">${esc(it.descricao||it.categoria||T.label)}</span><span class="s"><span class="num">vence ${ddmm(it.data)}</span>${it.pendente?`<span>· mercadoria a conferir</span>`:""}</span></span><span class="amt num" style="color:var(--muted)">${brl.format(it.valor)}</span></button>`).join("");
 }
