@@ -79,6 +79,8 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 .comtot{display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid var(--line);padding-top:10px;font-size:17px}
 .comtot b{font-family:var(--mono);font-size:22px}
 .fecha{display:flex;flex-direction:column;gap:12px;margin-top:16px;padding-top:16px;border-top:1px dashed var(--line)}
+.pagtit{font-family:var(--display);font-size:18px!important}
+.chips.pag .chip{padding:14px 20px;font-size:17px}
 .vazio{color:var(--muted);text-align:center;padding:18px 0}
 @media (prefers-reduced-motion:no-preference){.card{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(6px)}}}
 </style>
@@ -149,9 +151,9 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
         <button class="btn" type="submit" id="comAddBtn">+ Adicionar à comanda</button>
       </form>
       <div class="fecha">
-        <div class="field"><label>Fechar comanda: como pagou</label>
-          <div class="chips" id="comForma" role="group" aria-label="Como pagou">
-            <button type="button" class="chip" data-f="din" aria-pressed="true">Dinheiro</button>
+        <div class="field"><label class="pagtit">Como o cliente pagou?</label>
+          <div class="chips pag" id="comForma" role="group" aria-label="Como pagou">
+            <button type="button" class="chip" data-f="din" aria-pressed="false">Dinheiro</button>
             <button type="button" class="chip" data-f="deb" aria-pressed="false">Débito</button>
             <button type="button" class="chip" data-f="cre" aria-pressed="false">Crédito</button>
             <button type="button" class="chip" data-f="pix" aria-pressed="false">Pix</button>
@@ -161,7 +163,7 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
           </div>
         </div>
         <div class="field" id="comNomeWrap" hidden><label for="comNome">Nome de quem pegou fiado</label><input id="comNome" placeholder="ex.: Nei" autocomplete="off"></div>
-        <button type="button" class="btn primary" id="comFechar">Fechar comanda</button>
+        <button type="button" class="btn primary" id="comFechar" disabled>Escolha como pagou para fechar</button>
       </div>
     </div>
   </section>
@@ -235,8 +237,9 @@ function setTipo(t){ tipo=t; document.querySelectorAll(".tipo").forEach(b=>b.set
   $("fCaderno").hidden=t!=="caderno"; $("fComanda").hidden=t!=="comanda"; $("fRetirada").hidden=t!=="retirada";
   if(t==="comanda" && !$("comNum").value) $("comNum").value=proxComanda(); }
 document.querySelector(".tipos").addEventListener("click",e=>{ const b=e.target.closest("[data-t]"); if(b) setTipo(b.dataset.t); });
-$("comForma").addEventListener("click",e=>{ const b=e.target.closest("[data-f]"); if(!b) return; forma=b.dataset.f; [...$("comForma").children].forEach(x=>x.setAttribute("aria-pressed",x===b)); $("comNomeWrap").hidden=forma!=="fia"; });
-function setForma(f){ forma=f; [...$("comForma").children].forEach(x=>x.setAttribute("aria-pressed",x.dataset.f===f)); $("comNomeWrap").hidden=f!=="fia"; }
+$("comForma").addEventListener("click",e=>{ const b=e.target.closest("[data-f]"); if(!b) return; setForma(b.dataset.f); });
+function setForma(f){ forma=f; [...$("comForma").children].forEach(x=>x.setAttribute("aria-pressed",x.dataset.f===f)); $("comNomeWrap").hidden=f!=="fia";
+  $("comFechar").disabled=!f; $("comFechar").textContent=f?`Fechar comanda no ${FORMA[f]}`:"Escolha como pagou para fechar"; }
 function setRet(f){ retT=f; [...$("retTipo").children].forEach(x=>x.setAttribute("aria-pressed",x.dataset.f===f)); $("retNomeLbl").textContent=f==="pass"?"Quem pegou a passagem":"Observação"; $("retNome").placeholder=f==="pass"?"ex.: Juliana":f==="gelo"?"ex.: 2 sacos":""; }
 $("retTipo").addEventListener("click",e=>{ const b=e.target.closest("[data-f]"); if(b) setRet(b.dataset.f); });
 setRet("gelo");
@@ -278,12 +281,12 @@ $("comAbrirBtn").onclick=async ()=>{ const n=$("comNum").value.replace(/\D/g,"")
   if(!n){ status("Digite o número da comanda.","err"); $("comNum").focus(); return; }
   if(!db){ status("Sem conexão com o app.","err"); return; }
   const num=n.padStart(4,"0"), ja=movs.find(m=>m.tipo==="comanda"&&corDe(m)===cor&&parseInt(m.numero,10)===parseInt(n,10));
-  if(ja&&ja.status==="aberta"){ curId=ja.id; setForma("din"); renderCom(); return; }
+  if(ja&&ja.status==="aberta"){ curId=ja.id; setForma(""); renderCom(); return; }
   if(ja){ status(`A comanda ${COR[cor].toLowerCase()} ${num} já foi fechada. Confira na lista.`,"err"); return; }
   const id=`com-${cor}-${num}-${Date.now()}`;
-  try{ await db.collection("mov").doc(id).set({tipo:"comanda",cor,numero:num,status:"aberta",itens:[],valor:0,forma:"",nome:"",data:hoje(),quem,criadoEm:Date.now()}); curId=id; setForma("din"); renderCom(); $("comDesc").focus(); }
+  try{ await db.collection("mov").doc(id).set({tipo:"comanda",cor,numero:num,status:"aberta",itens:[],valor:0,forma:"",nome:"",data:hoje(),quem,criadoEm:Date.now()}); curId=id; setForma(""); renderCom(); $("comDesc").focus(); }
   catch(err){ status("Não abriu: "+(err?.message||err?.code),"err"); } };
-$("comAbertas").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"); if(!b) return; curId=b.dataset.open; setForma("din"); renderCom(); });
+$("comAbertas").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"); if(!b) return; curId=b.dataset.open; setForma(""); renderCom(); });
 $("comSair").onclick=()=>{ curId=null; PK.com.limpa(); $("comNum").value=proxComanda(); renderCom(); };
 $("comAdd").addEventListener("submit",async e=>{ e.preventDefault(); const c=comDoc(); if(!c) return; const v=money($("comVal").value), d=$("comDesc").value.trim();
   if(!d){ status("Escolha ou escreva o produto.","err"); $("comDesc").focus(); return; }
@@ -293,6 +296,7 @@ $("comItens").addEventListener("click",async e=>{ const b=e.target.closest("[dat
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Tirar"; },3000); return; }
   const it=[...(c.itens||[])]; it.splice(Number(b.dataset.rmi),1); await salvaItens(it); });
 $("comFechar").onclick=async ()=>{ const c=comDoc(); if(!c) return; const nome=$("comNome").value.trim();
+  if(!forma){ status("Escolha como o cliente pagou.","err"); return; }
   if(!(c.valor>0)){ status("A comanda está vazia. Adicione os itens antes de fechar.","err"); return; }
   if(forma==="fia"&&!nome){ status("No fiado, escreva o nome de quem pegou.","err"); $("comNome").focus(); return; }
   const b=$("comFechar"); b.disabled=true;
