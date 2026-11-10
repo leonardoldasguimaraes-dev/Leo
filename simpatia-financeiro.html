@@ -1910,7 +1910,7 @@ function cxRender(){ const c=cxCur, k=cxCalc(c);
   r.push(`<div><span>Caderno (dinheiro)</span><span class="num">${brl.format(k.cad)}</span></div>`);
   r.push(`<div><span>Comandas</span><span class="num">${brl.format(k.com)}</span></div>`);
   r.push(`<div><span><b>Total de vendas do dia</b> <span class="note">(dinheiro + Sicoob + Cielo)</span></span><span class="num"><b>${brl.format(k.tot)}</b></span></div>`);
-  r.push(`<div><span><b>Total de vendas do fiado</b> <span class="note">(não entrou dinheiro; lance no Fiados)</span></span><span class="num" style="color:var(--neg)"><b>${brl.format(k.by.fia)}</b></span></div>`);
+  r.push(`<div><span><b>Fiados do dia</b> <span class="note">(não entrou dinheiro; lance no Fiados)</span></span><span class="num" style="color:var(--neg)"><b>${brl.format(k.by.fia)}</b></span></div>`);
   r.push(`<div><span>Vendas + fiados <span class="note">(tudo que saiu do bar)</span></span><span class="num">${brl.format(k.tot+k.by.fia)}</span></div>`);
   r.push(`<div><span>Em dinheiro (anotado) + troco ${brl.format(k.troco)}</span><span class="num">${brl.format(k.esp)}</span></div>`);
   r.push(`<div><span>Gaveta</span><span>${c.gav==null?"falta contar":difTxt(dg)}</span></div>`);
@@ -1924,7 +1924,7 @@ function cxRender(){ const c=cxCur, k=cxCalc(c);
   $("cxRes").innerHTML=r.join("");
   [["cxFCad",cxFCad],["cxFCom",cxFCom]].forEach(([id,f])=>[...$(id).children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.f===f))); }
 function cxResumoTxt(){ const c=cxCur,k=cxCalc(c); const dg=c.gav!=null?c.gav-k.esp:null; const f=v=>brl.format(v);
-  const L=[`Caixa ${ddmm(c.data)}`,`Caderno (dinheiro): ${f(k.cad)}`,`Comandas: ${f(k.com)}`,`Total de vendas do dia: ${f(k.tot)}`,`Total de vendas do fiado: ${f(k.by.fia)}`,`Vendas + fiados: ${f(k.tot+k.by.fia)}`,`Dinheiro anotado: ${f(k.by.din)} + troco ${f(k.troco)} = ${f(k.esp)}`];
+  const L=[`Caixa ${ddmm(c.data)}`,`Caderno (dinheiro): ${f(k.cad)}`,`Comandas: ${f(k.com)}`,`Total de vendas do dia: ${f(k.tot)}`,`Fiados do dia: ${f(k.by.fia)}`,`Vendas + fiados: ${f(k.tot+k.by.fia)}`,`Dinheiro anotado: ${f(k.by.din)} + troco ${f(k.troco)} = ${f(k.esp)}`];
   if(c.gav!=null) L.push(`Gaveta contada: ${f(c.gav)} (${Math.abs(dg)<0.01?"bateu":dg>0?"sobrou "+f(dg):"faltou "+f(-dg)})`);
   if(k.maq!=null) L.push(`Maquininha: ${f(k.maq)} (débito ${f(c.deb||0)}, crédito ${f(c.cre||0)}, pix ${f(c.pix||0)}, voucher ${f(c.vou||0)})`);
   if(c.ale!=null) L.push(`Alelo (Cielo): ${f(c.ale)}`);
