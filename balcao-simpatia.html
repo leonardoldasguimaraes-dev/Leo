@@ -100,6 +100,12 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 
   <form class="card" id="fComanda" novalidate hidden>
     <h2>Comanda</h2>
+    <div class="field"><label>Cor do bloco</label>
+      <div class="chips" id="comCor" role="group" aria-label="Cor da comanda">
+        <button type="button" class="chip" data-c="branca" aria-pressed="true">Branca</button>
+        <button type="button" class="chip" data-c="amarela" aria-pressed="false">Amarela</button>
+      </div>
+    </div>
     <div class="grid2">
       <div class="field"><label for="comNum">Número da comanda</label><input id="comNum" class="m" inputmode="numeric" placeholder="0002" autocomplete="off"></div>
       <div class="field"><label for="comVal">Valor total (R$)</label><input id="comVal" class="m" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
@@ -154,7 +160,7 @@ const hoje=()=>{ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth
 const brl=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"});
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function money(s){ s=String(s||"").replace(/[^\d,.-]/g,""); if(s.includes(",")) s=s.replace(/\./g,"").replace(",","."); const n=parseFloat(s); return isFinite(n)?Math.round(n*100)/100:NaN; }
-let db=null, movs=[], tipo="caderno", forma="din", retT="gelo", stTimer=null;
+let db=null, movs=[], tipo="caderno", forma="din", cor="branca", retT="gelo", stTimer=null;
 const FORMA={din:"Dinheiro",cart:"Cartão/Pix",ale:"Alelo",fia:"Fiado"}, RET={gelo:"Gelo",pass:"Passagem",outro:"Outro"};
 
 function status(msg,kind){ const s=$("status"); s.textContent=msg; s.className="banner"+(kind?" "+kind:""); s.hidden=!msg; clearTimeout(stTimer); if(msg&&kind==="ok") stTimer=setTimeout(()=>{ s.hidden=true; },3500); }
@@ -172,7 +178,10 @@ function setRet(f){ retT=f; [...$("retTipo").children].forEach(x=>x.setAttribute
 $("retTipo").addEventListener("click",e=>{ const b=e.target.closest("[data-f]"); if(b) setRet(b.dataset.f); });
 setRet("gelo");
 
-function proxComanda(){ const ns=movs.filter(m=>m.tipo==="comanda").map(m=>parseInt(m.numero,10)).filter(n=>n>0); return ns.length?String(Math.max(...ns)+1).padStart(4,"0"):""; }
+const COR={branca:"Branca",amarela:"Amarela"};
+const corDe=m=>m.cor||"branca";
+$("comCor").addEventListener("click",e=>{ const b=e.target.closest("[data-c]"); if(!b) return; cor=b.dataset.c; [...$("comCor").children].forEach(x=>x.setAttribute("aria-pressed",x===b)); $("comNum").value=proxComanda(); });
+function proxComanda(){ const ns=movs.filter(m=>m.tipo==="comanda"&&corDe(m)===cor).map(m=>parseInt(m.numero,10)).filter(n=>n>0); return ns.length?String(Math.max(...ns)+1).padStart(4,"0"):""; }
 
 async function lancar(doc,btn){
   const quem=$("quem").value.trim();
@@ -193,9 +202,9 @@ $("fComanda").addEventListener("submit",async e=>{ e.preventDefault(); const v=m
   if(!n){ status("Digite o número da comanda.","err"); $("comNum").focus(); return; }
   if(!(v>0)){ status("Digite o valor da comanda.","err"); $("comVal").focus(); return; }
   if(forma==="fia"&&!nome){ status("No fiado, escreva o nome de quem pegou.","err"); $("comNome").focus(); return; }
-  if(movs.some(m=>m.tipo==="comanda"&&String(parseInt(m.numero,10))===String(parseInt(n,10)))){ status(`A comanda ${n} já foi lançada hoje. Confira na lista.`,"err"); return; }
-  if(await lancar({tipo:"comanda",numero:n.padStart(4,"0"),valor:v,forma,nome:forma==="fia"?nome.slice(0,40):""},e.submitter||e.target.querySelector("button[type=submit]"))){
-    $("comVal").value=""; $("comNome").value=""; $("comNum").value=String(parseInt(n,10)+1).padStart(4,"0"); status(`Comanda ${n.padStart(4,"0")} lançada.`,"ok"); } });
+  if(movs.some(m=>m.tipo==="comanda"&&corDe(m)===cor&&String(parseInt(m.numero,10))===String(parseInt(n,10)))){ status(`A comanda ${COR[cor].toLowerCase()} ${n} já foi lançada. Confira na lista.`,"err"); return; }
+  if(await lancar({tipo:"comanda",cor,numero:n.padStart(4,"0"),valor:v,forma,nome:forma==="fia"?nome.slice(0,40):""},e.submitter||e.target.querySelector("button[type=submit]"))){
+    $("comVal").value=""; $("comNome").value=""; $("comNum").value=String(parseInt(n,10)+1).padStart(4,"0"); status(`Comanda ${COR[cor].toLowerCase()} ${n.padStart(4,"0")} lançada.`,"ok"); } });
 
 $("fRetirada").addEventListener("submit",async e=>{ e.preventDefault(); const v=money($("retVal").value), nome=$("retNome").value.trim();
   if(retT==="pass"&&!nome){ status("Escreva quem pegou a passagem.","err"); $("retNome").focus(); return; }
@@ -211,7 +220,7 @@ function render(){ const L=movs.filter(m=>m.data===hoje()).sort((a,b)=>(b.criado
   $("lista").innerHTML=L.map(m=>{ const h=new Date(m.criadoEm||0); const hh=`${pad(h.getHours())}:${pad(h.getMinutes())}`;
     let t="",s="",v="";
     if(m.tipo==="caderno"){ t=esc(m.desc); s="Caderno · dinheiro"; v=brl.format(m.valor); }
-    else if(m.tipo==="comanda"){ t=`Comanda ${esc(m.numero)}`; s=`${m.forma==="fia"?`<span class="tag fia">Fiado</span> ${esc(m.nome)}`:FORMA[m.forma]||""}`; v=brl.format(m.valor); }
+    else if(m.tipo==="comanda"){ t=`Comanda ${COR[corDe(m)]} ${esc(m.numero)}`; s=`${m.forma==="fia"?`<span class="tag fia">Fiado</span> ${esc(m.nome)}`:FORMA[m.forma]||""}`; v=brl.format(m.valor); }
     else if(m.tipo==="retirada"){ t=`${RET[m.ret]||"Retirada"}${m.nome?` · ${esc(m.nome)}`:""}`; s="Retirada do caixa"; v=brl.format(m.valor); }
     else if(m.tipo==="cascos"){ t=`Cascos: ${m.litros||0} litrões · ${m.seiscentos||0} de 600`; s="Contagem de vazios"; v=""; }
     return `<div class="item"><span class="hora">${hh}</span><span><span class="t">${t}</span><br><span class="s">${s}${m.quem?` · ${esc(m.quem)}`:""}</span></span><span class="v">${v}</span><button type="button" class="del" data-del="${esc(m.id)}" aria-label="Apagar lançamento">Apagar</button></div>`; }).join("");
