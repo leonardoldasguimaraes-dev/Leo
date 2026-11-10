@@ -453,6 +453,8 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
     <button type="button" class="btn primary" id="cxRetAdd">+ Adicionar retirada</button>
     <div class="cxl" id="cxRetL"></div>
     <div class="note" id="cxRetMes"></div>
+    <button type="button" class="btn" id="cxRelBtn" aria-expanded="false">Relatório do mês: retiradas do restaurante</button>
+    <div id="cxRel" hidden></div>
   </section>
 
   <section class="sec card">
@@ -1935,6 +1937,7 @@ function cxRender(){ const c=cxCur, k=cxCalc(c);
   { const ym=c.data.slice(0,7), m={pass:0,gelo:0,outro:0}; for(const [d,doc] of Object.entries({...cxDocs,[c.data]:c})) if(d.slice(0,7)===ym) for(const x of (doc.retiradas||[])) m[x.t in m?x.t:"outro"]+=x.v||0;
     const tm=m.pass+m.gelo+m.outro; $("cxRetMes").innerHTML=tm?`Despesa do restaurante em ${ymLabel(ym)}: <b class="num">${brl.format(tm)}</b> (passagens ${brl.format(m.pass)} · gelo ${brl.format(m.gelo)}${m.outro?` · outros ${brl.format(m.outro)}`:""})`:""; }
   [...$("cxFRet").children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.f===cxFRet));
+  if(!$("cxRel").hidden) cxRelRender();
   const tile=(l,v,st="")=>`<div class="tile"><span class="label">${l}</span><span class="v num"${st}>${v}</span></div>`;
   const dg=c.gav!=null?c.gav-k.esp:null;
   $("cxTiles").innerHTML=tile("Vendido no dia",brl.format(k.tot))+tile("Tem que ter na gaveta",brl.format(k.esp))+tile("Gaveta contada",c.gav!=null?brl.format(c.gav):"—")+
@@ -1976,6 +1979,13 @@ $("cxCadAdd").onclick=()=>cxAdd("cad"); $("cxComAdd").onclick=()=>cxAdd("com");
 ["cxCadV","cxComV"].forEach(id=>$(id).addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); cxAdd(id==="cxCadV"?"cad":"com"); } }));
 $("cxFCad").addEventListener("click",e=>{ const b=e.target.closest("[data-f]"); if(b){ cxFCad=b.dataset.f; cxRender(); } });
 $("cxFCom").addEventListener("click",e=>{ const b=e.target.closest("[data-f]"); if(b){ cxFCom=b.dataset.f; cxRender(); } });
+function cxRelRender(){ const ym=cxCur.data.slice(0,7), RN={pass:"Passagem",gelo:"Gelo",outro:"Outro"}, all={...cxDocs,[cxCur.data]:cxCur}, dias=Object.keys(all).filter(d=>d.slice(0,7)===ym&&(all[d].retiradas||[]).length).sort();
+  const m={pass:0,gelo:0,outro:0}; let html="";
+  for(const d of dias){ const R=all[d].retiradas, td=R.reduce((t,x)=>t+(x.v||0),0); R.forEach(x=>{ m[x.t in m?x.t:"outro"]+=x.v||0; });
+    html+=`<div class="tpday"><div class="tpdh"><b>${ddmm(d)}</b><span class="num">${brl.format(td)}</span></div><div class="cxl" style="padding:0 14px">${R.map(x=>`<div style="grid-template-columns:1fr auto"><span>${RN[x.t]||"Retirada"}${x.d?` · ${esc(x.d)}`:""}</span><span class="num">${brl.format(x.v||0)}</span></div>`).join("")}</div></div>`; }
+  const tm=m.pass+m.gelo+m.outro;
+  $("cxRel").innerHTML=dias.length?`<div class="cxres" style="margin:8px 0"><div><span>Passagens</span><span class="num">${brl.format(m.pass)}</span></div><div><span>Gelo</span><span class="num">${brl.format(m.gelo)}</span></div>${m.outro?`<div><span>Outros</span><span class="num">${brl.format(m.outro)}</span></div>`:""}<div><span><b>Total do restaurante em ${ymLabel(ym)}</b></span><span class="num"><b>${brl.format(tm)}</b></span></div><div><span>Média por dia com retirada</span><span class="num">${brl.format(tm/dias.length)}</span></div></div><div class="card" style="padding:0;overflow:hidden">${html}</div>`:`<div class="note">Nenhuma retirada lançada em ${ymLabel(ym)}.</div>`; }
+$("cxRelBtn").onclick=()=>{ const open=$("cxRel").hidden; $("cxRel").hidden=!open; $("cxRelBtn").setAttribute("aria-expanded",open); if(open) cxRelRender(); };
 $("cxFRet").addEventListener("click",e=>{ const b=e.target.closest("[data-f]"); if(b){ cxFRet=b.dataset.f; cxRender(); } });
 $("cxRetAdd").onclick=()=>{ const v=parseMoney($("cxRetV").value); if(!(v>0)){ showStatus("Digite o valor da retirada.",true); setTimeout(()=>showStatus(""),2500); $("cxRetV").focus(); return; }
   cxCur.retiradas.push({t:cxFRet,d:$("cxRetD").value.trim().slice(0,60),v}); $("cxRetD").value=""; $("cxRetV").value=""; cxRender(); cxSave(); };
