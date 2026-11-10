@@ -73,6 +73,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .caixa .sbtn{align-self:center}
 .caixa .ok{color:#B9F2CF}
 .caixa .warn{color:#FFD58A}
+.caixa .ultent{grid-column:1/-1;display:block;background:rgba(255,255,255,.12);border-radius:10px;padding:9px 12px;font-size:14px;color:var(--brand-ink)}
+.caixa .ultent b{font-family:var(--mono);font-size:16px}
 .calcbtn{display:inline-flex;align-items:center;gap:6px}
 .hbtns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
 .hbtns .sbtn{padding:7px 10px}
@@ -379,6 +381,7 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
       <div><span class="label">Entrou em dinheiro</span><span class="num" id="hDin">R$ 0,00</span><span class="mini" id="hDinEnt"></span></div>
       <div class="mao"><span class="label">Dinheiro com você</span><span class="num" id="hMao">R$ 0,00</span><span class="mini" id="hMaoNote"></span></div>
       <button class="sbtn" id="entBtn">Registrar dinheiro entregue</button>
+      <div class="ultent" id="hUlt" hidden></div>
     </div>
     <div class="saldo" hidden>
       <div><span class="label" id="saldoIniLbl">Saldo anterior</span><span class="num" id="saldoIni">—</span></div>
@@ -2080,6 +2083,8 @@ function renderCaixa(){
   const c=caixaInfo();
   $("hCart").textContent=brl.format(c.cart); $("hDin").textContent=brl.format(c.din);
   $("hDinEnt").textContent = c.entMes ? `entregue no mês: ${brl.format(c.entMes)}` : "";
+  const ult=[...entregas].sort((a,b)=>b.data.localeCompare(a.data)||(b.criadoEm||0)-(a.criadoEm||0))[0];
+  $("hUlt").hidden=!ult; if(ult) $("hUlt").innerHTML=`Última entrega: <b>${brl.format(ult.valor)}</b> em ${ddmm(ult.data)}${ult.obs?` · ${esc(ult.obs)}`:""}`;
   const m=$("hMao"); m.classList.remove("ok","warn");
   if(Math.abs(c.mao)<0.01){ m.textContent="Zerado ✓"; m.classList.add("ok"); $("hMaoNote").textContent="todo o dinheiro foi entregue"; }
   else if(c.mao>0){ m.textContent=brl.format(c.mao); m.classList.add("warn"); $("hMaoNote").textContent="falta entregar"; }
