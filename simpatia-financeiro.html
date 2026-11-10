@@ -514,7 +514,7 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 
   <section class="sec">
     <button type="button" class="card fiabtn" id="qBtn" aria-expanded="false" aria-controls="qBody">
-      <span><span class="vh">Quebras e perdas</span><br><span class="note" id="qNote">Quebra, estragado, doação, consumo próprio</span></span>
+      <span><span class="vh">Quebras e perdas</span><br><span class="note" id="qNote">Quebra, estragado, doação, consumo próprio, restaurante</span></span>
       <span class="extarrow" aria-hidden="true"></span>
     </button>
     <div id="qBody" class="sec" hidden>
@@ -1580,23 +1580,31 @@ $("cPad").addEventListener("click", e=>e.stopPropagation());
 $("eCountBtn").onclick=openCount;
 
 // quebras e perdas
-const MOTIVOS=[["quebra","Quebra"],["estragado","Estragado / vencido"],["doacao","Doação"],["consumo","Consumo próprio"],["outro","Outro"]];
+const MOTIVOS=[["quebra","Quebra"],["estragado","Estragado / vencido"],["doacao","Doação"],["consumo","Consumo próprio"],["restaurante","Foi para o restaurante"],["outro","Outro"]];
 const motName=k=>(MOTIVOS.find(m=>m[0]===k)||["","Saída / perda"])[1];
 let qMesSel="atual", qMotSel="quebra";
+let qRelTxt="";
 function renderQuebras(){
   const ym = qMesSel==="atual"?thisMonth():shiftYm(thisMonth(),-1);
   $("qMes").innerHTML=[["atual",ymLabel(thisMonth(),true)],["ant",ymLabel(shiftYm(thisMonth(),-1),true)]].map(([k,l])=>`<button type="button" class="chip" data-qm="${k}" aria-pressed="${qMesSel===k}">${l}</button>`).join("");
   const L=movs.filter(m=>m.tipo==="saida" && ymOf(m.data)===ym).sort((a,b)=>b.data.localeCompare(a.data)||(b.criadoEm||0)-(a.criadoEm||0));
   const prodOf=id=>produtos.find(p=>p.id===id);
   const val=m=>m.qtd*(m.custoUnit ?? prodOf(m.produtoId)?.custoUnit ?? 0);
-  const tot=L.reduce((t,m)=>t+val(m),0), un=L.reduce((t,m)=>t+m.qtd,0);
+  const LR=L.filter(m=>m.motivo==="restaurante"), LP=L.filter(m=>m.motivo!=="restaurante");
+  const tot=LP.reduce((t,m)=>t+val(m),0), un=LP.reduce((t,m)=>t+m.qtd,0);
   const mesL=L.filter(()=>true), atual=movs.filter(m=>m.tipo==="saida"&&ymOf(m.data)===thisMonth());
   const vAtual=atual.reduce((t,m)=>t+val(m),0);
   $("qNote").textContent = atual.length ? `${atual.length} registro(s) em ${ymLabel(thisMonth())} · ${brl.format(vAtual)} · toque para ${$("qBody").hidden?"ver":"esconder"}` : `Nenhuma perda em ${ymLabel(thisMonth())} · toque para ${$("qBody").hidden?"registrar":"esconder"}`;
-  const by={}; for(const m of L){ const k=m.motivo||"outro"; (by[k] ||= {un:0,v:0}); by[k].un+=m.qtd; by[k].v+=val(m); }
-  $("qSum").innerHTML = L.length ? `<div class="fiahead"><span><span class="label">Total perdido em ${ymLabel(ym)}</span><br><span class="num" style="font-size:22px;color:var(--neg)">${brl.format(tot)}</span></span><span class="note">${un} unidade(s)</span></div>
+  const by={}; for(const m of LP){ const k=m.motivo||"outro"; (by[k] ||= {un:0,v:0}); by[k].un+=m.qtd; by[k].v+=val(m); }
+  // relatório do que saiu do bar para o restaurante (por produto)
+  const rp={}; for(const m of LR){ const p=prodOf(m.produtoId), k=m.produtoId; (rp[k] ||= {nome:p?.nome||"Produto removido",un:0,custo:0,venda:0}); rp[k].un+=m.qtd; rp[k].custo+=val(m); rp[k].venda+=m.qtd*(p?.precoVenda||0); }
+  const rl=Object.values(rp).sort((a,b)=>b.custo-a.custo), rc=rl.reduce((t,x)=>t+x.custo,0), rv=rl.reduce((t,x)=>t+x.venda,0), ru=rl.reduce((t,x)=>t+x.un,0);
+  qRelTxt = rl.length ? [`Produtos do bar para o restaurante · ${ymLabel(ym)}`,...rl.map(x=>`${x.un}x ${x.nome}: custo ${brl.format(x.custo)}${x.venda?` · venda ${brl.format(x.venda)}`:""}`),`Total: ${ru} un · custo ${brl.format(rc)}${rv?` · venda ${brl.format(rv)}`:""}`].join("\n") : "";
+  $("qSum").innerHTML = (LP.length ? `<div class="fiahead"><span><span class="label">Total perdido em ${ymLabel(ym)}</span><br><span class="num" style="font-size:22px;color:var(--neg)">${brl.format(tot)}</span></span><span class="note">${un} unidade(s)</span></div>
     <div class="detl" style="margin-top:8px">${MOTIVOS.filter(([k])=>by[k]).map(([k,l])=>`<div><span>${l}</span><span class="num">${by[k].un} un · ${brl.format(by[k].v)}</span></div>`).join("")}</div>`
-    : `<div class="note">Nenhuma quebra ou perda registrada em ${ymLabel(ym)}.</div>`;
+    : `<div class="note">Nenhuma quebra ou perda registrada em ${ymLabel(ym)}.</div>`) +
+    (rl.length ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><div class="fiahead"><span><span class="label">Saiu para o restaurante em ${ymLabel(ym)}</span><br><span class="num" style="font-size:20px">${brl.format(rc)}</span> <span class="note">de custo${rv?` · ${brl.format(rv)} no preço de venda`:""}</span></span><button type="button" class="btn" id="qRelCopy">Copiar relatório</button></div>
+    <div class="detl" style="margin-top:8px">${rl.map(x=>`<div><span>${x.un}x ${esc(x.nome)}</span><span class="num">${brl.format(x.custo)}</span></div>`).join("")}</div></div>` : "");
   $("qList").innerHTML=L.map(m=>{ const p=prodOf(m.produtoId);
     return `<div class="row" style="cursor:default"><span class="stripe" style="background:var(--neg)"></span><span class="main"><span class="t">${esc(p?.nome||"Produto removido")}</span>
       <span class="s"><span class="num">${ddmm(m.data)}</span><span class="badge b-red">${esc(motName(m.motivo))}</span>${m.obs?`<span>· ${esc(m.obs)}</span>`:""}</span></span>
@@ -1629,6 +1637,7 @@ $("qMes").addEventListener("click", e=>{ const b=e.target.closest("[data-qm]"); 
 $("qList").addEventListener("click", async e=>{ const b=e.target.closest("[data-qdel]"); if(!b) return;
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Apagar"; },3000); return; }
   try{ await db.collection("movimentos").doc(b.dataset.qdel).delete(); }catch(err){ showStatus("Não foi possível apagar: "+(err?.message||err?.code),true); } });
+$("qSum").addEventListener("click",async e=>{ const b=e.target.closest("#qRelCopy"); if(!b) return; try{ await navigator.clipboard.writeText(qRelTxt); b.textContent="Copiado!"; }catch{ b.textContent="Não copiou"; } setTimeout(()=>{ b.textContent="Copiar relatório"; },2000); });
 $("qBtn").onclick=()=>{ const open=$("qBody").hidden; $("qBody").hidden=!open; $("qBtn").setAttribute("aria-expanded",open); renderQuebras(); };
 
 /* ---------- fiados ---------- */
