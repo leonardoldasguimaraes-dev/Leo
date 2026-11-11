@@ -2145,7 +2145,7 @@ function renderCaixa(){
   $("hUlt").hidden=!ult; if(ult) $("hUlt").innerHTML=`Última entrega: <b>${brl.format(ult.valor)}</b> em ${ddmm(ult.data)}${ult.obs?` · ${esc(ult.obs)}`:""}`;
   const m=$("hMao"); m.classList.remove("ok","warn");
   if(Math.abs(c.mao)<0.01){ m.textContent="Zerado ✓"; m.classList.add("ok"); $("hMaoNote").textContent="todo o dinheiro foi entregue"; }
-  else if(c.mao>0){ m.textContent=brl.format(c.mao); $("hMaoNote").textContent="guardado com você até a próxima entrega (5º dia útil e dia 10)"; }
+  else if(c.mao>0){ m.textContent=brl.format(c.mao); $("hMaoNote").textContent="guardado com você até o depósito do fim do mês"; }
   else { m.textContent=brl.format(-c.mao); $("hMaoNote").textContent="entregue a mais do que o lançado nas vendas"; }
 }
 function openEnt(){
