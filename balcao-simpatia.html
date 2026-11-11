@@ -81,6 +81,8 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 .fecha{display:flex;flex-direction:column;gap:12px;margin-top:16px;padding-top:16px;border-top:1px dashed var(--line)}
 .pagtit{font-family:var(--display);font-size:18px!important}
 .chips.pag .chip{padding:14px 20px;font-size:17px}
+.resumo{display:flex;flex-wrap:wrap;gap:6px 16px;background:var(--sunk);border-radius:12px;padding:10px 12px;font-size:14px}
+.resumo b{font-family:var(--mono)}
 .vazio{color:var(--muted);text-align:center;padding:18px 0}
 @media (prefers-reduced-motion:no-preference){.card{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(6px)}}}
 </style>
@@ -187,6 +189,8 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
   <section class="card">
     <h2 id="listaTit">Lançado hoje</h2>
     <p class="hint">Lançou errado? Avise o Léo. Correções e exclusões são feitas só por ele.</p>
+    <div class="chips" id="filtro" role="group" aria-label="Mostrar"><button type="button" class="chip" data-v="tudo" aria-pressed="true">Total do dia</button><button type="button" class="chip" data-v="com" aria-pressed="false">Comandas</button><button type="button" class="chip" data-v="bal" aria-pressed="false">Balcão</button><button type="button" class="chip" data-v="ret" aria-pressed="false">Retiradas</button></div>
+    <div class="resumo" id="resumo"></div>
     <div class="field"><input id="busca" type="search" placeholder="Buscar: amarela 5, branca 12, Nei, Brahma…" autocomplete="off" aria-label="Buscar lançamento"></div>
     <div class="lista" id="lista"><div class="vazio">Carregando…</div></div>
   </section>
@@ -320,8 +324,21 @@ function bate(m,q){ const ws=norm(q).split(/\s+/).filter(Boolean); if(!ws.length
   if(nums.length && !(m.tipo==="comanda" && nums.includes(parseInt(m.numero,10)))) return false;
   const hay=norm([m.tipo==="comanda"?`comanda ${COR[corDe(m)]}`:"",m.desc,m.nome,m.quem,FORMA[m.forma]||CADF[m.forma]||"",RET[m.ret]||"",...(m.itens||[]).map(x=>x.d)].join(" "));
   return txt.every(w=>hay.includes(w)); }
-function render(){ const q=$("busca").value.trim();
-  const L=movs.filter(m=>q?bate(m,q):m.data===hoje()).sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
+let filtro="tudo";
+const TIPOF={com:"comanda",bal:"caderno",ret:"retirada"};
+function resumo(){ const H=movs.filter(m=>m.data===hoje()); const soma=f=>H.filter(f).reduce((t,m)=>t+(m.valor||0),0);
+  const fech=H.filter(m=>m.tipo==="comanda"&&m.status==="fechada"), ab=H.filter(m=>m.tipo==="comanda"&&m.status==="aberta");
+  const vend=x=>x.tipo==="caderno"||(x.tipo==="comanda"&&x.status==="fechada"&&x.forma!=="fia");
+  const din=soma(m=>vend(m)&&m.forma==="din"), maq=soma(m=>vend(m)&&m.forma!=="din"&&m.forma!=="ale"), ale=soma(m=>vend(m)&&m.forma==="ale"), fia=soma(m=>m.tipo==="comanda"&&m.status==="fechada"&&m.forma==="fia"), ret=soma(m=>m.tipo==="retirada");
+  let h="";
+  if(filtro==="tudo") h=`<span>Vendido hoje: <b>${brl.format(din+maq+ale)}</b></span><span>Dinheiro <b>${brl.format(din)}</b></span><span>Cartão/Pix <b>${brl.format(maq)}</b></span>${ale?`<span>Alelo <b>${brl.format(ale)}</b></span>`:""}${fia?`<span>Fiado <b>${brl.format(fia)}</b></span>`:""}${ret?`<span>Retiradas <b>${brl.format(ret)}</b></span>`:""}`;
+  else if(filtro==="com") h=`<span>Comandas fechadas: <b>${fech.length}</b> · <b>${brl.format(fech.reduce((t,m)=>t+(m.valor||0),0))}</b></span><span>Abertas: <b>${ab.length}</b>${ab.length?` (${ab.map(m=>`${COR[corDe(m)]} ${esc(m.numero)}`).join(", ")})`:""}</span>`;
+  else if(filtro==="bal") h=`<span>Vendas no balcão: <b>${H.filter(m=>m.tipo==="caderno").length}</b> · <b>${brl.format(soma(m=>m.tipo==="caderno"))}</b></span>`;
+  else h=`<span>Retiradas: <b>${H.filter(m=>m.tipo==="retirada").length}</b> · <b>${brl.format(ret)}</b></span>`;
+  $("resumo").innerHTML=h; }
+$("filtro").addEventListener("click",e=>{ const b=e.target.closest("[data-v]"); if(!b) return; filtro=b.dataset.v; [...$("filtro").children].forEach(x=>x.setAttribute("aria-pressed",x===b)); render(); });
+function render(){ const q=$("busca").value.trim(); resumo();
+  const L=movs.filter(m=>q?bate(m,q):(m.data===hoje()&&(filtro==="tudo"||m.tipo===TIPOF[filtro]))).sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
   $("listaTit").textContent=q?`Busca: ${L.length} resultado(s)`:"Lançado hoje";
   if(!L.length&&q){ $("lista").innerHTML=`<div class="vazio">Nada encontrado para "${esc(q)}".</div>`; return; }
   if(!L.length){ $("lista").innerHTML=`<div class="vazio">Nada lançado hoje ainda. Escolha acima o que lançar.</div>`; return; }
