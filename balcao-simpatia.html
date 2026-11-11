@@ -132,7 +132,7 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
         </div>
       </div>
       <div class="grid2">
-        <div class="field"><label for="comNum">Número da comanda</label><input id="comNum" class="m" inputmode="numeric" placeholder="0002" autocomplete="off"></div>
+        <div class="field"><label for="comNum">Número da comanda</label><input id="comNum" class="m" inputmode="numeric" placeholder="digite o número" autocomplete="off"></div>
         <div class="field"><label>&nbsp;</label><button type="button" class="btn primary" id="comAbrirBtn">Abrir comanda</button></div>
       </div>
       <div class="field" id="comAbertasWrap" hidden><label>Comandas abertas (toque para continuar)</label><div class="chips" id="comAbertas"></div></div>
@@ -250,7 +250,7 @@ setRet("gelo");
 const COR={branca:"Branca",amarela:"Amarela"};
 const corDe=m=>m.cor||"branca";
 $("comCor").addEventListener("click",e=>{ const b=e.target.closest("[data-c]"); if(!b) return; cor=b.dataset.c; [...$("comCor").children].forEach(x=>x.setAttribute("aria-pressed",x===b)); $("comNum").value=proxComanda(); });
-function proxComanda(){ const ns=movs.filter(m=>m.tipo==="comanda"&&corDe(m)===cor).map(m=>parseInt(m.numero,10)).filter(n=>n>0); return ns.length?String(Math.max(...ns)+1).padStart(4,"0"):""; }
+function proxComanda(){ return ""; } // número da comanda sempre digitado à mão
 
 async function lancar(doc,btn){
   const quem=$("quem").value.trim();
@@ -304,7 +304,7 @@ $("comFechar").onclick=async ()=>{ const c=comDoc(); if(!c) return; const nome=$
   if(forma==="fia"&&!nome){ status("No fiado, escreva o nome de quem pegou.","err"); $("comNome").focus(); return; }
   const b=$("comFechar"); b.disabled=true;
   try{ await db.collection("mov").doc(c.id).update({status:"fechada",forma,nome:forma==="fia"?nome.slice(0,40):"",fechadoEm:Date.now(),fechadoPor:$("quem").value.trim()});
-    status(`Comanda ${COR[corDe(c)].toLowerCase()} ${c.numero} fechada: ${brl.format(c.valor)} (${FORMA[forma]}).`,"ok"); curId=null; $("comNome").value=""; PK.com.limpa(); $("comNum").value=String(parseInt(c.numero,10)+1).padStart(4,"0"); renderCom(); }
+    status(`Comanda ${COR[corDe(c)].toLowerCase()} ${c.numero} fechada: ${brl.format(c.valor)} (${FORMA[forma]}).`,"ok"); curId=null; $("comNome").value=""; PK.com.limpa(); $("comNum").value=""; renderCom(); }
   catch(err){ status("Não fechou: "+(err?.message||err?.code),"err"); } finally{ b.disabled=false; } };
 
 $("fRetirada").addEventListener("submit",async e=>{ e.preventDefault(); const v=money($("retVal").value), nome=$("retNome").value.trim();
