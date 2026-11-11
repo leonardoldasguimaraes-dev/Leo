@@ -83,6 +83,9 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 .chips.pag .chip{padding:14px 20px;font-size:17px}
 .resumo{display:flex;flex-wrap:wrap;gap:6px 16px;background:var(--sunk);border-radius:12px;padding:10px 12px;font-size:14px}
 .resumo b{font-family:var(--mono)}
+.lhead{display:flex;align-items:center;justify-content:space-between;gap:10px;border:0;background:none;padding:0;cursor:pointer;width:100%;text-align:left}
+.lhead .seta{width:12px;height:12px;border-right:3px solid var(--muted);border-bottom:3px solid var(--muted);transform:rotate(-135deg);margin-right:6px;transition:transform .2s}
+.lhead[aria-expanded="false"] .seta{transform:rotate(45deg)}
 .vazio{color:var(--muted);text-align:center;padding:18px 0}
 @media (prefers-reduced-motion:no-preference){.card{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(6px)}}}
 </style>
@@ -187,12 +190,14 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 
 
   <section class="card">
-    <h2 id="listaTit">Lançado hoje</h2>
+    <button type="button" class="lhead" id="lhBtn" aria-expanded="true"><h2 id="listaTit">Lançado hoje</h2><span class="seta" aria-hidden="true"></span></button>
+    <div id="lhBody" style="display:contents">
     <p class="hint">Lançou errado? Avise o Léo. Correções e exclusões são feitas só por ele.</p>
     <div class="chips" id="filtro" role="group" aria-label="Mostrar"><button type="button" class="chip" data-v="tudo" aria-pressed="true">Total do dia</button><button type="button" class="chip" data-v="com" aria-pressed="false">Comandas</button><button type="button" class="chip" data-v="bal" aria-pressed="false">Balcão</button><button type="button" class="chip" data-v="ret" aria-pressed="false">Retiradas</button></div>
     <div class="resumo" id="resumo"></div>
     <div class="field"><input id="busca" type="search" placeholder="Buscar: amarela 5, branca 12, Nei, Brahma…" autocomplete="off" aria-label="Buscar lançamento"></div>
     <div class="lista" id="lista"><div class="vazio">Carregando…</div></div>
+  </div>
   </section>
 </main>
 
@@ -336,6 +341,9 @@ function resumo(){ const H=movs.filter(m=>m.data===hoje()); const soma=f=>H.filt
   else if(filtro==="bal") h=`<span>Vendas no balcão: <b>${H.filter(m=>m.tipo==="caderno").length}</b> · <b>${brl.format(soma(m=>m.tipo==="caderno"))}</b></span>`;
   else h=`<span>Retiradas: <b>${H.filter(m=>m.tipo==="retirada").length}</b> · <b>${brl.format(ret)}</b></span>`;
   $("resumo").innerHTML=h; }
+function setLh(open){ $("lhBody").hidden=!open; $("lhBtn").setAttribute("aria-expanded",open); try{ localStorage.setItem("lhFechado",open?"":"1"); }catch{} }
+$("lhBtn").onclick=()=>setLh($("lhBody").hidden);
+try{ if(localStorage.getItem("lhFechado")==="1") setLh(false); }catch{}
 $("filtro").addEventListener("click",e=>{ const b=e.target.closest("[data-v]"); if(!b) return; filtro=b.dataset.v; [...$("filtro").children].forEach(x=>x.setAttribute("aria-pressed",x===b)); render(); });
 function render(){ const q=$("busca").value.trim(); resumo();
   const L=movs.filter(m=>q?bate(m,q):(m.data===hoje()&&(filtro==="tudo"||m.tipo===TIPOF[filtro]))).sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
