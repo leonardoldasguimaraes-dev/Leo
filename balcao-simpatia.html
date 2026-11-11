@@ -57,7 +57,7 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 .btn.primary{background:var(--accent);color:var(--accent-ink)}
 .btn:disabled{opacity:.5}
 .lista{display:flex;flex-direction:column}
-.item{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.item{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
 .item:first-child{border-top:0}
 .hora{font-family:var(--mono);font-size:13px;color:var(--muted)}
 .item .t{font-weight:600}
@@ -186,6 +186,7 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 
   <section class="card">
     <h2 id="listaTit">Lançado hoje</h2>
+    <p class="hint">Lançou errado? Avise o Léo. Correções e exclusões são feitas só por ele.</p>
     <div class="field"><input id="busca" type="search" placeholder="Buscar: amarela 5, branca 12, Nei, Brahma…" autocomplete="off" aria-label="Buscar lançamento"></div>
     <div class="lista" id="lista"><div class="vazio">Carregando…</div></div>
   </section>
@@ -275,7 +276,7 @@ function renderCom(){ const ab=abertas(); $("comAbertasWrap").hidden=!ab.length;
   $("comAbertas").innerHTML=ab.map(m=>`<button type="button" class="chip" data-open="${esc(m.id)}">${COR[corDe(m)]} ${esc(m.numero)} · ${brl.format(m.valor||0)}</button>`).join("");
   const c=comDoc(); $("comAbrir").hidden=!!c; $("comAberta").hidden=!c; if(!c) return;
   $("comTit").textContent=`Comanda ${COR[corDe(c)]} ${c.numero}`;
-  const it=c.itens||[]; $("comItens").innerHTML=it.length?it.map((x,i)=>`<div class="item" style="grid-template-columns:1fr auto auto"><span class="t">${esc(x.d)}</span><span class="v">${brl.format(x.v)}</span><button type="button" class="del" data-rmi="${i}" aria-label="Tirar item">Tirar</button></div>`).join(""):`<div class="vazio">Nenhum item ainda. Adicione abaixo.</div>`;
+  const it=c.itens||[]; $("comItens").innerHTML=it.length?it.map((x,i)=>`<div class="item" style="grid-template-columns:1fr auto"><span class="t">${esc(x.d)}</span><span class="v">${brl.format(x.v)}</span></div>`).join(""):`<div class="vazio">Nenhum item ainda. Adicione abaixo.</div>`;
   $("comTot").textContent=brl.format(c.valor||0); }
 async function salvaItens(itens){ const c=comDoc(); if(!c) return; const valor=Math.round(itens.reduce((t,x)=>t+x.v,0)*100)/100;
   try{ await db.collection("mov").doc(c.id).update({itens,valor}); }catch(err){ status("Não salvou: "+(err?.message||err?.code),"err"); } }
@@ -331,7 +332,7 @@ function render(){ const q=$("busca").value.trim();
     else if(m.tipo==="retirada"){ t=`${RET[m.ret]||"Retirada"}${m.nome?` · ${esc(m.nome)}`:""}`; s="Retirada do caixa"; v=brl.format(m.valor); }
     else if(m.tipo==="cascos"){ t=`Cascos: ${m.litros||0} litrões · ${m.seiscentos||0} de 600`; s="Contagem de vazios"; v=""; }
     const its=m.tipo==="comanda"&&m.itens?.length?`<br><span class="s">${m.itens.map(x=>`${esc(x.d)} ${brl.format(x.v)}`).join(" · ")}</span>`:"";
-    return `<div class="item"><span class="hora">${hh}</span><span><span class="t">${t}</span><br><span class="s">${s}${m.quem?` · ${esc(m.quem)}`:""}</span>${its}</span><span class="v">${v}</span><button type="button" class="del" data-del="${esc(m.id)}" aria-label="Apagar lançamento">Apagar</button></div>`; }).join("");
+    return `<div class="item"><span class="hora">${hh}</span><span><span class="t">${t}</span><br><span class="s">${s}${m.quem?` · ${esc(m.quem)}`:""}</span>${its}</span><span class="v">${v}</span></div>`; }).join("");
 }
 $("busca").addEventListener("input",render);
 $("lista").addEventListener("click",async e=>{ const b=e.target.closest("[data-del]"); if(!b||!db) return;
