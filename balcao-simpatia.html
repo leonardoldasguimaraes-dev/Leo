@@ -80,7 +80,10 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 .comtot b{font-family:var(--mono);font-size:22px}
 .fecha{display:flex;flex-direction:column;gap:12px;margin-top:16px;padding-top:16px;border-top:1px dashed var(--line)}
 .pagtit{font-family:var(--display);font-size:18px!important}
-.chips.pag .chip{padding:14px 20px;font-size:17px}
+.chips.pag{display:grid;grid-template-columns:repeat(12,1fr);gap:8px}
+.chips.pag .chip{grid-column:span 4;padding:10px 6px;font-size:15px;text-align:center;border-radius:12px}
+.chips.pag .chip:nth-child(-n+4){grid-column:span 3;padding:20px 6px;font-size:19px;font-weight:700}
+@media (max-width:480px){.chips.pag .chip:nth-child(-n+4){grid-column:span 6}}
 .resumo{display:flex;flex-wrap:wrap;gap:6px 16px;background:var(--sunk);border-radius:12px;padding:10px 12px;font-size:14px}
 .resumo b{font-family:var(--mono)}
 .lhead{display:flex;align-items:center;justify-content:space-between;gap:10px;border:0;background:none;padding:0;cursor:pointer;width:100%;text-align:left}
