@@ -306,6 +306,7 @@ body:not(.est) #estMain, body:not(.est) #estFab, body:not(.fia) #fiaMain, body:n
 .detl .dl{align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
 .detl a{color:var(--accent);font-weight:600}
 .detl div{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13.5px}
+.vt.frz th,.vt.frz td{font-size:12.5px;padding:7px 6px}.vt.frz td:first-child{font-family:var(--body,inherit);font-size:13px;min-width:110px}.vt.frz th{font-size:10.5px;letter-spacing:.02em}.vt.frz .badge{font-size:10px;padding:1px 5px}
 .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
 .vt{border-collapse:collapse;width:100%;font-size:13px}
 .vt th,.vt td{padding:8px 9px;text-align:right;white-space:nowrap;border-top:1px solid var(--line)}
@@ -496,6 +497,14 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 <main class="wrap" id="estMain" style="margin-top:6px">
   <div class="chips" id="eCats"></div>
   <div class="tiles" id="eTiles"></div>
+
+  <section class="sec">
+    <button type="button" class="card fiabtn" id="frzBtn" aria-expanded="true" aria-controls="frzBody">
+      <span><span class="vh">Freezers e reposição</span><br><span class="note" id="frzNote">Quanto tem em cada freezer e no depósito</span></span>
+      <span class="extarrow" aria-hidden="true"></span>
+    </button>
+    <div id="frzBody" class="sec"></div>
+  </section>
 
   <section class="sec">
     <div class="sechead"><h2>Próximo pedido</h2>
@@ -1280,7 +1289,7 @@ $("vDet").addEventListener("click", e=>{ const ed=e.target.closest("[data-ved]")
   const nw=e.target.closest("[data-vnew]"); if(nw) openVendas(null, nw.dataset.vnew); });
 
 /* ---------- estoque de cerveja ---------- */
-let produtos=[], movs=[], eCfg={dias:7, prazo:0, ign:[]};
+let produtos=[], movs=[], eCfg={dias:7, prazo:0, ign:[]}, frzCfg=null;
 const saveECfg=()=>{ if(db&&canWrite) return db.doc("config/estoque").set({dias:Number(eCfg.dias)||7,prazo:Number(eCfg.prazo)||0,ign:eCfg.ign||[]}).catch(()=>{}); };
 const horizonte=()=>(Number(eCfg.dias)||7)+(Number(eCfg.prazo)||0);
 const CATS=[["cerveja","Cerveja","Cervejas"],["refrigerante","Refrigerante","Refrigerantes"],["agua","Água","Águas"],["energetico","Energético / isotônico","Energéticos"],["outros","Outros","Outras"]];
@@ -1329,15 +1338,40 @@ function analyze(p){
   const perDay = calc ?? (p.consumoSemana>0 ? p.consumoSemana/7 : null);
   const dias = horizonte(), cx=p.porCaixa||1, min=p.minimo||0;
   let need=0; if(perDay!==null) need=perDay*dias+min-st; else need=min>0? min*2-st : 0;
-  if(p.capacidade>0) need=Math.max(need, p.capacidade-st);
+  if(p.capacidade>0) need = perDay!==null ? perDay*dias+p.capacidade-st : Math.max(need, p.capacidade-st); // semana de venda + freezers cheios
   const caixas = need>0 ? Math.ceil(need/cx) : 0;
   const diasRest = perDay ? st/perDay : null;
   let status = st<=min && (min>0||st<=0) ? "red" : (diasRest!==null && diasRest<dias) ? "amb" : (perDay===null && !min ? "gray" : "ok");
   if(p.capacidade>0 && ms.length && status!=="red" && st<p.capacidade/2) status="amb";
   if(!ms.length) status="gray";
-  return {st, perDay, calc, diasRest, caixas, status, last, n:ms.length};
+  let ultVenda=null, ultDe=null; { const cs=ms.filter(m=>m.tipo==="contagem"); if(cs.length>=2){ const a=cs[cs.length-2], b=cs[cs.length-1]; const entr=ms.filter(m=>m.tipo==="entrada"&&movOrder(m,a)>0&&movOrder(m,b)<0).reduce((t,m)=>t+m.qtd,0), sai=ms.filter(m=>m.tipo==="saida"&&movOrder(m,a)>0&&movOrder(m,b)<0).reduce((t,m)=>t+m.qtd,0); ultVenda=Math.max(0,a.qtd+entr-sai-b.qtd); ultDe=a.data; } }
+  return {st, perDay, calc, diasRest, caixas, status, last, n:ms.length, ultVenda, ultDe};
 }
-function renderEstoque(){
+/* freezers: Original = trabalho, Brahma = reserva gelada, depósito = estoque quente; Coca = freezer próprio */
+function renderFreezers(){ const box=$("frzBody"); if(!box) return;
+  const byId=Object.fromEntries(produtos.map(p=>[p.id,p]));
+  const FO=frzCfg?.freezers?.find(f=>/original/i.test(f.nome))?.itens||{}, FB=frzCfg?.freezers?.find(f=>/brahma/i.test(f.nome))?.itens||{};
+  const ids=[...new Set([...Object.keys(FO),...Object.keys(FB)])].filter(id=>byId[id]);
+  const fmt=n=>n==null?"—":Number(n).toLocaleString("pt-BR",{maximumFractionDigits:1});
+  let faltaO=0, reporTot=0;
+  const rowsA=ids.map(id=>{ const p=byId[id], a=analyze(p), st=Math.max(0,a.st), cO=FO[id]||0, cB=FB[id]||0;
+    const inB=Math.min(cB,st), inO=Math.min(cO,st-inB), dep=st-inB-inO, fO=cO-inO; if(fO>0) faltaO++;
+    const rep=a.ultVenda!=null?Math.min(a.ultVenda,dep+a.ultVenda):null; if(rep) reporTot+=rep;
+    return {p,a,st,cO,cB,inO,inB,dep,fO,rep}; }).sort((x,y)=>(y.a.perDay||0)-(x.a.perDay||0));
+  const cocas=produtos.filter(p=>/coca/i.test(p.fornecedor||"")&&p.capacidade>0).map(p=>{ const a=analyze(p), st=Math.max(0,a.st), inF=Math.min(p.capacidade,st); return {p,a,st,cap:p.capacidade,inF,falta:p.capacidade-inF,dep:st-inF}; }).sort((x,y)=>y.falta-x.falta||x.p.nome.localeCompare(y.p.nome));
+  const cell=(v,c,f)=>`<td class="num">${v}/${c}${f>0?` <span class="badge b-red">−${f}</span>`:""}</td>`;
+  const tA=rowsA.length?`<div class="tblwrap"><table class="vt frz"><thead><tr><th>Cerveja</th><th>Original<br><span class="note">trabalho</span></th><th>Brahma<br><span class="note">reserva</span></th><th>Depósito</th><th>Repor<br><span class="note">do depósito</span></th><th>Média<br><span class="note">por dia</span></th><th>Dura</th></tr></thead><tbody>`+
+    rowsA.map(r=>`<tr><td>${esc(r.p.nome)}</td>${cell(r.inO,r.cO,r.fO)}${cell(r.inB,r.cB,r.cB-r.inB)}<td class="num">${r.dep>0?r.dep:`<span class="badge b-red">0</span>`}</td><td class="num">${r.rep?`<b>${r.rep}</b>`:"—"}</td><td class="num">${fmt(r.a.perDay)}</td><td class="num">${r.a.diasRest!=null?`${fmt(r.a.diasRest)} d`:"—"}</td></tr>`).join("")+`</tbody></table></div>`:`<div class="note">Cadastre a capacidade dos freezers.</div>`;
+  const tC=cocas.length?`<div class="tblwrap"><table class="vt frz"><thead><tr><th>Freezer da Coca</th><th>No freezer</th><th>Depósito</th><th>Média<br><span class="note">por dia</span></th></tr></thead><tbody>`+
+    cocas.map(r=>`<tr><td>${esc(r.p.nome)}</td>${cell(r.inF,r.cap,r.falta)}<td class="num">${r.dep||"—"}</td><td class="num">${fmt(r.a.perDay)}</td></tr>`).join("")+`</tbody></table></div>`:"";
+  const ultData=rowsA.find(r=>r.a.ultDe)?.a.last;
+  box.innerHTML=`<div class="note">A venda sai do freezer da <b>Original</b>. O da <b>Brahma</b> é a reserva gelada (só usa se acabar na Original). A reposição vem do <b>depósito</b>. “Repor” = o que saiu desde a contagem anterior${ultData?` (até ${ddmm(ultData)})`:""}. Em vermelho: falta para encher.</div>`+tA+(tC?`<h3 style="margin:6px 0 0">Freezer da Coca</h3>`+tC:"");
+  const fC=cocas.filter(r=>r.falta>0).length;
+  $("frzNote").textContent=`${faltaO?`${faltaO} cerveja(s) faltando na Original`:"Original cheia"}${reporTot?` · repor ${reporTot} do depósito`:""}${fC?` · ${fC} item(ns) faltando na Coca`:""}`;
+}
+$("frzBtn").onclick=()=>{ const open=$("frzBody").hidden; $("frzBody").hidden=!open; $("frzBtn").setAttribute("aria-expanded",open); try{ localStorage.setItem("frzFechado",open?"":"1"); }catch{} };
+try{ if(localStorage.getItem("frzFechado")==="1"){ $("frzBody").hidden=true; $("frzBtn").setAttribute("aria-expanded","false"); } }catch{}
+function renderEstoque(){ try{ renderFreezers(); }catch(e){ console.error(e); }
   const cnt={todas:produtos.length}; for(const p of produtos) cnt[catOf(p)]=(cnt[catOf(p)]||0)+1;
   if(eCat!=="todas" && !cnt[eCat]) eCat="todas";
   $("eCats").innerHTML=[["todas","Todas"],...CATS.map(c=>[c[0],c[2]])].filter(([k])=>k==="todas"||cnt[k]).map(([k,l])=>`<button class="chip" data-ecat="${k}" aria-pressed="${eCat===k}">${l} <span class="num">${cnt[k]||0}</span></button>`).join("");
@@ -2566,6 +2600,7 @@ render();
   db.collection("caixa").onSnapshot(sn=>{ cxDocs={}; sn.docs.forEach(x=>{ cxDocs[x.id]=x.data(); }); if(document.body.classList.contains("cx") && !cxDirty) cxLoad(); }, ()=>{});
   db.collection("entregas").onSnapshot(sn=>{ entregas=sn.docs.map(x=>({id:x.id,...x.data()})).filter(e=>typeof e.valor==="number"&&typeof e.data==="string"); renderCaixa(); if(!$("scrim11").hidden) renderEntList(); }, ()=>{});
   db.collection("movimentos").onSnapshot(sn=>{ movs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.produtoId&&typeof m.qtd==="number"&&typeof m.data==="string"); renderEstoque(); if(!$("scrim4").hidden) renderHist(); }, ()=>{});
+  db.doc("config/freezers").onSnapshot(d=>{ frzCfg=d.exists?d.data():null; renderEstoque(); }, ()=>{});
   db.doc("config/estoque").onSnapshot(d=>{ const v=d.exists?d.data():{}; eCfg={dias:Number(v.dias)||7, prazo:Number(v.prazo)||0, ign:Array.isArray(v.ign)?v.ign:[]}; renderEstoque(); }, ()=>{});
   db.doc("config/saldo").onSnapshot(d=>{
     const v=d.exists?d.data():null;
