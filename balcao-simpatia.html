@@ -57,6 +57,7 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 .btn.primary{background:var(--accent);color:var(--accent-ink)}
 .btn:disabled{opacity:.5}
 .lista{display:flex;flex-direction:column}
+.admonly{display:none}body.adm .admonly{display:inline-block;background:color-mix(in srgb,var(--neg) 16%,var(--surface));color:var(--neg)}
 .admbtns{display:flex;gap:4px}
 body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 .item{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
@@ -157,7 +158,7 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
       <div class="field" id="comAbertasWrap" hidden><label>Comandas abertas (toque para continuar)</label><div class="chips" id="comAbertas"></div></div>
     </div>
     <div id="comAberta" hidden>
-      <div class="comhead"><b id="comTit">Comanda</b><button type="button" class="btn" id="comSair">Voltar</button></div>
+      <div class="comhead"><b id="comTit">Comanda</b><span style="display:flex;gap:8px"><button type="button" class="btn admonly" id="comCancel">Cancelar comanda</button><button type="button" class="btn" id="comSair">Voltar</button></span></div>
       <div class="lista" id="comItens"></div>
       <div class="comtot"><span>Total da comanda</span><b id="comTot">R$ 0,00</b></div>
       <form id="comAdd" novalidate class="card" style="border:0;padding:0;margin-top:12px">
@@ -416,6 +417,10 @@ function render(){ const q=$("busca").value.trim(); resumo();
 }
 $("busca").addEventListener("input",render);
 $("admSairBtn").onclick=admSair;
+$("comCancel").onclick=async ()=>{ if(!ADMIN()) return; const c=comDoc(); if(!c) return; const b=$("comCancel");
+  if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Toque de novo para cancelar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Cancelar comanda"; },3000); return; }
+  try{ await db.collection("mov").doc(c.id).delete(); status(`Comanda ${COR[corDe(c)].toLowerCase()} ${c.numero} cancelada.`,"ok"); curId=null; divSet(false); PK.com.limpa(); $("comNum").value=""; renderCom(); }
+  catch(err){ status("Não cancelou: "+(err?.message||err?.code),"err"); } finally{ b.dataset.armed=""; b.textContent="Cancelar comanda"; } };
 admCheck();
 $("lista").addEventListener("click",async e=>{ if(!ADMIN()||!db) return;
   const r=e.target.closest("[data-reab]");
