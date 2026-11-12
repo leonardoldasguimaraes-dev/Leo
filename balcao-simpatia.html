@@ -57,6 +57,8 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 .btn.primary{background:var(--accent);color:var(--accent-ink)}
 .btn:disabled{opacity:.5}
 .lista{display:flex;flex-direction:column}
+.admbtns{display:flex;gap:4px}
+body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 .item{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
 .item:first-child{border-top:0}
 .hora{font-family:var(--mono);font-size:13px;color:var(--muted)}
@@ -96,6 +98,7 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 .divrow input{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;font-family:var(--mono);font-size:18px;text-align:right;width:100%;min-width:0}
 .divrow select{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:16px;width:100%;min-width:0}
 .divrow select.vazio2{border-color:var(--neg)}
+.banner.adm{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:color-mix(in srgb,var(--accent) 22%,var(--surface));font-weight:500}
 .vazio{color:var(--muted);text-align:center;padding:18px 0}
 @media (prefers-reduced-motion:no-preference){.card{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(6px)}}}
 </style>
@@ -108,6 +111,7 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 </header>
 
 <main class="wrap">
+  <div class="banner adm" id="admBar" hidden><span><b>Modo Léo ativo:</b> dá para apagar lançamento, tirar item e reabrir comanda.</span><button type="button" class="btn" id="admSairBtn">Sair do modo Léo</button></div>
   <div class="banner" id="status" hidden></div>
 
   <div class="tipos" role="group" aria-label="O que lançar">
@@ -261,7 +265,14 @@ function status(msg,kind){ const s=$("status"); s.textContent=msg; s.className="
 function mostraDia(){ $("dia").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"}); }
 mostraDia(); setInterval(mostraDia,60000);
 try{ $("quem").value=localStorage.getItem("quem")||""; }catch{}
-$("quem").addEventListener("input",()=>{ try{ localStorage.setItem("quem",$("quem").value.trim()); }catch{} });
+/* modo Léo: digitar "Leonardo@" em No caixa libera apagar, tirar item e reabrir comanda (sai sozinho após 15 min parado) */
+let admTimer=null;
+const ADMIN=()=>$("quem").value.trim().toLowerCase()==="leonardo@";
+const quemNome=()=>$("quem").value.trim().replace(/@+$/,"");
+function admCheck(){ const on=ADMIN(); document.body.classList.toggle("adm",on); $("admBar").hidden=!on; clearTimeout(admTimer); if(on) admTimer=setTimeout(admSair,15*60*1000); if(typeof render==="function"&&db){ render(); renderCom(); } }
+function admSair(){ $("quem").value="Leonardo"; try{ localStorage.setItem("quem","Leonardo"); }catch{} admCheck(); }
+["click","input","keydown"].forEach(ev=>document.addEventListener(ev,()=>{ if(ADMIN()){ clearTimeout(admTimer); admTimer=setTimeout(admSair,15*60*1000); } },true));
+$("quem").addEventListener("input",()=>{ try{ localStorage.setItem("quem",ADMIN()?"Leonardo":$("quem").value.trim()); }catch{} admCheck(); });
 
 function setTipo(t){ tipo=t; document.querySelectorAll(".tipo").forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===t));
   $("fCaderno").hidden=t!=="caderno"; $("fComanda").hidden=t!=="comanda"; $("fRetirada").hidden=t!=="retirada";
@@ -280,7 +291,7 @@ $("comCor").addEventListener("click",e=>{ const b=e.target.closest("[data-c]"); 
 function proxComanda(){ return ""; } // número da comanda sempre digitado à mão
 
 async function lancar(doc,btn){
-  const quem=$("quem").value.trim();
+  const quem=quemNome();
   if(!quem){ status("Escreva seu nome em \"No caixa\" lá em cima antes de lançar.","err"); $("quem").focus(); return false; }
   if(!db){ status("Sem conexão com o app. Confira a internet e abra de novo pelo claude.ai.","err"); return false; }
   btn.disabled=true;
@@ -302,11 +313,11 @@ function renderCom(){ const ab=abertas(); $("comAbertasWrap").hidden=!ab.length;
   $("comAbertas").innerHTML=ab.map(m=>`<button type="button" class="chip" data-open="${esc(m.id)}">${COR[corDe(m)]} ${esc(m.numero)} · ${brl.format(m.valor||0)}</button>`).join("");
   const c=comDoc(); $("comAbrir").hidden=!!c; $("comAberta").hidden=!c; if(!c) return;
   $("comTit").textContent=`Comanda ${COR[corDe(c)]} ${c.numero}`;
-  const it=c.itens||[]; $("comItens").innerHTML=it.length?it.map((x,i)=>`<div class="item" style="grid-template-columns:1fr auto"><span class="t">${esc(x.d)}</span><span class="v">${brl.format(x.v)}</span></div>`).join(""):`<div class="vazio">Nenhum item ainda. Adicione abaixo.</div>`;
+  const it=c.itens||[]; $("comItens").innerHTML=it.length?it.map((x,i)=>`<div class="item" style="grid-template-columns:1fr auto auto"><span class="t">${esc(x.d)}</span><span class="v">${brl.format(x.v)}</span>${ADMIN()?`<button type="button" class="del" data-rmi="${i}" aria-label="Tirar item">Tirar</button>`:"<span></span>"}</div>`).join(""):`<div class="vazio">Nenhum item ainda. Adicione abaixo.</div>`;
   $("comTot").textContent=brl.format(c.valor||0); }
 async function salvaItens(itens){ const c=comDoc(); if(!c) return; const valor=Math.round(itens.reduce((t,x)=>t+x.v,0)*100)/100;
   try{ await db.collection("mov").doc(c.id).update({itens,valor}); }catch(err){ status("Não salvou: "+(err?.message||err?.code),"err"); } }
-$("comAbrirBtn").onclick=async ()=>{ const n=$("comNum").value.replace(/\D/g,""), quem=$("quem").value.trim();
+$("comAbrirBtn").onclick=async ()=>{ const n=$("comNum").value.replace(/\D/g,""), quem=quemNome();
   if(!quem){ status("Escreva seu nome em \"No caixa\" lá em cima antes de lançar.","err"); $("quem").focus(); return; }
   if(!n){ status("Digite o número da comanda.","err"); $("comNum").focus(); return; }
   if(!db){ status("Sem conexão com o app.","err"); return; }
@@ -322,7 +333,7 @@ $("comAdd").addEventListener("submit",async e=>{ e.preventDefault(); const c=com
   if(!d){ status("Escolha ou escreva o produto.","err"); $("comDesc").focus(); return; }
   if(!(v>0)){ status("Digite o valor.","err"); $("comVal").focus(); return; }
   const b=$("comAddBtn"); b.disabled=true; await salvaItens([...(c.itens||[]),{d:d.slice(0,80),v}]); b.disabled=false; PK.com.limpa(); $("comDesc").focus(); });
-$("comItens").addEventListener("click",async e=>{ const b=e.target.closest("[data-rmi]"); if(!b) return; const c=comDoc(); if(!c) return;
+$("comItens").addEventListener("click",async e=>{ const b=e.target.closest("[data-rmi]"); if(!b||!ADMIN()) return; const c=comDoc(); if(!c) return;
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Tirar"; },3000); return; }
   const it=[...(c.itens||[])]; it.splice(Number(b.dataset.rmi),1); await salvaItens(it); });
 /* dividir a conta: cada pessoa paga a sua parte de um jeito */
@@ -347,7 +358,7 @@ $("comFechar").onclick=async ()=>{ const c=comDoc(); if(!c) return; const nome=$
   if(divOn){ const P=divPartes(), soma=Math.round(P.reduce((t,x)=>t+x.v,0)*100)/100;
     if(!P.every(x=>x.f&&x.v>0)||Math.abs(soma-(c.valor||0))>=0.005){ status("Confira os valores e o pagamento de cada pessoa.","err"); return; }
     const b=$("comFechar"); b.disabled=true;
-    try{ await db.collection("mov").doc(c.id).update({status:"fechada",forma:"div",pagamentos:P,nome:"",fechadoEm:Date.now(),fechadoPor:$("quem").value.trim()});
+    try{ await db.collection("mov").doc(c.id).update({status:"fechada",forma:"div",pagamentos:P,nome:"",fechadoEm:Date.now(),fechadoPor:quemNome()});
       status(`Comanda ${COR[corDe(c)].toLowerCase()} ${c.numero} fechada dividida: ${P.map(x=>`${FORMA[x.f]} ${brl.format(x.v)}`).join(" + ")}.`,"ok"); curId=null; divSet(false); PK.com.limpa(); $("comNum").value=""; renderCom(); }
     catch(err){ status("Não fechou: "+(err?.message||err?.code),"err"); } finally{ b.disabled=false; }
     return; }
@@ -355,7 +366,7 @@ $("comFechar").onclick=async ()=>{ const c=comDoc(); if(!c) return; const nome=$
   if(!(c.valor>0)){ status("A comanda está vazia. Adicione os itens antes de fechar.","err"); return; }
   if(forma==="fia"&&!nome){ status("No fiado, escreva o nome de quem pegou.","err"); $("comNome").focus(); return; }
   const b=$("comFechar"); b.disabled=true;
-  try{ await db.collection("mov").doc(c.id).update({status:"fechada",forma,nome:forma==="fia"?nome.slice(0,40):"",fechadoEm:Date.now(),fechadoPor:$("quem").value.trim()});
+  try{ await db.collection("mov").doc(c.id).update({status:"fechada",forma,nome:forma==="fia"?nome.slice(0,40):"",fechadoEm:Date.now(),fechadoPor:quemNome()});
     status(`Comanda ${COR[corDe(c)].toLowerCase()} ${c.numero} fechada: ${brl.format(c.valor)} (${FORMA[forma]}).`,"ok"); curId=null; $("comNome").value=""; PK.com.limpa(); $("comNum").value=""; renderCom(); }
   catch(err){ status("Não fechou: "+(err?.message||err?.code),"err"); } finally{ b.disabled=false; } };
 
@@ -401,10 +412,16 @@ function render(){ const q=$("busca").value.trim(); resumo();
     else if(m.tipo==="retirada"){ t=`${RET[m.ret]||"Retirada"}${m.nome?` · ${esc(m.nome)}`:""}`; s="Retirada do caixa"; v=brl.format(m.valor); }
     else if(m.tipo==="cascos"){ t=`Cascos: ${m.litros||0} litrões · ${m.seiscentos||0} de 600`; s="Contagem de vazios"; v=""; }
     const its=m.tipo==="comanda"&&m.itens?.length?`<br><span class="s">${m.itens.map(x=>`${esc(x.d)} ${brl.format(x.v)}`).join(" · ")}</span>`:"";
-    return `<div class="item"><span class="hora">${hh}</span><span><span class="t">${t}</span><br><span class="s">${s}${m.quem?` · ${esc(m.quem)}`:""}</span>${its}</span><span class="v">${v}</span></div>`; }).join("");
+    return `<div class="item"><span class="hora">${hh}</span><span><span class="t">${t}</span><br><span class="s">${s}${m.quem?` · ${esc(m.quem)}`:""}</span>${its}</span><span class="v">${v}</span>${ADMIN()?`<span class="admbtns">${m.tipo==="comanda"&&m.status==="fechada"?`<button type="button" class="del" data-reab="${esc(m.id)}">Reabrir</button>`:""}<button type="button" class="del" data-del="${esc(m.id)}">Apagar</button></span>`:""}</div>`; }).join("");
 }
 $("busca").addEventListener("input",render);
-$("lista").addEventListener("click",async e=>{ const b=e.target.closest("[data-del]"); if(!b||!db) return;
+$("admSairBtn").onclick=admSair;
+admCheck();
+$("lista").addEventListener("click",async e=>{ if(!ADMIN()||!db) return;
+  const r=e.target.closest("[data-reab]");
+  if(r){ if(r.dataset.armed!=="1"){ r.dataset.armed="1"; r.textContent="Confirmar"; setTimeout(()=>{ r.dataset.armed=""; r.textContent="Reabrir"; },3000); return; }
+    try{ await db.collection("mov").doc(r.dataset.reab).update({status:"aberta",forma:"",pagamentos:[],nome:""}); setTipo("comanda"); curId=r.dataset.reab; divSet(false); renderCom(); status("Comanda reaberta. Corrija os itens e feche de novo.","ok"); window.scrollTo({top:0,behavior:"smooth"}); }catch(err){ status("Não reabriu: "+(err?.message||err?.code),"err"); } return; }
+  const b=e.target.closest("[data-del]"); if(!b) return;
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Apagar"; },3000); return; }
   try{ await db.collection("mov").doc(b.dataset.del).delete(); status("Lançamento apagado.","ok"); }catch(err){ status("Não apagou: "+(err?.message||err?.code),"err"); } });
 
