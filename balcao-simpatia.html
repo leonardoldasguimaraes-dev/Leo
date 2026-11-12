@@ -89,6 +89,13 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 .lhead{display:flex;align-items:center;justify-content:space-between;gap:10px;border:0;background:none;padding:0;cursor:pointer;width:100%;text-align:left}
 .lhead .seta{width:12px;height:12px;border-right:3px solid var(--muted);border-bottom:3px solid var(--muted);transform:rotate(-135deg);margin-right:6px;transition:transform .2s}
 .lhead[aria-expanded="false"] .seta{transform:rotate(45deg)}
+.divtog{display:flex;justify-content:flex-end}
+.divrows{display:flex;flex-direction:column;gap:8px}
+.divrow{display:grid;grid-template-columns:auto 1fr 1.2fr;gap:8px;align-items:center;background:var(--sunk);border-radius:12px;padding:8px 10px}
+.divrow b{font-size:14px}
+.divrow input{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;font-family:var(--mono);font-size:18px;text-align:right;width:100%;min-width:0}
+.divrow select{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:16px;width:100%;min-width:0}
+.divrow select.vazio2{border-color:var(--neg)}
 .vazio{color:var(--muted);text-align:center;padding:18px 0}
 @media (prefers-reduced-motion:no-preference){.card{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(6px)}}}
 </style>
@@ -159,7 +166,14 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
         <button class="btn" type="submit" id="comAddBtn">+ Adicionar à comanda</button>
       </form>
       <div class="fecha">
-        <div class="field"><label class="pagtit">Como o cliente pagou?</label>
+        <div class="divtog"><button type="button" class="btn" id="divBtn">Dividir a conta</button></div>
+        <div id="divBox" hidden>
+          <div class="qtd"><span>Quantas pessoas?</span><button type="button" class="qb" id="divMenos" aria-label="Menos pessoas">−</button><b id="divN">2</b><button type="button" class="qb" id="divMais" aria-label="Mais pessoas">+</button><span class="note" id="divCada"></span></div>
+          <div id="divRows" class="divrows"></div>
+          <div class="note" id="divSoma"></div>
+          <button type="button" class="btn" id="divSair">Não dividir (voltar)</button>
+        </div>
+        <div class="field" id="pagUnico"><label class="pagtit">Como o cliente pagou?</label>
           <div class="chips pag" id="comForma" role="group" aria-label="Como pagou">
             <button type="button" class="chip" data-f="din" aria-pressed="false">Dinheiro</button>
             <button type="button" class="chip" data-f="deb" aria-pressed="false">Débito</button>
@@ -241,7 +255,7 @@ function picker(p){ const st={sel:null}; PK[p]=st;
 }
 picker("cad"); picker("com");
 let db=null, movs=[], tipo="caderno", forma="din", cor="branca", retT="gelo", stTimer=null;
-const FORMA={din:"Dinheiro",deb:"Débito",cre:"Crédito",pix:"Pix",vou:"Voucher",cart:"Cartão/Pix",ale:"Alelo",fia:"Fiado"}, RET={gelo:"Gelo",pass:"Passagem",outro:"Outro"};
+const FORMA={div:"Dividida",din:"Dinheiro",deb:"Débito",cre:"Crédito",pix:"Pix",vou:"Voucher",cart:"Cartão/Pix",ale:"Alelo",fia:"Fiado"}, RET={gelo:"Gelo",pass:"Passagem",outro:"Outro"};
 
 function status(msg,kind){ const s=$("status"); s.textContent=msg; s.className="banner"+(kind?" "+kind:""); s.hidden=!msg; clearTimeout(stTimer); if(msg&&kind==="ok") stTimer=setTimeout(()=>{ s.hidden=true; },3500); }
 function mostraDia(){ $("dia").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"}); }
@@ -297,13 +311,13 @@ $("comAbrirBtn").onclick=async ()=>{ const n=$("comNum").value.replace(/\D/g,"")
   if(!n){ status("Digite o número da comanda.","err"); $("comNum").focus(); return; }
   if(!db){ status("Sem conexão com o app.","err"); return; }
   const num=n.padStart(4,"0"), ja=movs.find(m=>m.tipo==="comanda"&&corDe(m)===cor&&parseInt(m.numero,10)===parseInt(n,10));
-  if(ja&&ja.status==="aberta"){ curId=ja.id; setForma(""); renderCom(); return; }
+  if(ja&&ja.status==="aberta"){ curId=ja.id; divSet(false); renderCom(); return; }
   if(ja){ status(`A comanda ${COR[cor].toLowerCase()} ${num} já foi fechada. Confira na lista.`,"err"); return; }
   const id=`com-${cor}-${num}-${Date.now()}`;
-  try{ await db.collection("mov").doc(id).set({tipo:"comanda",cor,numero:num,status:"aberta",itens:[],valor:0,forma:"",nome:"",data:hoje(),quem,criadoEm:Date.now()}); curId=id; setForma(""); renderCom(); $("comDesc").focus(); }
+  try{ await db.collection("mov").doc(id).set({tipo:"comanda",cor,numero:num,status:"aberta",itens:[],valor:0,forma:"",nome:"",data:hoje(),quem,criadoEm:Date.now()}); curId=id; divSet(false); renderCom(); $("comDesc").focus(); }
   catch(err){ status("Não abriu: "+(err?.message||err?.code),"err"); } };
-$("comAbertas").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"); if(!b) return; curId=b.dataset.open; setForma(""); renderCom(); });
-$("comSair").onclick=()=>{ curId=null; PK.com.limpa(); $("comNum").value=proxComanda(); renderCom(); };
+$("comAbertas").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"); if(!b) return; curId=b.dataset.open; divSet(false); renderCom(); });
+$("comSair").onclick=()=>{ if(divOn) divSet(false); curId=null; PK.com.limpa(); $("comNum").value=proxComanda(); renderCom(); };
 $("comAdd").addEventListener("submit",async e=>{ e.preventDefault(); const c=comDoc(); if(!c) return; const v=money($("comVal").value), d=$("comDesc").value.trim();
   if(!d){ status("Escolha ou escreva o produto.","err"); $("comDesc").focus(); return; }
   if(!(v>0)){ status("Digite o valor.","err"); $("comVal").focus(); return; }
@@ -311,7 +325,32 @@ $("comAdd").addEventListener("submit",async e=>{ e.preventDefault(); const c=com
 $("comItens").addEventListener("click",async e=>{ const b=e.target.closest("[data-rmi]"); if(!b) return; const c=comDoc(); if(!c) return;
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Tirar"; },3000); return; }
   const it=[...(c.itens||[])]; it.splice(Number(b.dataset.rmi),1); await salvaItens(it); });
+/* dividir a conta: cada pessoa paga a sua parte de um jeito */
+let divOn=false, divN=2;
+const DIVF=[["","Como pagou?"],["din","Dinheiro"],["deb","Débito"],["cre","Crédito"],["pix","Pix"],["vou","Voucher"],["ale","Alelo"]];
+function divMonta(){ const c=comDoc(); if(!c) return; const tot=Math.round((c.valor||0)*100), base=Math.floor(tot/divN), resto=tot-base*divN;
+  $("divN").textContent=divN; $("divCada").textContent=`${brl.format(base/100)} cada`;
+  $("divRows").innerHTML=Array.from({length:divN},(_,i)=>{ const v=(base+(i<resto?1:0))/100; return `<div class="divrow"><b>Pessoa ${i+1}</b><input class="din dv" inputmode="numeric" value="${fmt2(v)}" aria-label="Valor da pessoa ${i+1}"><select class="df vazio2" aria-label="Como a pessoa ${i+1} pagou">${DIVF.map(([k,l])=>`<option value="${k}">${l}</option>`).join("")}</select></div>`; }).join("");
+  $("divRows").querySelectorAll("input.din").forEach(i=>i.addEventListener("input",()=>{ const d=i.value.replace(/\D/g,"").replace(/^0+/,"").slice(0,7); i.value=d?(Number(d)/100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):""; divChk(); }));
+  $("divRows").querySelectorAll("select").forEach(x=>x.addEventListener("change",()=>{ x.classList.toggle("vazio2",!x.value); divChk(); }));
+  divChk(); }
+function divPartes(){ return [...$("divRows").querySelectorAll(".divrow")].map(r=>({f:r.querySelector("select").value,v:money(r.querySelector("input").value)||0})); }
+function divChk(){ const c=comDoc(); if(!c) return; const P=divPartes(), soma=Math.round(P.reduce((t,x)=>t+x.v,0)*100)/100, dif=Math.round(((c.valor||0)-soma)*100)/100, ok=Math.abs(dif)<0.005&&P.every(x=>x.f&&x.v>0);
+  $("divSoma").innerHTML=Math.abs(dif)<0.005?`Soma das partes: <b>${brl.format(soma)}</b> = total da comanda.`:`<span style="color:var(--neg)">Soma ${brl.format(soma)} · ${dif>0?`faltam ${brl.format(dif)}`:`passou ${brl.format(-dif)}`} para o total de ${brl.format(c.valor||0)}.</span>`;
+  $("comFechar").disabled=!ok; $("comFechar").textContent=ok?`Fechar comanda dividida (${divN} pessoas)`:"Preencha valor e pagamento de cada pessoa"; }
+function divSet(on){ divOn=on; $("divBox").hidden=!on; $("pagUnico").hidden=on; $("divBtn").hidden=on; if(on){ $("comNomeWrap").hidden=true; divN=2; divMonta(); } else setForma(""); }
+$("divBtn").onclick=()=>{ const c=comDoc(); if(!c||!(c.valor>0)){ status("Adicione os itens antes de dividir.","err"); return; } divSet(true); };
+$("divSair").onclick=()=>divSet(false);
+$("divMais").onclick=()=>{ divN=Math.min(20,divN+1); divMonta(); };
+$("divMenos").onclick=()=>{ divN=Math.max(2,divN-1); divMonta(); };
 $("comFechar").onclick=async ()=>{ const c=comDoc(); if(!c) return; const nome=$("comNome").value.trim();
+  if(divOn){ const P=divPartes(), soma=Math.round(P.reduce((t,x)=>t+x.v,0)*100)/100;
+    if(!P.every(x=>x.f&&x.v>0)||Math.abs(soma-(c.valor||0))>=0.005){ status("Confira os valores e o pagamento de cada pessoa.","err"); return; }
+    const b=$("comFechar"); b.disabled=true;
+    try{ await db.collection("mov").doc(c.id).update({status:"fechada",forma:"div",pagamentos:P,nome:"",fechadoEm:Date.now(),fechadoPor:$("quem").value.trim()});
+      status(`Comanda ${COR[corDe(c)].toLowerCase()} ${c.numero} fechada dividida: ${P.map(x=>`${FORMA[x.f]} ${brl.format(x.v)}`).join(" + ")}.`,"ok"); curId=null; divSet(false); PK.com.limpa(); $("comNum").value=""; renderCom(); }
+    catch(err){ status("Não fechou: "+(err?.message||err?.code),"err"); } finally{ b.disabled=false; }
+    return; }
   if(!forma){ status("Escolha como o cliente pagou.","err"); return; }
   if(!(c.valor>0)){ status("A comanda está vazia. Adicione os itens antes de fechar.","err"); return; }
   if(forma==="fia"&&!nome){ status("No fiado, escreva o nome de quem pegou.","err"); $("comNome").focus(); return; }
@@ -336,8 +375,10 @@ let filtro="tudo";
 const TIPOF={com:"comanda",bal:"caderno",ret:"retirada"};
 function resumo(){ const H=movs.filter(m=>m.data===hoje()); const soma=f=>H.filter(f).reduce((t,m)=>t+(m.valor||0),0);
   const fech=H.filter(m=>m.tipo==="comanda"&&m.status==="fechada"), ab=H.filter(m=>m.tipo==="comanda"&&m.status==="aberta");
-  const vend=x=>x.tipo==="caderno"||(x.tipo==="comanda"&&x.status==="fechada"&&x.forma!=="fia");
-  const din=soma(m=>vend(m)&&m.forma==="din"), maq=soma(m=>vend(m)&&m.forma!=="din"&&m.forma!=="ale"), ale=soma(m=>vend(m)&&m.forma==="ale"), fia=soma(m=>m.tipo==="comanda"&&m.status==="fechada"&&m.forma==="fia"), ret=soma(m=>m.tipo==="retirada");
+  const partes=m=>m.pagamentos?.length?m.pagamentos:[{f:m.forma,v:m.valor||0}];
+  const P=H.filter(m=>m.tipo==="caderno"||(m.tipo==="comanda"&&m.status==="fechada")).flatMap(partes);
+  const sp=f=>P.filter(f).reduce((t,x)=>t+(x.v||0),0);
+  const din=sp(x=>x.f==="din"), maq=sp(x=>["deb","cre","pix","vou","cart"].includes(x.f)), ale=sp(x=>x.f==="ale"), fia=sp(x=>x.f==="fia"), ret=soma(m=>m.tipo==="retirada");
   let h="";
   if(filtro==="tudo") h=`<span>Vendido hoje: <b>${brl.format(din+maq+ale)}</b></span><span>Dinheiro <b>${brl.format(din)}</b></span><span>Cartão/Pix <b>${brl.format(maq)}</b></span>${ale?`<span>Alelo <b>${brl.format(ale)}</b></span>`:""}${fia?`<span>Fiado <b>${brl.format(fia)}</b></span>`:""}${ret?`<span>Retiradas <b>${brl.format(ret)}</b></span>`:""}`;
   else if(filtro==="com") h=`<span>Comandas fechadas: <b>${fech.length}</b> · <b>${brl.format(fech.reduce((t,m)=>t+(m.valor||0),0))}</b></span><span>Abertas: <b>${ab.length}</b>${ab.length?` (${ab.map(m=>`${COR[corDe(m)]} ${esc(m.numero)}`).join(", ")})`:""}</span>`;
@@ -356,7 +397,7 @@ function render(){ const q=$("busca").value.trim(); resumo();
   $("lista").innerHTML=L.map(m=>{ const h=new Date(m.criadoEm||0); const hh=(m.data!==hoje()?`${m.data.slice(8)}/${m.data.slice(5,7)} `:"")+`${pad(h.getHours())}:${pad(h.getMinutes())}`;
     let t="",s="",v="";
     if(m.tipo==="caderno"){ t=esc(m.desc); s=`Balcão · ${(CADF[m.forma]||"Dinheiro")}`; v=brl.format(m.valor); }
-    else if(m.tipo==="comanda"){ t=`Comanda ${COR[corDe(m)]} ${esc(m.numero)}${m.itens?.length?` <span class="note">(${m.itens.length} itens)</span>`:""}`; s=m.status==="aberta"?`<span class="tag">Aberta</span>`:`${m.forma==="fia"?`<span class="tag fia">Fiado</span> ${esc(m.nome)}`:FORMA[m.forma]||""}`; v=brl.format(m.valor||0); }
+    else if(m.tipo==="comanda"){ t=`Comanda ${COR[corDe(m)]} ${esc(m.numero)}${m.itens?.length?` <span class="note">(${m.itens.length} itens)</span>`:""}`; s=m.status==="aberta"?`<span class="tag">Aberta</span>`:m.forma==="div"?`Dividida: ${(m.pagamentos||[]).map(x=>`${FORMA[x.f]||x.f} ${brl.format(x.v)}`).join(" + ")}`:`${m.forma==="fia"?`<span class="tag fia">Fiado</span> ${esc(m.nome)}`:FORMA[m.forma]||""}`; v=brl.format(m.valor||0); }
     else if(m.tipo==="retirada"){ t=`${RET[m.ret]||"Retirada"}${m.nome?` · ${esc(m.nome)}`:""}`; s="Retirada do caixa"; v=brl.format(m.valor); }
     else if(m.tipo==="cascos"){ t=`Cascos: ${m.litros||0} litrões · ${m.seiscentos||0} de 600`; s="Contagem de vazios"; v=""; }
     const its=m.tipo==="comanda"&&m.itens?.length?`<br><span class="s">${m.itens.map(x=>`${esc(x.d)} ${brl.format(x.v)}`).join(" · ")}</span>`:"";
