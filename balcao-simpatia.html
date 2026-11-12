@@ -343,9 +343,14 @@ const DIVF=[["","Como pagou?"],["din","Dinheiro"],["deb","Débito"],["cre","Cré
 function divMonta(){ const c=comDoc(); if(!c) return; const tot=Math.round((c.valor||0)*100), base=Math.floor(tot/divN), resto=tot-base*divN;
   $("divN").textContent=divN; $("divCada").textContent=`${brl.format(base/100)} cada`;
   $("divRows").innerHTML=Array.from({length:divN},(_,i)=>{ const v=(base+(i<resto?1:0))/100; return `<div class="divrow"><b>Pessoa ${i+1}</b><input class="din dv" inputmode="numeric" value="${fmt2(v)}" aria-label="Valor da pessoa ${i+1}"><select class="df vazio2" aria-label="Como a pessoa ${i+1} pagou">${DIVF.map(([k,l])=>`<option value="${k}">${l}</option>`).join("")}</select></div>`; }).join("");
-  $("divRows").querySelectorAll("input.din").forEach(i=>i.addEventListener("input",()=>{ const d=i.value.replace(/\D/g,"").replace(/^0+/,"").slice(0,7); i.value=d?(Number(d)/100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):""; divChk(); }));
+  $("divRows").querySelectorAll("input.din").forEach(i=>i.addEventListener("input",()=>{ const d=i.value.replace(/\D/g,"").replace(/^0+/,"").slice(0,7); i.value=d?(Number(d)/100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):""; i.dataset.mexeu="1"; divResto(); divChk(); }));
   $("divRows").querySelectorAll("select").forEach(x=>x.addEventListener("change",()=>{ x.classList.toggle("vazio2",!x.value); divChk(); }));
   divChk(); }
+// quem não teve o valor mexido divide o que sobra do total
+function divResto(){ const c=comDoc(); if(!c) return; const ins=[...$("divRows").querySelectorAll("input.dv")], fixos=ins.filter(i=>i.dataset.mexeu==="1"), livres=ins.filter(i=>i.dataset.mexeu!=="1");
+  if(!livres.length) return; const resto=Math.round((c.valor||0)*100)-fixos.reduce((t,i)=>t+Math.round((money(i.value)||0)*100),0);
+  const base=Math.floor(Math.max(0,resto)/livres.length), sobra=Math.max(0,resto)-base*livres.length;
+  livres.forEach((i,k)=>{ i.value=fmt2((base+(k<sobra?1:0))/100); }); }
 function divPartes(){ return [...$("divRows").querySelectorAll(".divrow")].map(r=>({f:r.querySelector("select").value,v:money(r.querySelector("input").value)||0})); }
 function divChk(){ const c=comDoc(); if(!c) return; const P=divPartes(), soma=Math.round(P.reduce((t,x)=>t+x.v,0)*100)/100, dif=Math.round(((c.valor||0)-soma)*100)/100, ok=Math.abs(dif)<0.005&&P.every(x=>x.f&&x.v>0);
   $("divSoma").innerHTML=Math.abs(dif)<0.005?`Soma das partes: <b>${brl.format(soma)}</b> = total da comanda.`:`<span style="color:var(--neg)">Soma ${brl.format(soma)} · ${dif>0?`faltam ${brl.format(dif)}`:`passou ${brl.format(-dif)}`} para o total de ${brl.format(c.valor||0)}.</span>`;
