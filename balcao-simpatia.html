@@ -108,6 +108,9 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 .divrow input{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;font-family:var(--mono);font-size:18px;text-align:right;width:100%;min-width:0}
 .divrow select{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:16px;width:100%;min-width:0}
 .divrow select.vazio2{border-color:var(--neg)}
+.ptop{font-weight:700;gap:8px}
+.ptop[aria-expanded="true"]{background:rgba(255,255,255,.28)}
+.ptdot{width:9px;height:9px;border-radius:50%;background:#7CE0A3;display:inline-block}
 .toprt{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .admtop{display:flex;align-items:center;gap:8px;background:var(--accent);color:var(--accent-ink);border-radius:12px;padding:6px 6px 6px 12px;font-size:14px}
 .admtop button{border:0;border-radius:9px;padding:8px 12px;font-weight:700;font-size:14px;background:rgba(0,0,0,.18);color:inherit;cursor:pointer}
@@ -133,7 +136,7 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 <header class="top">
   <div class="wrap">
     <div><h1>Balcão Simpatia</h1><div class="dia" id="dia"></div></div>
-    <div class="toprt"><button type="button" class="quem" id="quemBtn"><span class="lbl">No caixa:</span><b id="quemTxt">Entrar</b></button><input id="quem" type="hidden"><span class="admtop" id="admBar" hidden><b>Modo Léo</b><button type="button" id="admSairBtn">Sair</button></span></div>
+    <div class="toprt"><button type="button" class="quem ptop" id="ptTop" aria-expanded="false">Ponto<span class="ptdot" id="ptDot" hidden></span></button><button type="button" class="quem" id="quemBtn"><span class="lbl">No caixa:</span><b id="quemTxt">Entrar</b></button><input id="quem" type="hidden"><span class="admtop" id="admBar" hidden><b>Modo Léo</b><button type="button" id="admSairBtn">Sair</button></span></div>
   </div>
 </header>
 
@@ -156,7 +159,7 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 <main class="wrap">
   <div class="banner" id="status" hidden></div>
 
-  <section class="card ponto" id="ponto">
+  <section class="card ponto" id="ponto" hidden>
     <div class="pthead"><div><h2>Ponto</h2><span class="note" id="ptNome"></span></div><div class="ptbtns" id="ptBtns"></div></div>
     <div class="pthoje" id="ptHoje"></div>
     <div class="note" id="ptMes"></div>
@@ -580,7 +583,8 @@ const jor=i=>JOR[Math.min(i,1)];
 function turnos(k,dia){ const L=ponto.filter(x=>x.k===k&&x.data===dia).sort((a,b)=>a.ts-b.ts); const T=[]; let ab=null;
   for(const x of L){ if(x.tipo==="entrada"){ if(!ab) ab=x; } else if(ab){ T.push([ab.ts,x.ts,T.length]); ab=null; } }
   if(ab) T.push([ab.ts,null,T.length]); return T; }
-function renderPonto(){ const nome=quemNome(), k=pkey(nome);
+$("ptTop").onclick=()=>{ const sec=$("ponto"), abre=sec.hidden; sec.hidden=!abre; $("ptTop").setAttribute("aria-expanded",abre); if(abre) window.scrollTo({top:0,behavior:"smooth"}); };
+function renderPonto(){ const nome=quemNome(), k=pkey(nome); { const T0=k?turnos(k,hoje()):[]; $("ptDot").hidden=!(T0.length&&T0[T0.length-1][1]===null); }
   if(!k){ $("ptNome").textContent="Toque em \"No caixa\" e entre com seu login para bater o ponto."; $("ptBtns").innerHTML=""; $("ptHoje").innerHTML=""; $("ptMes").textContent=""; return; }
   $("ptNome").textContent=nome;
   const T=turnos(k,hoje()), last=T[T.length-1], aberto=last&&last[1]===null, agora=Date.now();
