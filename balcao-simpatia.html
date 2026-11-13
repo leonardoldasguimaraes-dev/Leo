@@ -108,7 +108,9 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 .divrow input{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;font-family:var(--mono);font-size:18px;text-align:right;width:100%;min-width:0}
 .divrow select{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:16px;width:100%;min-width:0}
 .divrow select.vazio2{border-color:var(--neg)}
-.banner.adm{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:color-mix(in srgb,var(--accent) 22%,var(--surface));font-weight:500}
+.toprt{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.admtop{display:flex;align-items:center;gap:8px;background:var(--accent);color:var(--accent-ink);border-radius:12px;padding:6px 6px 6px 12px;font-size:14px}
+.admtop button{border:0;border-radius:9px;padding:8px 12px;font-weight:700;font-size:14px;background:rgba(0,0,0,.18);color:inherit;cursor:pointer}
 .btn.cam{background:color-mix(in srgb,var(--brand) 14%,var(--surface));color:var(--brand)}
 .cambox{display:flex;flex-direction:column;gap:12px}
 .camrow{display:grid;grid-template-columns:1fr 64px 96px 40px;gap:6px;align-items:center;background:var(--sunk);border-radius:12px;padding:6px 8px}
@@ -131,7 +133,7 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 <header class="top">
   <div class="wrap">
     <div><h1>Balcão Simpatia</h1><div class="dia" id="dia"></div></div>
-    <button type="button" class="quem" id="quemBtn"><span class="lbl">No caixa:</span><b id="quemTxt">Entrar</b></button><input id="quem" type="hidden">
+    <div class="toprt"><button type="button" class="quem" id="quemBtn"><span class="lbl">No caixa:</span><b id="quemTxt">Entrar</b></button><input id="quem" type="hidden"><span class="admtop" id="admBar" hidden><b>Modo Léo</b><button type="button" id="admSairBtn">Sair</button></span></div>
   </div>
 </header>
 
@@ -152,7 +154,6 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 </dialog>
 
 <main class="wrap">
-  <div class="banner adm" id="admBar" hidden><span><b>Modo Léo ativo:</b> dá para apagar lançamento, tirar item e reabrir comanda.</span><button type="button" class="btn" id="admSairBtn">Sair do modo Léo</button></div>
   <div class="banner" id="status" hidden></div>
 
   <section class="card ponto" id="ponto">
