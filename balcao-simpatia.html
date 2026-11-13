@@ -28,8 +28,17 @@ h1{font-family:var(--display);font-size:26px;margin:0;letter-spacing:-.01em}
 .dia{font-size:14px;opacity:.8;text-transform:capitalize}
 .quem{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:6px 6px 6px 12px}
 .quem label{font-size:13px;opacity:.8}
-.quem input{background:transparent;border:0;color:var(--brand-ink);font-weight:700;font-size:16px;width:150px;padding:6px 4px;outline:none}
-.quem input::placeholder{color:var(--brand-ink);opacity:.55}
+button.quem{color:var(--brand-ink);cursor:pointer;padding:10px 14px;font-size:16px}
+.quem .lbl{font-size:13px;opacity:.8}
+dialog#login{border:0;border-radius:var(--r);padding:20px;width:min(420px,calc(100vw - 32px));background:var(--surface);color:var(--ink)}
+dialog#login::backdrop{background:rgba(0,0,0,.45)}
+#login h2{font-family:var(--display);margin:0 0 12px;font-size:22px}
+.lglista{display:flex;flex-direction:column;gap:8px}
+.lglista button{text-align:left;display:flex;justify-content:space-between;align-items:center}
+.lglista button[aria-pressed="true"]{outline:3px solid var(--accent)}
+.lglista small{font-weight:400;color:var(--muted);font-size:14px}
+.lgbox{display:flex;flex-direction:column;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.lgrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.lgrow .btn{flex:1}
 main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 .banner{border-radius:12px;padding:12px 14px;background:var(--sunk);font-weight:600}
 .banner.ok{background:color-mix(in srgb,var(--pos) 16%,var(--surface));color:var(--pos)}
@@ -120,9 +129,25 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 <header class="top">
   <div class="wrap">
     <div><h1>Balcão Simpatia</h1><div class="dia" id="dia"></div></div>
-    <div class="quem"><label for="quem">No caixa:</label><input id="quem" placeholder="seu nome" autocomplete="off" maxlength="30"></div>
+    <button type="button" class="quem" id="quemBtn"><span class="lbl">No caixa:</span><b id="quemTxt">Entrar</b></button><input id="quem" type="hidden">
   </div>
 </header>
+
+<dialog id="login">
+  <h2>Quem está no caixa?</h2>
+  <div class="lglista" id="lgLista"></div>
+  <div class="lgbox" id="lgSenhaBox" hidden>
+    <div class="field"><label for="lgSenha">Senha do Leonardo</label><input id="lgSenha" type="password" autocomplete="off"></div>
+    <button type="button" class="btn primary" id="lgEntrar">Entrar</button>
+  </div>
+  <div class="lgbox" id="lgEdit" hidden>
+    <b>Cadastrar nomes (só o Léo)</b>
+    <div class="field"><label for="lgV1">Login 2</label><input id="lgV1" maxlength="24" autocomplete="off"></div>
+    <div class="field"><label for="lgV2">Login 3</label><input id="lgV2" maxlength="24" autocomplete="off"></div>
+    <button type="button" class="btn primary" id="lgSalvar">Salvar nomes</button>
+  </div>
+  <div class="lgrow"><button type="button" class="btn" id="lgSair">Sair do caixa</button><button type="button" class="btn" id="lgFechar">Fechar</button></div>
+</dialog>
 
 <main class="wrap">
   <div class="banner adm" id="admBar" hidden><span><b>Modo Léo ativo:</b> dá para apagar lançamento, tirar item e reabrir comanda.</span><button type="button" class="btn" id="admSairBtn">Sair do modo Léo</button></div>
@@ -298,13 +323,37 @@ function status(msg,kind){ const s=$("status"); s.textContent=msg; s.className="
 function mostraDia(){ $("dia").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"}); }
 mostraDia(); setInterval(mostraDia,60000);
 try{ $("quem").value=localStorage.getItem("quem")||""; }catch{}
-/* modo Léo: digitar "Leonardo@" em No caixa libera apagar, tirar item e reabrir comanda (sai sozinho após 15 min parado) */
+/* login: Leonardo (com senha, entra no modo Léo) e dois logins da equipe com nome cadastrado pelo Léo */
+let logins={v1:"Visitante 1",v2:"Visitante 2"}, lgSel=null;
+const lgNomes=()=>["Leonardo",logins.v1,logins.v2];
+function setQuem(v){ $("quem").value=v; $("quem").dispatchEvent(new Event("input")); }
+function quemTxt(){ $("quemTxt").textContent=quemNome()||"Entrar"; }
+function lgRender(){ const atual=quemNome();
+  $("lgLista").innerHTML=[["leo","Leonardo","pede senha"],["v1",logins.v1,""],["v2",logins.v2,""]].map(([id,n,sub])=>`<button type="button" class="btn" data-lg="${id}" aria-pressed="${lgSel===id}"><span>${esc(n)}${n===atual?" ✓":""}</span><small>${sub}</small></button>`).join("");
+  $("lgSenhaBox").hidden=lgSel!=="leo"; $("lgEdit").hidden=!ADMIN(); $("lgSair").hidden=!atual; }
+function abrirLogin(){ lgSel=null; $("lgSenha").value=""; $("lgV1").value=logins.v1; $("lgV2").value=logins.v2; lgRender(); const d=$("login"); if(!d.open) d.showModal(); }
+$("quemBtn").onclick=abrirLogin;
+$("lgFechar").onclick=()=>$("login").close();
+$("lgSair").onclick=()=>{ setQuem(""); $("login").close(); status("Ninguém no caixa agora.","ok"); };
+$("lgLista").addEventListener("click",e=>{ const b=e.target.closest("[data-lg]"); if(!b) return; const id=b.dataset.lg;
+  if(id==="leo"){ lgSel="leo"; lgRender(); $("lgSenha").focus(); return; }
+  setQuem(logins[id]); $("login").close(); status(`Entrou como ${logins[id]}.`,"ok"); });
+function lgEntrar(){ if($("lgSenha").value.trim().toLowerCase()!=="leonardo@"){ status("Senha errada.","err"); $("lgSenha").value=""; $("lgSenha").focus(); return; }
+  setQuem("Leonardo@"); $("login").close(); status("Entrou como Leonardo, com modo Léo.","ok"); }
+$("lgEntrar").onclick=lgEntrar;
+$("lgSenha").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); lgEntrar(); } });
+$("lgSalvar").onclick=async ()=>{ if(!ADMIN()||!db) return; const v1=$("lgV1").value.trim()||"Visitante 1", v2=$("lgV2").value.trim()||"Visitante 2";
+  if(norm(v1)===norm(v2)||[v1,v2].some(n=>norm(n)==="leonardo")){ status("Use nomes diferentes.","err"); return; }
+  try{ await db.collection("config").doc("logins").set({v1,v2,em:Date.now()}); status("Nomes salvos.","ok"); lgRender(); }catch(err){ status("Não salvou: "+(err?.message||err?.code),"err"); } };
+/* modo Léo: entrar como Leonardo com senha libera apagar, tirar item e reabrir comanda (sai sozinho após 15 min parado) */
 let admTimer=null;
 const ADMIN=()=>$("quem").value.trim().toLowerCase()==="leonardo@";
 const quemNome=()=>$("quem").value.trim().replace(/@+$/,"");
 function admCheck(){ const on=ADMIN(); document.body.classList.toggle("adm",on); $("admBar").hidden=!on; clearTimeout(admTimer); if(on) admTimer=setTimeout(admSair,15*60*1000); if(typeof render==="function"&&db){ render(); renderCom(); } }
 function admSair(){ $("quem").value="Leonardo"; try{ localStorage.setItem("quem","Leonardo"); }catch{} admCheck(); }
 ["click","input","keydown"].forEach(ev=>document.addEventListener(ev,()=>{ if(ADMIN()){ clearTimeout(admTimer); admTimer=setTimeout(admSair,15*60*1000); } },true));
+$("quem").addEventListener("input",quemTxt);
+quemTxt();
 $("quem").addEventListener("input",()=>{ try{ localStorage.setItem("quem",ADMIN()?"Leonardo":$("quem").value.trim()); }catch{} admCheck(); });
 
 function setTipo(t){ tipo=t; document.querySelectorAll(".tipo").forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===t));
@@ -325,7 +374,7 @@ function proxComanda(){ return ""; } // número da comanda sempre digitado à m�
 
 async function lancar(doc,btn){
   const quem=quemNome();
-  if(!quem){ status("Escreva seu nome em \"No caixa\" lá em cima antes de lançar.","err"); $("quem").focus(); return false; }
+  if(!quem){ status("Toque em \"No caixa\" lá em cima e entre com seu login.","err"); abrirLogin(); return false; }
   if(!db){ status("Sem conexão com o app. Confira a internet e abra de novo pelo claude.ai.","err"); return false; }
   btn.disabled=true;
   try{ await db.collection("mov").doc().set({...doc,data:hoje(),quem,criadoEm:Date.now()}); return true; }
@@ -351,7 +400,7 @@ function renderCom(){ const ab=abertas(); $("comAbertasWrap").hidden=!ab.length;
 async function salvaItens(itens){ const c=comDoc(); if(!c) return; const valor=Math.round(itens.reduce((t,x)=>t+x.v,0)*100)/100;
   try{ await db.collection("mov").doc(c.id).update({itens,valor}); }catch(err){ status("Não salvou: "+(err?.message||err?.code),"err"); } }
 $("comAbrirBtn").onclick=async ()=>{ const n=$("comNum").value.replace(/\D/g,""), quem=quemNome();
-  if(!quem){ status("Escreva seu nome em \"No caixa\" lá em cima antes de lançar.","err"); $("quem").focus(); return; }
+  if(!quem){ status("Toque em \"No caixa\" lá em cima e entre com seu login.","err"); abrirLogin(); return; }
   if(!n){ status("Digite o número da comanda.","err"); $("comNum").focus(); return; }
   if(!db){ status("Sem conexão com o app.","err"); return; }
   const num=n.padStart(4,"0"), ja=movs.find(m=>m.tipo==="comanda"&&corDe(m)===cor&&parseInt(m.numero,10)===parseInt(n,10));
@@ -373,7 +422,7 @@ $("camItens").addEventListener("click",e=>{ const b=e.target.closest(".x"); if(b
 $("camCor").addEventListener("click",e=>{ const b=e.target.closest("[data-c]"); if(!b) return; camCor=b.dataset.c; [...$("camCor").children].forEach(x=>x.setAttribute("aria-pressed",x===b)); });
 function camFecha(){ $("camBox").hidden=true; renderCom(); }
 $("camCancel").onclick=camFecha;
-$("camBtn").onclick=()=>{ if(!quemNome()){ status("Escreva seu nome em \"No caixa\" lá em cima antes de lançar.","err"); $("quem").focus(); return; } camAppend=false; $("camIn").value=""; $("camIn").click(); };
+$("camBtn").onclick=()=>{ if(!quemNome()){ status("Toque em \"No caixa\" lá em cima e entre com seu login.","err"); abrirLogin(); return; } camAppend=false; $("camIn").value=""; $("camIn").click(); };
 $("camBtn2").onclick=()=>{ camAppend=true; $("camIn").value=""; $("camIn").click(); };
 $("camIn").addEventListener("change",async ()=>{ const f=$("camIn").files?.[0]; if(!f||!samp) return;
   status("Lendo a comanda… aguarde uns segundos.","");
@@ -526,7 +575,7 @@ function turnos(k,dia){ const L=ponto.filter(x=>x.k===k&&x.data===dia).sort((a,b
   for(const x of L){ if(x.tipo==="entrada"){ if(!ab) ab=x.ts; } else if(ab){ T.push([ab,x.ts]); ab=null; } }
   if(ab) T.push([ab,null]); return T; }
 function renderPonto(){ const nome=quemNome(), k=pkey(nome);
-  if(!k){ $("ptNome").textContent="Escreva seu nome em \"No caixa\" para bater o ponto."; $("ptBtn").disabled=true; $("ptHoje").innerHTML=""; $("ptMes").textContent=""; return; }
+  if(!k){ $("ptNome").textContent="Toque em \"No caixa\" e entre com seu login para bater o ponto."; $("ptBtn").disabled=true; $("ptHoje").innerHTML=""; $("ptMes").textContent=""; return; }
   $("ptBtn").disabled=false; $("ptNome").textContent=nome;
   const T=turnos(k,hoje()), aberto=T.length&&T[T.length-1][1]===null, agora=Date.now();
   $("ptBtn").textContent=aberto?"Registrar saída":"Registrar entrada"; $("ptBtn").classList.toggle("sai",aberto);
@@ -545,6 +594,10 @@ setInterval(renderPonto,60000);
   const timer=setTimeout(()=>{ if(!db) { $("lista").innerHTML=`<div class="vazio">Não consegui conectar. Abra esta página pelo claude.ai, com a conta do bar.</div>`; } },10000);
   try{ db=await window.claude?.use?.("db"); }catch{ db=null; }
   if(!db){ clearTimeout(timer); $("lista").innerHTML=`<div class="vazio">Não consegui conectar. Abra esta página pelo claude.ai, com a conta do bar.</div>`; return; }
+  db.collection("config").onSnapshot(sn=>{ const d=sn.docs.find(x=>x.id==="logins"), v=d?d.data():{};
+    const ant={...logins}; logins={v1:v.v1||"Visitante 1",v2:v.v2||"Visitante 2"};
+    const q=quemNome(); if(q&&q!=="Leonardo"){ if(q===ant.v1&&q!==logins.v1) setQuem(logins.v1); else if(q===ant.v2&&q!==logins.v2) setQuem(logins.v2); else if(!lgNomes().includes(q)) setQuem(""); }
+    if($("login").open) lgRender(); },()=>{});
   db.collection("ponto").onSnapshot(sn=>{ ponto=sn.docs.map(x=>x.data()).filter(x=>x.k&&x.ts&&x.data); renderPonto(); },()=>{});
   db.collection("mov").onSnapshot(sn=>{ clearTimeout(timer); movs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.tipo&&typeof m.data==="string"); render(); renderCom(); if(tipo==="comanda"&&!$("comNum").value) $("comNum").value=proxComanda(); },
     ()=>{ clearTimeout(timer); status("Conexão perdida. Recarregue a página.","err"); });
