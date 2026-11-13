@@ -106,6 +106,13 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 .camrow select,.camrow input{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px;font-size:16px;width:100%;min-width:0}
 .camrow input.q,.camrow input.v{font-family:var(--mono);text-align:right}
 .camrow .x{border:0;background:none;font-size:20px;color:var(--muted)}
+.ponto{gap:10px}
+.pthead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.pthead h2{margin:0}
+.pthoje{display:flex;flex-wrap:wrap;gap:8px}
+.pthoje span{background:var(--sunk);border-radius:999px;padding:6px 12px;font-family:var(--mono);font-size:14px}
+.pthoje span.on{background:color-mix(in srgb,var(--pos) 18%,var(--surface));color:var(--pos);font-weight:700}
+#ptBtn.sai{background:var(--brand);color:var(--brand-ink)}
 .vazio{color:var(--muted);text-align:center;padding:18px 0}
 @media (prefers-reduced-motion:no-preference){.card{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(6px)}}}
 </style>
@@ -120,6 +127,12 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 <main class="wrap">
   <div class="banner adm" id="admBar" hidden><span><b>Modo Léo ativo:</b> dá para apagar lançamento, tirar item e reabrir comanda.</span><button type="button" class="btn" id="admSairBtn">Sair do modo Léo</button></div>
   <div class="banner" id="status" hidden></div>
+
+  <section class="card ponto" id="ponto">
+    <div class="pthead"><div><h2>Ponto</h2><span class="note" id="ptNome"></span></div><button type="button" class="btn primary" id="ptBtn">Registrar entrada</button></div>
+    <div class="pthoje" id="ptHoje"></div>
+    <div class="note" id="ptMes"></div>
+  </section>
 
   <div class="tipos" role="group" aria-label="O que lançar">
     <button type="button" class="tipo" data-t="caderno" aria-pressed="true"><b>Balcão</b><span>Venda no balcão: dinheiro ou cartão</span></button>
@@ -504,10 +517,35 @@ $("lista").addEventListener("click",async e=>{ if(!ADMIN()||!db) return;
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Apagar"; },3000); return; }
   try{ await db.collection("mov").doc(b.dataset.del).delete(); status("Lançamento apagado.","ok"); }catch(err){ status("Não apagou: "+(err?.message||err?.code),"err"); } });
 
+/* ponto: entrada e saída de quem está no caixa; soma as horas do dia e do mês */
+let ponto=[];
+const pkey=n=>norm(String(n||"").replace(/@+$/,"")).trim();
+const hm=ms=>{ const m=Math.round(ms/60000); return `${Math.floor(m/60)}h${String(m%60).padStart(2,"0")}`; };
+const hhmm=t=>{ const d=new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+function turnos(k,dia){ const L=ponto.filter(x=>x.k===k&&x.data===dia).sort((a,b)=>a.ts-b.ts); const T=[]; let ab=null;
+  for(const x of L){ if(x.tipo==="entrada"){ if(!ab) ab=x.ts; } else if(ab){ T.push([ab,x.ts]); ab=null; } }
+  if(ab) T.push([ab,null]); return T; }
+function renderPonto(){ const nome=quemNome(), k=pkey(nome);
+  if(!k){ $("ptNome").textContent="Escreva seu nome em \"No caixa\" para bater o ponto."; $("ptBtn").disabled=true; $("ptHoje").innerHTML=""; $("ptMes").textContent=""; return; }
+  $("ptBtn").disabled=false; $("ptNome").textContent=nome;
+  const T=turnos(k,hoje()), aberto=T.length&&T[T.length-1][1]===null, agora=Date.now();
+  $("ptBtn").textContent=aberto?"Registrar saída":"Registrar entrada"; $("ptBtn").classList.toggle("sai",aberto);
+  const tot=T.reduce((t,[a,b])=>t+((b||agora)-a),0);
+  $("ptHoje").innerHTML=T.length?T.map(([a,b])=>`<span class="${b?"":"on"}">${hhmm(a)} – ${b?hhmm(b):"agora"}</span>`).join("")+`<span><b>Hoje: ${hm(tot)}</b></span>`:`<span>Nenhum registro hoje.</span>`;
+  const mes=hoje().slice(0,7), dias=[...new Set(ponto.filter(x=>x.k===k&&x.data.startsWith(mes)).map(x=>x.data))];
+  const tm=dias.reduce((t,d)=>t+turnos(k,d).reduce((u,[a,b])=>u+((b||(d===hoje()?agora:a))-a),0),0);
+  $("ptMes").textContent=dias.length?`No mês: ${hm(tm)} em ${dias.length} dia(s).`:""; }
+$("ptBtn").onclick=async ()=>{ const nome=quemNome(), k=pkey(nome); if(!k||!db) return;
+  const T=turnos(k,hoje()), aberto=T.length&&T[T.length-1][1]===null, tipo=aberto?"saida":"entrada", b=$("ptBtn"); b.disabled=true;
+  try{ await db.collection("ponto").doc().set({k,nome,tipo,ts:Date.now(),data:hoje()}); status(`${tipo==="entrada"?"Entrada":"Saída"} registrada às ${hhmm(Date.now())}.`,"ok"); }
+  catch(err){ status("Não registrou: "+(err?.message||err?.code),"err"); } finally{ b.disabled=false; } };
+$("quem").addEventListener("input",renderPonto);
+setInterval(renderPonto,60000);
 (async()=>{
   const timer=setTimeout(()=>{ if(!db) { $("lista").innerHTML=`<div class="vazio">Não consegui conectar. Abra esta página pelo claude.ai, com a conta do bar.</div>`; } },10000);
   try{ db=await window.claude?.use?.("db"); }catch{ db=null; }
   if(!db){ clearTimeout(timer); $("lista").innerHTML=`<div class="vazio">Não consegui conectar. Abra esta página pelo claude.ai, com a conta do bar.</div>`; return; }
+  db.collection("ponto").onSnapshot(sn=>{ ponto=sn.docs.map(x=>x.data()).filter(x=>x.k&&x.ts&&x.data); renderPonto(); },()=>{});
   db.collection("mov").onSnapshot(sn=>{ clearTimeout(timer); movs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.tipo&&typeof m.data==="string"); render(); renderCom(); if(tipo==="comanda"&&!$("comNum").value) $("comNum").value=proxComanda(); },
     ()=>{ clearTimeout(timer); status("Conexão perdida. Recarregue a página.","err"); });
 })();
