@@ -137,7 +137,7 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
   <h2>Quem está no caixa?</h2>
   <div class="lglista" id="lgLista"></div>
   <div class="lgbox" id="lgSenhaBox" hidden>
-    <div class="field"><label for="lgSenha">Senha do Leonardo</label><input id="lgSenha" type="password" autocomplete="off"></div>
+    <div class="field"><label for="lgSenha">Senha do Leonardo</label><input id="lgSenha" type="password" inputmode="numeric" autocomplete="off"></div>
     <button type="button" class="btn primary" id="lgEntrar">Entrar</button>
   </div>
   <div class="lgbox" id="lgEdit" hidden>
@@ -338,7 +338,7 @@ $("lgSair").onclick=()=>{ setQuem(""); $("login").close(); status("Ninguém no c
 $("lgLista").addEventListener("click",e=>{ const b=e.target.closest("[data-lg]"); if(!b) return; const id=b.dataset.lg;
   if(id==="leo"){ lgSel="leo"; lgRender(); $("lgSenha").focus(); return; }
   setQuem(logins[id]); $("login").close(); status(`Entrou como ${logins[id]}.`,"ok"); });
-function lgEntrar(){ if($("lgSenha").value.trim().toLowerCase()!=="leonardo@"){ status("Senha errada.","err"); $("lgSenha").value=""; $("lgSenha").focus(); return; }
+function lgEntrar(){ if($("lgSenha").value.trim()!=="1105"){ status("Senha errada.","err"); $("lgSenha").value=""; $("lgSenha").focus(); return; }
   setQuem("Leonardo@"); $("login").close(); status("Entrou como Leonardo, com modo Léo.","ok"); }
 $("lgEntrar").onclick=lgEntrar;
 $("lgSenha").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); lgEntrar(); } });
