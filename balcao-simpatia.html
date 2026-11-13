@@ -100,6 +100,12 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 .divrow select{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:16px;width:100%;min-width:0}
 .divrow select.vazio2{border-color:var(--neg)}
 .banner.adm{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:color-mix(in srgb,var(--accent) 22%,var(--surface));font-weight:500}
+.btn.cam{background:color-mix(in srgb,var(--brand) 14%,var(--surface));color:var(--brand)}
+.cambox{display:flex;flex-direction:column;gap:12px}
+.camrow{display:grid;grid-template-columns:1fr 64px 96px 40px;gap:6px;align-items:center;background:var(--sunk);border-radius:12px;padding:6px 8px}
+.camrow select,.camrow input{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px;font-size:16px;width:100%;min-width:0}
+.camrow input.q,.camrow input.v{font-family:var(--mono);text-align:right}
+.camrow .x{border:0;background:none;font-size:20px;color:var(--muted)}
 .vazio{color:var(--muted);text-align:center;padding:18px 0}
 @media (prefers-reduced-motion:no-preference){.card{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(6px)}}}
 </style>
@@ -155,7 +161,19 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
         <div class="field"><label for="comNum">Número da comanda</label><input id="comNum" class="m" inputmode="numeric" placeholder="digite o número" autocomplete="off"></div>
         <div class="field"><label>&nbsp;</label><button type="button" class="btn primary" id="comAbrirBtn">Abrir comanda</button></div>
       </div>
+      <button type="button" class="btn cam" id="camBtn">📷 Ler comanda pela câmera</button>
+      <input type="file" id="camIn" accept="image/*" capture="environment" hidden>
       <div class="field" id="comAbertasWrap" hidden><label>Comandas abertas (toque para continuar)</label><div class="chips" id="comAbertas"></div></div>
+    </div>
+    <div id="camBox" class="cambox" hidden>
+      <div class="comhead"><b>Conferir leitura</b><button type="button" class="btn" id="camCancel">Cancelar</button></div>
+      <p class="hint" id="camHint">Confira o que eu li. Corrija se precisar e toque em lançar.</p>
+      <div class="chips" id="camCor" role="group" aria-label="Cor"><button type="button" class="chip" data-c="branca">Branca</button><button type="button" class="chip" data-c="amarela">Amarela</button></div>
+      <div class="field"><label for="camNum">Número</label><input id="camNum" class="m" inputmode="numeric" autocomplete="off"></div>
+      <div id="camItens" class="divrows"></div>
+      <div class="comtot"><span>Total lido</span><b id="camTot">R$ 0,00</b></div>
+      <div class="note" id="camObs"></div>
+      <button type="button" class="btn primary" id="camOk">Abrir comanda e lançar itens</button>
     </div>
     <div id="comAberta" hidden>
       <div class="comhead"><b id="comTit">Comanda</b><span style="display:flex;gap:8px"><button type="button" class="btn admonly" id="comCancel">Cancelar comanda</button><button type="button" class="btn" id="comSair">Voltar</button></span></div>
@@ -169,6 +187,7 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
         <div class="sug" id="comSug" hidden></div>
         <div class="qtd" id="comQtd" hidden><span>Quantidade</span><button type="button" class="qb" id="comMenos" aria-label="Diminuir">−</button><b id="comQN">1</b><button type="button" class="qb" id="comMais" aria-label="Aumentar">+</button><span class="note" id="comQUn"></span></div>
         <button class="btn" type="submit" id="comAddBtn">+ Adicionar à comanda</button>
+        <button type="button" class="btn cam" id="camBtn2">📷 Ler itens pela câmera</button>
       </form>
       <div class="fecha">
         <div class="divtog"><button type="button" class="btn" id="divBtn">Dividir a conta</button></div>
@@ -312,7 +331,7 @@ const comDoc=()=>movs.find(m=>m.id===curId);
 const abertas=()=>movs.filter(m=>m.tipo==="comanda"&&m.status==="aberta").sort((a,b)=>(a.criadoEm||0)-(b.criadoEm||0));
 function renderCom(){ const ab=abertas(); $("comAbertasWrap").hidden=!ab.length;
   $("comAbertas").innerHTML=ab.map(m=>`<button type="button" class="chip" data-open="${esc(m.id)}">${COR[corDe(m)]} ${esc(m.numero)} · ${brl.format(m.valor||0)}</button>`).join("");
-  const c=comDoc(); $("comAbrir").hidden=!!c; $("comAberta").hidden=!c; if(!c) return;
+  const c=comDoc(); const cam=!$("camBox").hidden; $("comAbrir").hidden=!!c||cam; $("comAberta").hidden=!c||cam; if(!c) return;
   $("comTit").textContent=`Comanda ${COR[corDe(c)]} ${c.numero}`;
   const it=c.itens||[]; $("comItens").innerHTML=it.length?it.map((x,i)=>`<div class="item" style="grid-template-columns:1fr auto auto"><span class="t">${esc(x.d)}</span><span class="v">${brl.format(x.v)}</span>${ADMIN()?`<button type="button" class="del" data-rmi="${i}" aria-label="Tirar item">Tirar</button>`:"<span></span>"}</div>`).join(""):`<div class="vazio">Nenhum item ainda. Adicione abaixo.</div>`;
   $("comTot").textContent=brl.format(c.valor||0); }
@@ -328,6 +347,56 @@ $("comAbrirBtn").onclick=async ()=>{ const n=$("comNum").value.replace(/\D/g,"")
   const id=`com-${cor}-${num}-${Date.now()}`;
   try{ await db.collection("mov").doc(id).set({tipo:"comanda",cor,numero:num,status:"aberta",itens:[],valor:0,forma:"",nome:"",data:hoje(),quem,criadoEm:Date.now()}); curId=id; divSet(false); renderCom(); $("comDesc").focus(); }
   catch(err){ status("Não abriu: "+(err?.message||err?.code),"err"); } };
+/* ler comanda pela câmera: foto -> Claude lê -> conferir -> lança */
+let samp=null, camCor="branca", camAppend=false;
+(async()=>{ try{ samp=await window.claude?.use?.("sample"); const lim=samp?await samp.limits().catch(()=>null):null; if(!lim?.images){ samp=null; } }catch{ samp=null; } $("camBtn").hidden=!samp; $("camBtn2").hidden=!samp; })();
+function reduz(file){ return new Promise((ok,no)=>{ const img=new Image(); img.onload=()=>{ const M=1600, k=Math.min(1,M/Math.max(img.width,img.height)); const c=document.createElement("canvas"); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext("2d").drawImage(img,0,0,c.width,c.height); c.toBlob(b=>b?ok(b):no(new Error("foto")),"image/jpeg",.85); URL.revokeObjectURL(img.src); }; img.onerror=()=>no(new Error("foto")); img.src=URL.createObjectURL(file); }); }
+const opts=sel=>PRODUTOS.map(([n,p],i)=>`<option value="${i}"${i===sel?" selected":""}>${esc(n)}${p?` · ${brl.format(p)}`:""}</option>`).join("");
+function camRow(i,q,v){ const pr=PRODUTOS[i]?.[1]||0; return `<div class="camrow"><select class="p">${opts(i)}</select><input class="q" inputmode="numeric" value="${q}" aria-label="Quantidade"><input class="v din" inputmode="numeric" value="${fmt2(v??pr*q)}" aria-label="Valor"><button type="button" class="x" aria-label="Tirar">×</button></div>`; }
+function camTot(){ const t=[...$("camItens").querySelectorAll(".camrow")].reduce((a,r)=>a+(money(r.querySelector(".v").value)||0),0); $("camTot").textContent=brl.format(t); }
+$("camItens").addEventListener("change",e=>{ const r=e.target.closest(".camrow"); if(!r) return; if(e.target.matches(".p,.q")){ const i=Number(r.querySelector(".p").value), q=Number(r.querySelector(".q").value.replace(/\D/g,""))||1, pr=PRODUTOS[i]?.[1]||0; if(pr) r.querySelector(".v").value=fmt2(pr*q); } camTot(); });
+$("camItens").addEventListener("input",e=>{ if(e.target.matches(".v")){ const d=e.target.value.replace(/\D/g,"").replace(/^0+/,"").slice(0,7); e.target.value=d?(Number(d)/100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):""; camTot(); } });
+$("camItens").addEventListener("click",e=>{ const b=e.target.closest(".x"); if(b){ b.closest(".camrow").remove(); camTot(); } });
+$("camCor").addEventListener("click",e=>{ const b=e.target.closest("[data-c]"); if(!b) return; camCor=b.dataset.c; [...$("camCor").children].forEach(x=>x.setAttribute("aria-pressed",x===b)); });
+function camFecha(){ $("camBox").hidden=true; renderCom(); }
+$("camCancel").onclick=camFecha;
+$("camBtn").onclick=()=>{ if(!quemNome()){ status("Escreva seu nome em \"No caixa\" lá em cima antes de lançar.","err"); $("quem").focus(); return; } camAppend=false; $("camIn").value=""; $("camIn").click(); };
+$("camBtn2").onclick=()=>{ camAppend=true; $("camIn").value=""; $("camIn").click(); };
+$("camIn").addEventListener("change",async ()=>{ const f=$("camIn").files?.[0]; if(!f||!samp) return;
+  status("Lendo a comanda… aguarde uns segundos.","");
+  try{ const foto=await reduz(f);
+    const lista=PRODUTOS.map(([n,p],i)=>`${i}: ${n}${p?` (R$ ${p})`:""}`).join("\n");
+    const r=await samp.json(`A foto é uma comanda de papel do Bar Simpatia. No topo tem "№" e um número em vermelho. A cor do papel é branca ou amarela (amarelo-claro). Os itens estão escritos à mão; a quantidade costuma vir em risquinhos (| = 1) ou número. Abreviações comuns: BRH/Bhrama = Brahma, ANT/Antártica = Antarctica, litro/lt = litro, latão = lata 473, barril = dose de barril (pinga), c/ limão = 51 com limão. Ignore itens riscados.
+Lista de produtos (use o número da lista):
+${lista}
+Responda só JSON: {"cor":"branca"|"amarela","numero":"0000","itens":[{"i":número da lista,"qtd":n,"texto":"como estava escrito"}],"nome":"nome escrito se tiver","fiado":true|false,"total_escrito":número ou null}. Se um item não estiver na lista, use o índice de "Outros (do restaurante)".`,{images:[foto],modelTier:"default",cache:false});
+    status("","");
+    camCor=r?.cor==="amarela"?"amarela":"branca"; [...$("camCor").children].forEach(x=>x.setAttribute("aria-pressed",x.dataset.c===camCor));
+    $("camNum").value=String(r?.numero||"").replace(/\D/g,"");
+    const its=(r?.itens||[]).filter(x=>PRODUTOS[x.i]);
+    $("camItens").innerHTML=its.map(x=>camRow(Number(x.i),Math.max(1,Number(x.qtd)||1))).join("")||`<div class="vazio">Não consegui ler os itens. Lance à mão.</div>`;
+    camTot();
+    const obs=[]; if(r?.fiado) obs.push(`Fiado${r?.nome?` de ${r.nome}`:""}: feche com a forma "Fiado".`); if(r?.total_escrito) obs.push(`Total escrito no papel: ${brl.format(r.total_escrito)}.`);
+    $("camObs").textContent=obs.join(" ");
+    const c=comDoc(); $("camCor").hidden=$("camNum").parentElement.hidden=camAppend&&!!c;
+    $("camOk").textContent=camAppend&&c?"Adicionar itens à comanda":"Abrir comanda e lançar itens";
+    $("camBox").hidden=false; $("comAbrir").hidden=true; $("comAberta").hidden=true;
+  }catch(err){ status(err?.code==="not_granted"?"Permita o acesso ao Claude para ler a foto.":"Não consegui ler a foto. Tente de novo, com mais luz, ou lance à mão.","err"); }
+});
+$("camOk").onclick=async ()=>{ const rows=[...$("camItens").querySelectorAll(".camrow")].map(r=>{ const i=Number(r.querySelector(".p").value), q=Number(r.querySelector(".q").value.replace(/\D/g,""))||1, v=money(r.querySelector(".v").value)||0; return {d:(q>1?`${q}x `:"")+PRODUTOS[i][0],v}; }).filter(x=>x.v>0);
+  if(!rows.length){ status("Nenhum item com valor para lançar.","err"); return; }
+  const b=$("camOk"); b.disabled=true;
+  try{ let c=comDoc();
+    if(!(camAppend&&c)){ const n=$("camNum").value.replace(/\D/g,""); if(!n){ status("Digite o número da comanda.","err"); return; }
+      cor=camCor; [...$("comCor").children].forEach(x=>x.setAttribute("aria-pressed",x.dataset.c===cor)); $("comNum").value=n;
+      const ja=movs.find(m=>m.tipo==="comanda"&&corDe(m)===cor&&parseInt(m.numero,10)===parseInt(n,10));
+      if(ja&&ja.status!=="aberta"){ status(`A comanda ${COR[cor].toLowerCase()} ${n.padStart(4,"0")} já foi fechada.`,"err"); return; }
+      if(ja) curId=ja.id; else { const id=`com-${cor}-${n.padStart(4,"0")}-${Date.now()}`; await db.collection("mov").doc(id).set({tipo:"comanda",cor,numero:n.padStart(4,"0"),status:"aberta",itens:[],valor:0,forma:"",nome:"",data:hoje(),quem:quemNome(),criadoEm:Date.now(),lidaPorFoto:true}); curId=id; }
+      await new Promise(r=>setTimeout(r,300)); c=comDoc()||{itens:[]}; }
+    const itens=[...(c.itens||[]),...rows]; const valor=Math.round(itens.reduce((t,x)=>t+x.v,0)*100)/100;
+    await db.collection("mov").doc(curId).update({itens,valor});
+    status(`${rows.length} item(ns) lançado(s). Escolha como pagou e feche.`,"ok"); $("camBox").hidden=true; divSet(false); renderCom();
+  }catch(err){ status("Não lançou: "+(err?.message||err?.code),"err"); } finally{ b.disabled=false; } };
 $("comAbertas").addEventListener("click",e=>{ const b=e.target.closest("[data-open]"); if(!b) return; curId=b.dataset.open; divSet(false); renderCom(); });
 $("comSair").onclick=()=>{ if(divOn) divSet(false); curId=null; PK.com.limpa(); $("comNum").value=proxComanda(); renderCom(); };
 $("comAdd").addEventListener("submit",async e=>{ e.preventDefault(); const c=comDoc(); if(!c) return; const v=money($("comVal").value), d=$("comDesc").value.trim();
