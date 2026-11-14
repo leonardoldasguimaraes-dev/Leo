@@ -2247,6 +2247,7 @@ function renderPainel(){ const box=$("pnBody"); if(!box) return;
   const margem=pv?(pv-pc)/pv:null, cmv=margem!=null?1-margem:null;
   const pe=margem?(fixos+outrosVar)/margem:null, falta=pe!=null?Math.max(0,pe-vMes):null;
   const lucroEst=margem!=null?vMes*margem-fixos-outrosVar:null;
+  const lucroPrev=margem!=null&&proj?proj*margem-fixos-outrosVar:null;
   const prox=state.items.filter(it=>it.tipo!=="entrada"&&(it.pago===false||it.pendente)&&it.data<=addDays(hoje,7)).sort((a,b)=>a.data.localeCompare(b.data));
   const venc=prox.filter(it=>it.data<hoje), totProx=prox.reduce((t,it)=>t+it.valor,0);
   let fiaCli=0, fiaFunc=0; try{ for(const c of fClients()){ if(c.saldo>0.009){ if(funcK(c.key)) fiaFunc+=c.saldo; else fiaCli+=c.saldo; } } }catch{}
@@ -2265,7 +2266,7 @@ function renderPainel(){ const box=$("pnBody"); if(!box) return;
       <div class="pnbar" role="img" aria-label="${pct(Math.min(1,vMes/pe))} atingido"><b style="width:${Math.min(100,vMes/pe*100)}%"></b></div>
       <span class="note">${falta>0?`Faltam <b>${brl.format(falta)}</b> (${brl.format(falta/Math.max(1,dias-dia+1))} por dia até o fim do mês).`:"<b>Meta batida:</b> daqui pra frente a margem é lucro."} Contas do mês: ${brl.format(fixos+outrosVar)} (fixos e despesas ${brl.format(fixos)}${outrosVar?`, gelo e outros ${brl.format(outrosVar)}`:""}). Margem média da bebida: ${pct(margem)}.</span></div>`:"")+
     `<div class="pnbig" style="margin-top:10px">`+
-    card("Lucro estimado do mês",lucroEst!=null?brl.format(lucroEst):"—",margem!=null?`vendas × margem ${pct(margem)} − contas`:"cadastre custo e preço dos produtos",lucroEst<0?' style="color:var(--neg)"':' style="color:var(--pos)"')+
+    card("Lucro previsto no fim do mês",lucroPrev!=null?brl.format(lucroPrev):"—",margem!=null?`se as vendas seguirem nesse ritmo · até hoje: ${brl.format(lucroEst)} (as contas do mês já entraram, as vendas ainda não)`:"cadastre custo e preço dos produtos",lucroPrev<0?' style="color:var(--neg)"':' style="color:var(--pos)"')+
     card("CMV (custo da bebida)",cmv!=null?pct(cmv):"—",`compras de bebida no mês: ${brl.format(bebidas)}${vMes?` (${pct(bebidas/vMes)} das vendas)`:""}`)+
     card("Dinheiro com você",brl.format(Math.max(0,mao)),"até o depósito do fim do mês")+
     card("Fiado a receber",brl.format(fiaCli+fiaFunc),`clientes ${brl.format(fiaCli)} · funcionários ${brl.format(fiaFunc)}`,fiaCli+fiaFunc?' style="color:var(--neg)"':"")+
