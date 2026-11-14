@@ -3,11 +3,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
 <style>
-/* Layout: mesma coluna do Financeiro do bar — topo com mês e lucro, abas, faixas de totais e lista; formulários em folha que sobe de baixo. Cor do restaurante: tijolo. */
+/* Layout: mesma coluna do Financeiro do bar — topo com mês e lucro, abas, faixas de totais e lista; formulários em folha que sobe de baixo. Cor do restaurante: bordô. */
 :root{
   --bg:#F5F3F0; --surface:#FFFFFF; --sunk:#ECE8E3; --line:#DDD6CF;
   --ink:#221A17; --muted:#6B605A;
-  --brand:#7A2E22; --brand-ink:#FBF4F1;
+  --brand:#6B1A2B; --brand-ink:#FBF2F4;
   --accent:#C9821A;
   --pos:#1E7F4E; --neg:#B4382F; --din:#1E7F4E; --car:#3D5A99; --pix:#0E8C8C;
   --c1:#8A4FA0; --c2:#C9821A; --c3:#3D5A99; --c4:#B4382F; --c5:#6B605A;
@@ -19,7 +19,7 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#16110F; --surface:#201916; --sunk:#2A211D; --line:#3A2E29;
   --ink:#F0E9E5; --muted:#A89A93;
-  --brand:#8E3A2C; --brand-ink:#FBF1EC;
+  --brand:#7A2236; --brand-ink:#FBEFF2;
   --accent:#E6A23C;
   --pos:#4CC487; --neg:#F07368; --din:#4CC487; --car:#86A3E6; --pix:#4FC9C9;
   --c1:#C996DB; --c2:#E6A23C; --c3:#86A3E6; --c4:#F07368; --c5:#A89A93;
@@ -27,7 +27,7 @@
 :root[data-theme="dark"]{
   --bg:#16110F; --surface:#201916; --sunk:#2A211D; --line:#3A2E29;
   --ink:#F0E9E5; --muted:#A89A93;
-  --brand:#8E3A2C; --brand-ink:#FBF1EC;
+  --brand:#7A2236; --brand-ink:#FBEFF2;
   --accent:#E6A23C;
   --pos:#4CC487; --neg:#F07368; --din:#4CC487; --car:#86A3E6; --pix:#4FC9C9;
   --c1:#C996DB; --c2:#E6A23C; --c3:#86A3E6; --c4:#F07368; --c5:#A89A93;
@@ -137,7 +137,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .actions .r{display:flex;gap:8px;margin-left:auto}
 .msg{font-size:13px;color:var(--muted);min-height:18px}
 
-.scrim{position:fixed;inset:0;background:rgba(18,10,8,.5);z-index:30;display:flex;align-items:flex-end;justify-content:center;overscroll-behavior:contain}
+.scrim{position:fixed;inset:0;background:rgba(20,6,10,.5);z-index:30;display:flex;align-items:flex-end;justify-content:center;overscroll-behavior:contain}
 .sheet{background:var(--surface);width:100%;max-width:560px;max-height:calc(100dvh - 16px);overflow-y:auto;overscroll-behavior:contain;border-radius:18px 18px 0 0;
   padding:18px max(18px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px}
 .sheet>*{flex-shrink:0}
