@@ -128,6 +128,15 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 .pthoje span.on{background:color-mix(in srgb,var(--pos) 18%,var(--surface));color:var(--pos);font-weight:700}
 .ptbtns{display:flex;gap:8px;flex-wrap:wrap}
 body:not(.adm) .fcx{display:none}
+.fcadbusca{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px;width:100%}
+.fcadlist{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:520px;overflow:auto;padding:2px}
+@media (max-width:560px){.fcadlist{grid-template-columns:1fr}}
+.fcadrow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:6px 8px;background:var(--surface)}
+.fcadrow.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+.fcadrow .n{font-size:14px;line-height:1.2}.fcadrow .n small{display:block;color:var(--muted);font-variant-numeric:tabular-nums}
+.fcadrow .q{display:flex;align-items:center;gap:4px}
+.fcadrow .q button{width:38px;height:38px;border-radius:9px;border:1px solid var(--line);background:var(--sunk);font-size:20px;font-weight:700;cursor:pointer}
+.fcadrow .q input{width:48px;height:38px;text-align:center;font-size:18px;font-weight:700;border:1px solid var(--line);border-radius:9px;background:var(--bg)}
 .fcx .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media (max-width:480px){.fcx .grid2{grid-template-columns:1fr}}
 .fcxres{display:flex;flex-direction:column;gap:2px}
@@ -282,6 +291,18 @@ body:not(.adm) .fcx{display:none}
   </form>
 
 
+  <section class="card fcx" id="fcad">
+    <div class="pthead"><h2>Lançar caderno</h2><input type="date" id="fcadData" aria-label="Dia do caderno"></div>
+    <div class="note">Só no modo Léo. Digite quantos risquinhos tem de cada produto (só dinheiro) e salve tudo de uma vez.</div>
+    <input id="fcadBusca" type="search" placeholder="Filtrar: digite parte do nome" autocomplete="off" class="fcadbusca">
+    <div class="fcadlist" id="fcadList"></div>
+    <div class="grid2">
+      <div class="field"><label for="fcadOutD">Outro (o que foi)</label><input id="fcadOutD" placeholder="ex.: copo, gelo avulso" autocomplete="off"></div>
+      <div class="field"><label for="fcadOutV">Valor (R$)</label><input id="fcadOutV" class="m din" inputmode="numeric" placeholder="0,00" autocomplete="off"></div>
+    </div>
+    <div class="ptbtns"><button type="button" class="btn primary" id="fcadSalvar">Salvar caderno</button><button type="button" class="btn" id="fcadLimpar">Limpar</button></div>
+  </section>
+
   <section class="card fcx" id="fcx">
     <div class="pthead"><h2>Fechar caixa</h2><input type="date" id="fcxData" aria-label="Dia do caixa"></div>
     <div class="note">Só no modo Léo. O app soma o que foi lançado; você digita a gaveta e o Sicoob e vê na hora se bateu.</div>
@@ -319,7 +340,7 @@ function money(s){ s=String(s||"").replace(/[^\d,.-]/g,""); if(s.includes(",")) 
 // valor em real: digita só números e a vírgula aparece sozinha (600 vira 6,00)
 document.querySelectorAll("input.din").forEach(i=>{ i.addEventListener("input",()=>{ const d=i.value.replace(/\D/g,"").replace(/^0+/,"").slice(0,7); if(!d){ i.value=""; return; } const n=Number(d)/100; i.value=n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }); });
 // produtos do bar com preço de venda (do app Simpatia Financeiro)
-const PRODUTOS=[["Antarctica litro",13],["Antarctica 600",11],["Antarctica lata 473",10],["Brahma litro",13],["Brahma 600",11],["Brahma lata 473",10],["Skol litro",13],["Skol 600",11],["Budweiser 600",11],["Original 600",13],["Spaten 600",13],["Spaten long neck",10],["Stella Artois 600",13],["Stella Artois long neck",11],["Stella Pure Gold 600",16],["Stella Pure Gold long neck",11],["Corona 600",16],["Heineken 600",16],["Heineken long neck",10],["Heineken Zero long neck",10],["Coca-Cola 200",4],["Coca-Cola Zero 200",4],["Coca-Cola lata 220",5],["Coca-Cola Zero lata 220",5],["Coca-Cola lata 350",8],["Coca-Cola Zero lata 350",8],["Coca-Cola KS 290",7],["Coca-Cola Zero KS 290",7],["Coca-Cola 1L vidro",10],["Coca-Cola Zero 1L",10],["Coca-Cola 2L",16],["Coca-Cola Zero 2L",16],["Guaraná Zero 200",5],["H2OH limão 500",8],["Monster Energy Zero 473",15],["Água sem gás 500",4],["Água com gás 500",5],["Água 1,5L",7],["Suco Del Valle lata",7],["Dose de barril (pinga)",3],["Dose de Salinas",3],["51 com limão (dose)",5],["51 pura (dose)",4],["Catuaba Selvagem (dose 60 ml)",5],["Cabacinha (dose)",5],["Coxinha de frango",3],["Sambiquira",0.50],["Linguiça suína",7],["Bolinho de carne",8],["Língua de boi",10],["Bala",0.30],["Presidente (dose)",5],["Copo de vinho",7],["Cigarro varejo",2],["Fruittella caramelo",4],["Halls Extra Forte",4],["Halls Menta",4],["Halls Morango",4],["Trident Melancia",4],["Trident Hortelã",4],["Trident Menta",4],["Outros (do restaurante)",0]];
+const PRODUTOS=[["Antarctica litro",13],["Antarctica 600",11],["Antarctica lata 473",10],["Brahma litro",13],["Brahma 600",11],["Brahma lata 473",10],["Skol litro",13],["Skol 600",11],["Budweiser 600",11],["Original 600",13],["Spaten 600",13],["Spaten long neck",10],["Stella Artois 600",13],["Stella Artois long neck",11],["Stella Pure Gold 600",16],["Stella Pure Gold long neck",11],["Corona 600",16],["Heineken 600",16],["Heineken long neck",10],["Heineken Zero long neck",10],["Coca-Cola 200",4],["Coca-Cola Zero 200",4],["Coca-Cola lata 220",5],["Coca-Cola Zero lata 220",5],["Coca-Cola lata 350",8],["Coca-Cola Zero lata 350",8],["Coca-Cola KS 290",7],["Coca-Cola Zero KS 290",7],["Coca-Cola 1L vidro",10],["Coca-Cola Zero 1L",10],["Coca-Cola 2L",16],["Coca-Cola Zero 2L",16],["Guaraná Zero 200",5],["H2OH limão 500",8],["Monster Energy Zero 473",15],["Água sem gás 500",4],["Água com gás 500",5],["Água 1,5L",7],["Suco Del Valle lata",7],["Dose de barril (pinga)",3],["Dose de Salinas",3],["51 com limão (dose)",5],["51 pura (dose)",4],["Catuaba Selvagem (dose 60 ml)",5],["Cabacinha (dose)",5],["Coxinha de frango",3],["Sambiquira",0.50],["Linguiça suína",7],["Bolinho de carne",8],["Língua de boi",10],["Bala",0.30],["Presidente (dose)",5],["Copo de vinho",7],["Cigarro varejo",2],["Fruittella caramelo",4],["Halls Extra Forte",4],["Halls Menta",4],["Halls Morango",4],["Trident Melancia",4],["Trident Hortelã",4],["Trident Menta",4],["Espetinho",7],["Amendoim",3],["Mini coxinha",5],["Marlboro",11],["Rothmans",12.50],["Lucky Strike",14.50],["Banheiro",2],["Outros (do restaurante)",0]];
 const norm=x=>String(x).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const fmt2=n=>n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
 let cadF="din";
@@ -594,6 +615,31 @@ $("lista").addEventListener("click",async e=>{ if(!ADMIN()||!db) return;
   const b=e.target.closest("[data-del]"); if(!b) return;
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Apagar"; },3000); return; }
   try{ await db.collection("mov").doc(b.dataset.del).delete(); status("Lançamento apagado.","ok"); }catch(err){ status("Não apagou: "+(err?.message||err?.code),"err"); } });
+
+/* lançar caderno (modo Léo): quantidade de cada produto, salva tudo de uma vez como venda em dinheiro */
+const fcadQ={};
+function fcadRender(){ const q=norm($("fcadBusca").value.trim()), L=PRODUTOS.filter(([n,v])=>v>0&&(!q||norm(n).includes(q)));
+  $("fcadList").innerHTML=L.map(([n,v])=>{ const k=n, qt=fcadQ[k]||0; return `<div class="fcadrow${qt?" on":""}"><span class="n">${esc(n)}<small>${brl.format(v)}${qt?` · ${brl.format(qt*v)}`:""}</small></span><span class="q"><button type="button" data-fm="${esc(k)}" aria-label="Menos ${esc(n)}">−</button><input inputmode="numeric" data-fq="${esc(k)}" value="${qt||""}" aria-label="Quantidade de ${esc(n)}"><button type="button" data-fp="${esc(k)}" aria-label="Mais ${esc(n)}">+</button></span></div>`; }).join("")||`<div class="note">Nenhum produto com esse nome.</div>`;
+  fcadTot(); }
+function fcadTot(){ const it=PRODUTOS.filter(([n])=>fcadQ[n]>0), out=num($("fcadOutV").value)||0, tot=it.reduce((t,[n,v])=>t+fcadQ[n]*v,0)+out, n=it.length+(out>0?1:0);
+  $("fcadSalvar").textContent=n?`Salvar caderno (${n} ${n>1?"itens":"item"} · ${brl.format(tot)})`:"Salvar caderno"; $("fcadSalvar").disabled=!n; }
+$("fcadList").addEventListener("click",e=>{ const m=e.target.closest("[data-fm]"), p=e.target.closest("[data-fp]"); const k=m?.dataset.fm||p?.dataset.fp; if(!k) return;
+  fcadQ[k]=Math.max(0,(fcadQ[k]||0)+(p?1:-1)); const row=e.target.closest(".fcadrow"), inp=row.querySelector("input"); inp.value=fcadQ[k]||""; row.classList.toggle("on",fcadQ[k]>0);
+  const v=PRODUTOS.find(x=>x[0]===k)[1]; row.querySelector("small").textContent=`${brl.format(v)}${fcadQ[k]?` · ${brl.format(fcadQ[k]*v)}`:""}`; fcadTot(); });
+$("fcadList").addEventListener("input",e=>{ const i=e.target.closest("[data-fq]"); if(!i) return; const k=i.dataset.fq; i.value=i.value.replace(/\D/g,"").slice(0,3); fcadQ[k]=Number(i.value)||0;
+  const row=i.closest(".fcadrow"); row.classList.toggle("on",fcadQ[k]>0); const v=PRODUTOS.find(x=>x[0]===k)[1]; row.querySelector("small").textContent=`${brl.format(v)}${fcadQ[k]?` · ${brl.format(fcadQ[k]*v)}`:""}`; fcadTot(); });
+$("fcadBusca").addEventListener("input",fcadRender);
+$("fcadOutV").addEventListener("input",fcadTot);
+$("fcadLimpar").onclick=()=>{ for(const k in fcadQ) delete fcadQ[k]; $("fcadOutD").value=""; $("fcadOutV").value=""; $("fcadBusca").value=""; fcadRender(); };
+$("fcadData").value=hoje();
+$("fcadSalvar").onclick=async ()=>{ if(!ADMIN()||!db) return; const dia=$("fcadData").value||hoje(), b=$("fcadSalvar");
+  const docs=PRODUTOS.filter(([n])=>fcadQ[n]>0).map(([n,v])=>({desc:fcadQ[n]>1?`${fcadQ[n]}x ${n}`:n,valor:Math.round(fcadQ[n]*v*100)/100}));
+  const ov=num($("fcadOutV").value); if(ov>0) docs.push({desc:($("fcadOutD").value.trim()||"Outro").slice(0,80),valor:ov});
+  if(!docs.length) return; const tot=docs.reduce((t,d)=>t+d.valor,0); b.disabled=true; b.textContent="Salvando…"; const t0=Date.now();
+  try{ for(const [i,d] of docs.entries()) await db.collection("mov").doc().set({tipo:"caderno",desc:d.desc,valor:d.valor,forma:"din",data:dia,quem:"Leonardo",criadoEm:t0+i,lote:"caderno"});
+    status(`Caderno de ${dia.slice(8)}/${dia.slice(5,7)} lançado: ${docs.length} item(ns), ${brl.format(tot)} em dinheiro.`,"ok"); $("fcadLimpar").click(); }
+  catch(err){ status("Parou no meio: "+(err?.message||err?.code)+". Confira em Lançado hoje antes de salvar de novo.","err"); fcadTot(); } finally{ b.disabled=false; } };
+setTimeout(fcadRender,0);
 
 /* fechar caixa (modo Léo): soma o lançado no dia e compara com gaveta e Sicoob */
 let fcxDocs={}, fcxTxt="";
