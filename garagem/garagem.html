@@ -120,6 +120,7 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
 .visit li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; }
 .visit li::before { content: ""; width: 14px; height: 14px; margin-top: 4px; border: 2px solid var(--accent); border-radius: 3px; }
 .visit li small { display: block; color: var(--muted); font-size: .84rem; }
+.scan { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px dashed var(--accent); border-radius: 10px; }
 .chip.on { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
 
 /* Sheet */
@@ -401,7 +402,9 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
     const vPlans = plansFor(v.id);
     const chosen = new Set(Array.isArray(r.itens) ? r.itens : preItem ? [preItem] : []);
     const titles = { abastecimento: "Abastecimento", manutencao: "Manutenção", km: "Anotar quilometragem" };
-    let html = '<div class="hint">' + esc(v.nome) + "</div>" + '<div class="grid2">' + F("fData", "Data", r.data || today(), 'type="date"') + F("fKm", "Km no painel", r.km ?? "", 'inputmode="numeric" placeholder="' + nInt.format(currentKm(v, recsFor(v.id))) + '"') + "</div>";
+    const canScan = (tipo === "abastecimento" || tipo === "km") && state.imgOk;
+    const scanHtml = canScan ? '<div class="scan"><button type="button" class="btn primary" id="scanBtn">' + (tipo === "km" ? "Foto do painel" : "Foto da notinha") + '</button><input type="file" id="scanFile" accept="image/*" multiple hidden><div class="hint" id="scanMsg">' + (tipo === "km" ? "Tire uma foto do painel e eu leio a quilometragem." : "Fotografe a notinha (e o painel, se quiser, pode mandar as duas fotos). Eu preencho os campos e você confere antes de salvar.") + "</div></div>" : "";
+    let html = '<div class="hint">' + esc(v.nome) + "</div>" + scanHtml + '<div class="grid2">' + F("fData", "Data", r.data || today(), 'type="date"') + F("fKm", "Km no painel", r.km ?? "", 'inputmode="numeric" placeholder="' + nInt.format(currentKm(v, recsFor(v.id))) + '"') + "</div>";
     if (tipo === "abastecimento") {
       html += '<div class="grid2">' + F("fLitros", "Litros", r.litros ?? "", 'inputmode="decimal"') + F("fPreco", "Preço por litro (R$)", r.precoLitro ?? "", 'inputmode="decimal"') + "</div>" +
         '<div class="grid2">' + F("fTotal", "Total pago (R$)", r.total ?? "", 'inputmode="decimal"') +
@@ -448,6 +451,68 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
       if (chosen.has(id)) chosen.delete(id); else chosen.add(id);
       b.classList.toggle("on", chosen.has(id)); b.setAttribute("aria-pressed", String(chosen.has(id)));
     }));
+    if (canScan) {
+      $("scanBtn").onclick = () => $("scanFile").click();
+      $("scanFile").onchange = () => scanPhotos(tipo, v, [...$("scanFile").files]);
+    }
+  }
+
+  // ---------- read receipts / dashboard from photos ----------
+  async function shrink(file) {
+    try {
+      const bmp = await createImageBitmap(file);
+      const s = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+      c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+      return await new Promise((res) => c.toBlob((b) => res(b || file), "image/jpeg", 0.85));
+    } catch (e) { return file; }
+  }
+  const scanErr = (code) => ({
+    not_granted: "Você não autorizou a leitura de fotos. Preencha os campos à mão.",
+    rate_limited: "Muitas leituras seguidas. Espere um pouco e tente de novo.",
+    image_rejected: "Essa imagem não foi aceita. Tente outra foto.",
+    invalid_json: "Não consegui ler a foto. Tente uma foto mais nítida e de perto.",
+    empty_completion: "Não consegui ler a foto. Tente uma foto mais nítida e de perto.",
+    cancelled: "",
+  }[code] ?? "Não deu para ler agora. Preencha à mão ou tente de novo.");
+
+  async function scanPhotos(tipo, v, files) {
+    if (!files.length) return;
+    const msg = $("scanMsg"), btn = $("scanBtn");
+    btn.disabled = true; msg.textContent = "Lendo a foto… pode levar alguns segundos.";
+    try {
+      const max = Math.min((state.imgLimits && state.imgLimits.maxCount) || 2, 3);
+      const imgs = await Promise.all(files.slice(0, max).map(shrink));
+      const prev = currentKm(v, recsFor(v.id));
+      const prompt =
+        "Você lê fotos de comprovantes de abastecimento (notinha do posto ou comprovante de cartão) e do painel de veículos, no Brasil.\n" +
+        "Veículo: " + v.nome + ". Último hodômetro registrado: " + prev + " km. Hoje é " + today() + ".\n" +
+        'Responda só com um objeto JSON com estes campos, usando null para o que não aparece nas fotos:\n' +
+        '{"data":"AAAA-MM-DD","total":0,"litros":0,"precoLitro":0,"combustivel":"Gasolina","posto":"","km":0,"tanqueCheio":null}\n' +
+        "Regras: valores em reais como número com ponto decimal (R$ 239,46 vira 239.46). Datas no formato dd/mm/aa são deste século. " +
+        '"combustivel" é um de: Gasolina, Gasolina aditivada, Etanol, Diesel (ou null). "posto": nome curto do estabelecimento e a cidade. ' +
+        '"km": hodômetro total do painel, nunca o trip. "tanqueCheio": true só se o marcador de combustível do painel aparecer cheio.';
+      const d = await state.sample.json(prompt, { images: imgs });
+      if (!$("fData") || !d || typeof d !== "object") return;
+      const filled = [];
+      const put = (id, val, label) => { if (val !== null && val !== undefined && val !== "" && $(id)) { $(id).value = val; filled.push(label); } };
+      if (typeof d.data === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d.data)) put("fData", d.data, "data");
+      if (num(d.km) !== null) put("fKm", Math.round(num(d.km)), "km");
+      if (tipo === "abastecimento") {
+        if (num(d.total) !== null) put("fTotal", n2.format(num(d.total)), "total");
+        if (num(d.litros) !== null) put("fLitros", n3.format(num(d.litros)), "litros");
+        if (num(d.precoLitro) !== null) put("fPreco", n3.format(num(d.precoLitro)), "preço");
+        if (d.combustivel && [...$("fComb").options].some((o) => o.value === d.combustivel)) { $("fComb").value = d.combustivel; filled.push("combustível"); }
+        if (typeof d.posto === "string") put("fPosto", d.posto.trim(), "posto");
+        if (typeof d.tanqueCheio === "boolean") $("fCheio").checked = d.tanqueCheio;
+      }
+      msg.textContent = filled.length ? "Li: " + filled.join(", ") + ". Confira e toque em Salvar." : "Não achei os valores na foto. Tente outra foto ou preencha à mão.";
+    } catch (e) {
+      if ($("scanMsg")) msg.textContent = scanErr(e && e.code);
+    } finally {
+      if ($("scanBtn")) { btn.disabled = false; $("scanFile").value = ""; }
+    }
   }
 
   function openVehicle(v) {
@@ -489,7 +554,13 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
 
   // ---------- data ----------
   render();
-  const fail = (msg) => { $("sync").textContent = "Sem conexão"; const n = $("notice"); n.textContent = msg; n.hidden = false; };
+  (async () => {
+    const s = window.claude && window.claude.use ? await window.claude.use("sample") : null;
+    if (!s) return;
+    const lim = await s.limits().catch(() => null);
+    if (lim && lim.images) { state.sample = s; state.imgOk = true; state.imgLimits = lim.images; }
+  })();
+  const fail =(msg) => { $("sync").textContent = "Sem conexão"; const n = $("notice"); n.textContent = msg; n.hidden = false; };
   const timer = setTimeout(() => { if (!state.loaded.v) fail("Os dados estão demorando para carregar. Verifique a internet e abra a página de novo."); }, 10000);
   (async () => {
     const db = window.claude && window.claude.use ? await window.claude.use("db") : null;
