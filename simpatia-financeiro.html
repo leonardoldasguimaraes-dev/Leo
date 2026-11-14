@@ -2276,8 +2276,28 @@ function renderPainel(){ const box=$("pnBody"); if(!box) return;
     `</div>`+
     `<h3 style="margin:16px 0 4px">Contas a pagar nos próximos 7 dias · ${brl.format(totProx)}</h3>`+
     (prox.length?`<div class="pnlist">${prox.map(it=>`<div><span>${it.data<hoje?'<span class="badge b-red">vencida</span> ':""}${esc(it.descricao||it.categoria||"Conta")}</span><span class="num">${ddmm(it.data)} · ${brl.format(it.valor)}</span></div>`).join("")}</div>`:`<div class="note">Nada vencendo nos próximos 7 dias.</div>`)+
-    (venc.length?`<div class="note" style="color:var(--neg)">${venc.length} conta(s) com data passada e sem pagamento confirmado.</div>`:"");
+    (venc.length?`<div class="note" style="color:var(--neg)">${venc.length} conta(s) com data passada e sem pagamento confirmado.</div>`:"")+acertoHtml(ym);
 }
+/* acerto bar × restaurante: tudo que entra na conta vai pro restaurante, que paga as contas do bar */
+function acertoInfo(ym){
+  const ent=state.items.filter(it=>it.tipo==="entrada"&&!it.pendente&&ymOf(it.data)===ym);
+  const cartao=ent.reduce((t,it)=>t+(it.valor-(isDin(it)||0)),0);
+  const entR=entregas.filter(e=>ymOf(e.data)===ym&&(e.destino==="restaurante"||/drielle|restaurante/i.test(e.obs||"")));
+  const dinR=entR.reduce((t,e)=>t+e.valor,0);
+  let retR=0; for(const [d,c] of Object.entries(typeof cxDocs==="object"&&cxDocs?cxDocs:{})) if(ymOf(d)===ym) retR+=(c.retiradas||[]).reduce((t,r)=>t+(Number(r.v)||0),0);
+  const contas=state.items.filter(it=>it.tipo!=="entrada"&&ymOf(dataEf(it))===ym&&it.pagoPor!=="bar");
+  const pagas=contas.filter(it=>conta(it)), abertas=contas.filter(it=>!conta(it));
+  const pagoR=pagas.reduce((t,it)=>t+it.valor,0), abertoR=abertas.reduce((t,it)=>t+it.valor,0);
+  const doBar=state.items.filter(it=>it.tipo!=="entrada"&&ymOf(dataEf(it))===ym&&it.pagoPor==="bar"&&conta(it)).reduce((t,it)=>t+it.valor,0);
+  const recebeu=cartao+dinR+retR, saldo=recebeu-pagoR;
+  return {cartao,dinR,retR,recebeu,pagoR,abertoR,saldo,depois:saldo-abertoR,doBar,pagas,abertas}; }
+function acertoHtml(ym){ const a=acertoInfo(ym), f=brl.format, l=(t,v,c="")=>`<div${c}><span>${t}</span><span class="num">${v}</span></div>`;
+  return `<h3 style="margin:18px 0 4px">Acerto Bar × Restaurante · ${ymLabel(ym,true)}</h3><div class="note">O que o bar vende no cartão e no Pix cai na conta do restaurante, e o restaurante paga as contas do bar.</div><div class="pnlist">`+
+    l("Cartão, Pix e Alelo do bar (caiu na conta do restaurante)",f(a.cartao))+l("Dinheiro do bar entregue ao restaurante",f(a.dinR))+(a.retR?l("Gelo e passagens pagos com a gaveta do bar",f(a.retR)):"")+
+    l("<b>O restaurante recebeu do bar</b>",`<b>${f(a.recebeu)}</b>`)+l(`Contas do bar já pagas pelo restaurante (${a.pagas.length})`,"− "+f(a.pagoR))+
+    l(`<b>${a.saldo>=0?"Restaurante deve ao bar":"Bar deve ao restaurante"}</b>`,`<b style="color:${a.saldo>=0?"var(--pos)":"var(--neg)"}">${f(Math.abs(a.saldo))}</b>`)+
+    (a.abertoR?l(`Contas do bar ainda a pagar pelo restaurante (${a.abertas.length})`,"− "+f(a.abertoR))+l(`<b>Depois de pagar tudo do mês</b>`,`<b style="color:${a.depois>=0?"var(--pos)":"var(--neg)"}">${a.depois>=0?"":"−"}${f(Math.abs(a.depois))}</b>`):"")+
+    (a.doBar?l("Pago direto com dinheiro do bar (não entra no acerto)",f(a.doBar)):"")+`</div>`; }
 
 /* ---------- saldo ---------- */
 let saldo=null;
