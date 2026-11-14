@@ -127,6 +127,14 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 .pthoje span{background:var(--sunk);border-radius:999px;padding:6px 12px;font-family:var(--mono);font-size:14px}
 .pthoje span.on{background:color-mix(in srgb,var(--pos) 18%,var(--surface));color:var(--pos);font-weight:700}
 .ptbtns{display:flex;gap:8px;flex-wrap:wrap}
+body:not(.adm) .fcx{display:none}
+.fcx .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:480px){.fcx .grid2{grid-template-columns:1fr}}
+.fcxres{display:flex;flex-direction:column;gap:2px}
+.fcxres>div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.fcxres>div:first-child{border-top:0}
+.fcxres .ok{color:var(--pos);font-weight:700}.fcxres .bad{color:var(--neg);font-weight:700}
+.fcxres .tot{font-weight:700}
 .ptbtns .sai{background:var(--brand);color:var(--brand-ink)}
 .pthoje span i{font-style:normal;font-family:var(--body);font-weight:700;margin-right:6px}
 .vazio{color:var(--muted);text-align:center;padding:18px 0}
@@ -273,6 +281,21 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
     <button class="btn primary" type="submit">Lançar retirada</button>
   </form>
 
+
+  <section class="card fcx" id="fcx">
+    <div class="pthead"><h2>Fechar caixa</h2><input type="date" id="fcxData" aria-label="Dia do caixa"></div>
+    <div class="note">Só no modo Léo. O app soma o que foi lançado; você digita a gaveta e o Sicoob e vê na hora se bateu.</div>
+    <div class="fcxres" id="fcxLanc"></div>
+    <div class="grid2">
+      <div class="field"><label for="fcxGav">Gaveta (sem o troco)</label><input id="fcxGav" class="m din" inputmode="numeric" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="fcxDeb">Sicoob débito</label><input id="fcxDeb" class="m din" inputmode="numeric" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="fcxCre">Sicoob crédito</label><input id="fcxCre" class="m din" inputmode="numeric" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="fcxPix">Sicoob Pix</label><input id="fcxPix" class="m din" inputmode="numeric" placeholder="0,00" autocomplete="off"></div>
+      <div class="field"><label for="fcxVou">Sicoob voucher</label><input id="fcxVou" class="m din" inputmode="numeric" placeholder="0,00" autocomplete="off"></div>
+    </div>
+    <div class="fcxres" id="fcxConf"></div>
+    <div class="ptbtns"><button type="button" class="btn primary" id="fcxSalvar">Salvar fechamento</button><button type="button" class="btn" id="fcxCopiar">Copiar resumo</button></div>
+  </section>
 
   <section class="card">
     <button type="button" class="lhead" id="lhBtn" aria-expanded="true"><h2 id="listaTit">Lançado hoje</h2><span class="seta" aria-hidden="true"></span></button>
@@ -543,7 +566,7 @@ function setLh(open){ $("lhBody").hidden=!open; $("lhBtn").setAttribute("aria-ex
 $("lhBtn").onclick=()=>setLh($("lhBody").hidden);
 try{ if(localStorage.getItem("lhFechado")==="1") setLh(false); }catch{}
 $("filtro").addEventListener("click",e=>{ const b=e.target.closest("[data-v]"); if(!b) return; filtro=b.dataset.v; [...$("filtro").children].forEach(x=>x.setAttribute("aria-pressed",x===b)); render(); });
-function render(){ const q=$("busca").value.trim(); resumo();
+function render(){ const q=$("busca").value.trim(); resumo(); try{ renderFcx(); }catch(e){ console.error(e); }
   const L=movs.filter(m=>q?bate(m,q):(m.data===hoje()&&(filtro==="tudo"||m.tipo===TIPOF[filtro]))).sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
   $("listaTit").textContent=q?`Busca: ${L.length} resultado(s)`:"Lançado hoje";
   if(!L.length&&q){ $("lista").innerHTML=`<div class="vazio">Nada encontrado para "${esc(q)}".</div>`; return; }
@@ -571,6 +594,40 @@ $("lista").addEventListener("click",async e=>{ if(!ADMIN()||!db) return;
   const b=e.target.closest("[data-del]"); if(!b) return;
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Apagar"; },3000); return; }
   try{ await db.collection("mov").doc(b.dataset.del).delete(); status("Lançamento apagado.","ok"); }catch(err){ status("Não apagou: "+(err?.message||err?.code),"err"); } });
+
+/* fechar caixa (modo Léo): soma o lançado no dia e compara com gaveta e Sicoob */
+let fcxDocs={}, fcxTxt="";
+const num=v=>{ const t=String(v||"").replace(/[^\d,.-]/g,""); if(!t) return null; const n=t.includes(",")?Number(t.replace(/\./g,"").replace(",",".")):Number(t); return isFinite(n)?n:null; };
+function fcxCalc(dia){ const H=movs.filter(m=>m.data===dia);
+  const partes=m=>m.pagamentos?.length?m.pagamentos:[{f:m.forma,v:m.valor||0}];
+  const P=H.filter(m=>m.tipo==="caderno"||(m.tipo==="comanda"&&m.status==="fechada")).flatMap(partes), sp=f=>P.filter(x=>x.f===f).reduce((t,x)=>t+(x.v||0),0);
+  const ret=H.filter(m=>m.tipo==="retirada"), retT=ret.reduce((t,m)=>t+(m.valor||0),0), ab=H.filter(m=>m.tipo==="comanda"&&m.status==="aberta");
+  const c={din:sp("din"),deb:sp("deb"),cre:sp("cre"),pix:sp("pix"),vou:sp("vou"),cart:sp("cart"),ale:sp("ale"),fia:sp("fia"),ret:retT,retL:ret,ab};
+  c.esperado=c.din-c.ret; c.maq=c.deb+c.cre+c.pix+c.vou+c.cart; c.vendido=c.din+c.maq+c.ale; return c; }
+function renderFcx(){ if(!ADMIN()) return; const dia=$("fcxData").value||hoje(), c=fcxCalc(dia), f=brl.format;
+  const linha=(l,v,cl="")=>`<div class="${cl}"><span>${l}</span><span>${v}</span></div>`;
+  $("fcxLanc").innerHTML=linha("Vendido (sem fiado)",f(c.vendido),"tot")+linha("Dinheiro lançado",f(c.din))+linha(`Retiradas${c.retL.length?` (${c.retL.map(m=>(RET[m.ret]||"")+(m.nome?" "+esc(m.nome):"")).join(", ")})`:""}`,"− "+f(c.ret))+linha("Esperado na gaveta",f(c.esperado),"tot")+
+    linha("Débito lançado",f(c.deb))+linha("Crédito lançado",f(c.cre))+linha("Pix lançado",f(c.pix))+(c.vou?linha("Voucher lançado",f(c.vou)):"")+(c.cart?linha("Cartão/Pix (sem detalhe)",f(c.cart)):"")+(c.ale?linha("Alelo (Cielo)",f(c.ale)):"")+(c.fia?linha("Fiado (fora do caixa)",f(c.fia)):"")+
+    (c.ab.length?`<div class="bad"><span>Comandas ainda abertas</span><span>${c.ab.map(m=>`${COR[corDe(m)]} ${esc(m.numero)}`).join(", ")}</span></div>`:"");
+  const g=num($("fcxGav").value), S={deb:num($("fcxDeb").value),cre:num($("fcxCre").value),pix:num($("fcxPix").value),vou:num($("fcxVou").value)};
+  const dif=(real,esp)=>{ const d=Math.round((real-esp)*100)/100; return Math.abs(d)<0.005?`<span class="ok">bateu ✓</span>`:`<span class="${d>0?"ok":"bad"}">${d>0?"sobrou":"faltou"} ${f(Math.abs(d))}</span>`; };
+  let h="", t=[`*Caixa ${dia.slice(8)}/${dia.slice(5,7)}*`,`Vendido: ${f(c.vendido)}`,`Dinheiro: lançado ${f(c.din)} − retiradas ${f(c.ret)} = esperado ${f(c.esperado)}`];
+  if(g!=null){ h+=linha(`Gaveta ${f(g)}`,dif(g,c.esperado)); t.push(`Gaveta ${f(g)}: ${g-c.esperado>=0?"sobrou":"faltou"} ${f(Math.abs(g-c.esperado))}`); }
+  const anyS=Object.values(S).some(v=>v!=null);
+  if(anyS){ const sic=(S.deb||0)+(S.cre||0)+(S.pix||0)+(S.vou||0), lan=c.maq; h+=linha(`Sicoob ${f(sic)} × lançado ${f(lan)}`,dif(sic,lan));
+    for(const [k,l] of [["deb","Débito"],["cre","Crédito"],["pix","Pix"],["vou","Voucher"]]) if(S[k]!=null&&Math.abs(S[k]-c[k])>=0.005) h+=linha(`· ${l}: Sicoob ${f(S[k])} × lançado ${f(c[k])}`,dif(S[k],c[k]));
+    t.push(`Sicoob ${f(sic)} (déb ${f(S.deb||0)}, créd ${f(S.cre||0)}, Pix ${f(S.pix||0)}${S.vou?`, voucher ${f(S.vou)}`:""}) × lançado ${f(lan)}`); }
+  if(c.ale) t.push(`Alelo: ${f(c.ale)}`); if(c.fia) t.push(`Fiado: ${f(c.fia)} (fora do caixa)`); if(c.retL.length) t.push(`Retiradas: ${c.retL.map(m=>`${RET[m.ret]||""} ${m.nome||""} ${f(m.valor)}`.trim()).join("; ")}`); if(c.ab.length) t.push(`Abertas: ${c.ab.map(m=>`${COR[corDe(m)]} ${m.numero}`).join(", ")}`);
+  $("fcxConf").innerHTML=h; fcxTxt=t.join("\n"); }
+function fcxLoad(){ const d=fcxDocs[$("fcxData").value||hoje()]||{}; const fm=v=>v==null?"":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:2});
+  $("fcxGav").value=fm(d.gaveta); $("fcxDeb").value=fm(d.sicoob?.deb); $("fcxCre").value=fm(d.sicoob?.cre); $("fcxPix").value=fm(d.sicoob?.pix); $("fcxVou").value=fm(d.sicoob?.vou); renderFcx(); }
+$("fcxData").value=hoje();
+$("fcxData").addEventListener("change",fcxLoad);
+["fcxGav","fcxDeb","fcxCre","fcxPix","fcxVou"].forEach(id=>$(id).addEventListener("input",renderFcx));
+$("fcxSalvar").onclick=async ()=>{ if(!ADMIN()||!db) return; const dia=$("fcxData").value||hoje(), c=fcxCalc(dia), b=$("fcxSalvar"); b.disabled=true;
+  try{ await db.collection("fechamentos").doc(dia).set({data:dia,gaveta:num($("fcxGav").value),sicoob:{deb:num($("fcxDeb").value),cre:num($("fcxCre").value),pix:num($("fcxPix").value),vou:num($("fcxVou").value)},lancado:{din:c.din,deb:c.deb,cre:c.cre,pix:c.pix,vou:c.vou,cart:c.cart,ale:c.ale,fia:c.fia,ret:c.ret,esperado:c.esperado},resumo:fcxTxt,em:Date.now(),por:"Leonardo"}); status("Fechamento salvo. O Claude passa para o Financeiro.","ok"); }
+  catch(err){ status("Não salvou: "+(err?.message||err?.code),"err"); } finally{ b.disabled=false; } };
+$("fcxCopiar").onclick=async ()=>{ renderFcx(); try{ await navigator.clipboard.writeText(fcxTxt); $("fcxCopiar").textContent="Copiado!"; }catch{ $("fcxCopiar").textContent="Não copiou"; } setTimeout(()=>{ $("fcxCopiar").textContent="Copiar resumo"; },2000); };
 
 /* ponto: entrada e saída de quem está no caixa; soma as horas do dia e do mês */
 let ponto=[];
@@ -609,6 +666,7 @@ setInterval(renderPonto,60000);
     const ant={...logins}; logins={v1:v.v1||"Visitante 1",v2:v.v2||"Visitante 2"};
     const q=quemNome(); if(q&&q!=="Leonardo"){ if(q===ant.v1&&q!==logins.v1) setQuem(logins.v1); else if(q===ant.v2&&q!==logins.v2) setQuem(logins.v2); else if(!lgNomes().includes(q)) setQuem(""); }
     if($("login").open) lgRender(); },()=>{});
+  db.collection("fechamentos").onSnapshot(sn=>{ fcxDocs={}; sn.docs.forEach(x=>{ fcxDocs[x.id]=x.data(); }); if(ADMIN()&&!$("fcxGav").value) fcxLoad(); },()=>{});
   db.collection("ponto").onSnapshot(sn=>{ ponto=sn.docs.map(x=>x.data()).filter(x=>x.k&&x.ts&&x.data); renderPonto(); },()=>{});
   db.collection("mov").onSnapshot(sn=>{ clearTimeout(timer); movs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.tipo&&typeof m.data==="string"); render(); renderCom(); if(tipo==="comanda"&&!$("comNum").value) $("comNum").value=proxComanda(); },
     ()=>{ clearTimeout(timer); status("Conexão perdida. Recarregue a página.","err"); });

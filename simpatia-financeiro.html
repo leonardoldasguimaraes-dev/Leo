@@ -179,6 +179,16 @@ body.est .month, body.est .result, body.est .saldo, body.est .caixa, body.fia .c
 body.fia .month, body.fia .result, body.fia .saldo, body.fia #finMain, body.fia #finFab{display:none}
 body.cx .month, body.cx .result, body.cx .saldo, body.cx .caixa, body.cx #finMain, body.cx #finFab{display:none}
 body:not(.cx) #cxMain{display:none}
+body.pn .month, body.pn .result, body.pn .saldo, body.pn .caixa, body.pn #finMain, body.pn #finFab{display:none}
+body:not(.pn) #pnMain{display:none}
+.pnbig{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pnbig .card{padding:14px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);display:flex;flex-direction:column;gap:4px}
+.pnbig .v{font-family:var(--mono,monospace);font-size:24px;font-weight:700}
+.pnmeta{margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);display:flex;flex-direction:column;gap:6px}
+.pnbar{height:12px;border-radius:999px;background:var(--sunk,#eee);overflow:hidden}.pnbar b{display:block;height:100%;background:var(--pos)}
+.pnlist>div{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.pnlist>div:first-child{border-top:0}
+@media (max-width:520px){.pnbig{grid-template-columns:1fr}}
 #cxMain .grid2{grid-template-columns:1fr 1fr}
 .cxdate{display:flex;gap:8px;align-items:center}
 .cxdate input{flex:1;font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 11px}
@@ -395,6 +405,7 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
       <button class="sbtn" id="saldoBtn">Definir saldo anterior</button>
     </div>
     <nav class="tabs" role="tablist" aria-label="Seções">
+      <button role="tab" id="tabPn" data-tab="pn" aria-selected="false">Painel</button>
       <button role="tab" id="tabFin" data-tab="fin" aria-selected="true">Financeiro</button>
       <button role="tab" id="tabEst" data-tab="est" aria-selected="false">Estoque</button>
       <button role="tab" id="tabCx" data-tab="cx" aria-selected="false">Caixa do dia</button>
@@ -419,6 +430,11 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
     <button type="button" class="btn primary" id="fAvisoFunc" style="align-self:flex-start">Aviso para todos os funcionários</button>
     <div class="list" id="fList"></div>
   </section>
+</main>
+
+<main class="wrap" id="pnMain" style="margin-top:6px">
+  <section class="sec"><div class="sechead"><h2>Como está o bar</h2><span class="note" id="pnData"></span></div>
+    <div id="pnBody"></div></section>
 </main>
 
 <main class="wrap" id="cxMain" style="margin-top:6px">
@@ -1025,7 +1041,7 @@ function render(){
   $("monthLabel").textContent = ymLabel(state.ym);
   const t = totals(state.ym);
   $("resultado").textContent = brl.format(t.resultado);
-  renderSaldo(); renderCaixa();
+  renderSaldo(); renderCaixa(); if(document.body.classList.contains("pn")) try{ renderPainel(); }catch(e){ console.error(e); }
   const sit = t.entrada===0&&t.saidas===0 ? "" : Math.abs(t.resultado)<1 ? "Empatou" : t.resultado>0 ? "Lucro" : "Prejuízo";
   $("margem").textContent = sit ? (t.entrada>0 ? `${sit} · margem ${(t.resultado/t.entrada*100).toLocaleString("pt-BR",{maximumFractionDigits:1})}%` : sit) : "Sem lançamentos";
 
@@ -1950,7 +1966,7 @@ $("fiaGo").onclick=()=>{ try{ history.replaceState(null,"","#fiados"); }catch{} 
 const voltarInicio=()=>{ try{ history.replaceState(null,"","#"); }catch{} setTab("fin"); window.scrollTo({top:0}); };
 $("fiaBack").onclick=voltarInicio; $("fiaBack2").onclick=voltarInicio;
 // abas
-const TAB_HASH={fin:"",est:"#estoque",fia:"#fiados",cx:"#caixa"};
+const TAB_HASH={fin:"",est:"#estoque",fia:"#fiados",cx:"#caixa",pn:"#painel"};
 /* ---------- caixa do dia (rascunho; não lança nada no Financeiro) ---------- */
 let cxDocs={}, cxCur=null, cxDirty=false, cxTimer=null, cxFCad="din", cxFCom="din", cxFRet="pass";
 const CXF={din:"Dinheiro",cart:"Cartão/Pix",ale:"Alelo",fia:"Fiado"};
@@ -2049,8 +2065,8 @@ $("cxData").addEventListener("change",()=>{ if(!$("cxData").value) $("cxData").v
 $("cxPrev").onclick=()=>{ $("cxData").value=addDays($("cxData").value||today(),-1); cxLoad(); };
 $("cxNext").onclick=()=>{ $("cxData").value=addDays($("cxData").value||today(),1); cxLoad(); };
 $("cxCopy").onclick=async ()=>{ const t=cxResumoTxt(); try{ await navigator.clipboard.writeText(t); $("cxCopy").textContent="Copiado!"; }catch{ $("cxCopy").textContent="Não copiou"; } setTimeout(()=>$("cxCopy").textContent="Copiar resumo",2000); };
-function tabFromHash(){ return location.hash==="#estoque"?"est":location.hash==="#fiados"?"fia":location.hash==="#caixa"?"cx":"fin"; }
-function setTab(t){ document.body.classList.toggle("est", t==="est"); document.body.classList.toggle("fia", t==="fia"); document.body.classList.toggle("cx", t==="cx");
+function tabFromHash(){ return location.hash==="#painel"?"pn":location.hash==="#estoque"?"est":location.hash==="#fiados"?"fia":location.hash==="#caixa"?"cx":"fin"; }
+function setTab(t){ document.body.classList.toggle("pn", t==="pn"); $("tabPn").setAttribute("aria-selected", t==="pn"); if(t==="pn") setTimeout(()=>{ try{ renderPainel(); }catch(e){ console.error(e); } },0); document.body.classList.toggle("est", t==="est"); document.body.classList.toggle("fia", t==="fia"); document.body.classList.toggle("cx", t==="cx");
   $("tabFin").setAttribute("aria-selected", t==="fin"); $("tabEst").setAttribute("aria-selected", t==="est"); $("tabCx").setAttribute("aria-selected", t==="cx");
   if(t==="est") renderEstoque(); if(t==="fia") renderFiados(); if(t==="cx") cxLoad(); }
 document.querySelector(".tabs").addEventListener("click", e=>{ const b=e.target.closest("[data-tab]"); if(!b) return; const t=b.dataset.tab; try{ history.replaceState(null,"",TAB_HASH[t]||"#"); }catch{} setTab(t); });
@@ -2213,6 +2229,53 @@ $("entList").addEventListener("click", async e=>{ const b=e.target.closest("[dat
   try{ await db.collection("entregas").doc(b.dataset.entdel).delete(); }catch{} });
 $("entCancel").onclick=()=>{ $("scrim11").hidden=true; };
 $("scrim11").addEventListener("click", e=>{ if(e.target===$("scrim11")) $("scrim11").hidden=true; });
+
+/* ---------- painel: como está o bar (mês atual) ---------- */
+function renderPainel(){ const box=$("pnBody"); if(!box) return;
+  const hoje=today(), ym=ymOf(hoje), dias=new Date(+ym.slice(0,4),+ym.slice(5,7),0).getDate(), dia=+hoje.slice(8);
+  const ent=state.items.filter(it=>it.tipo==="entrada"&&!it.pendente&&ymOf(it.data)===ym);
+  const vMes=ent.reduce((t,it)=>t+it.valor,0), vHoje=ent.filter(it=>it.data===hoje).reduce((t,it)=>t+it.valor,0);
+  const ontem=addDays(hoje,-1), vOntem=state.items.filter(it=>it.tipo==="entrada"&&!it.pendente&&it.data===ontem).reduce((t,it)=>t+it.valor,0);
+  const d7=addDays(hoje,-6), v7=state.items.filter(it=>it.tipo==="entrada"&&!it.pendente&&it.data>=d7&&it.data<=hoje).reduce((t,it)=>t+it.valor,0);
+  const diasVenda=new Set(ent.map(it=>it.data)).size, media=diasVenda?vMes/diasVenda:0, proj=media*dias*(diasVenda/Math.max(1,dia));
+  const saidas=state.items.filter(it=>it.tipo!=="entrada"&&ymOf(it.data)===ym);
+  const soma=(f)=>saidas.filter(f).reduce((t,it)=>t+it.valor,0);
+  const fixos=soma(it=>it.tipo==="fixo"||it.tipo==="despesa"), bebidas=soma(it=>it.tipo==="variavel"&&/bebida|cerveja|destilad/i.test(it.categoria||"")), outrosVar=soma(it=>it.tipo==="variavel")-bebidas;
+  const pagas=saidas.filter(it=>conta(it)).reduce((t,it)=>t+it.valor,0);
+  // margem média da bebida, pesada pelo que mais vende
+  let pv=0, pc=0; for(const p of produtos){ if(!p.precoVenda||!p.custoUnit) continue; const a=analyze(p), w=a.perDay||0; pv+=w*p.precoVenda; pc+=w*p.custoUnit; }
+  const margem=pv?(pv-pc)/pv:null, cmv=margem!=null?1-margem:null;
+  const pe=margem?(fixos+outrosVar)/margem:null, falta=pe!=null?Math.max(0,pe-vMes):null;
+  const lucroEst=margem!=null?vMes*margem-fixos-outrosVar:null;
+  const prox=state.items.filter(it=>it.tipo!=="entrada"&&(it.pago===false||it.pendente)&&it.data<=addDays(hoje,7)).sort((a,b)=>a.data.localeCompare(b.data));
+  const venc=prox.filter(it=>it.data<hoje), totProx=prox.reduce((t,it)=>t+it.valor,0);
+  let fiaCli=0, fiaFunc=0; try{ for(const c of fClients()){ if(c.saldo>0.009){ if(funcK(c.key)) fiaFunc+=c.saldo; else fiaCli+=c.saldo; } } }catch{}
+  const mao=caixaInfo().mao;
+  const A=produtos.map(p=>({p,a:analyze(p)})), estCusto=A.reduce((t,x)=>t+Math.max(0,x.a.st)*(x.p.custoUnit||0),0), pedir=A.filter(x=>x.a.caixas>0).length, vermelho=A.filter(x=>x.a.status==="red").length;
+  const card=(l,v,n="",c="")=>`<div class="card"><span class="label">${l}</span><span class="v"${c}>${v}</span>${n?`<span class="note">${n}</span>`:""}</div>`;
+  const pct=x=>Math.round(x*100)+"%";
+  $("pnData").textContent=`${ymLabel(ym)} · dia ${dia} de ${dias}`;
+  box.innerHTML=`<div class="pnbig">`+
+    card("Vendas de hoje",brl.format(vHoje),`ontem ${brl.format(vOntem)}`)+
+    card("Últimos 7 dias",brl.format(v7),`média ${brl.format(v7/7)} por dia`)+
+    card(`Vendas do mês`,brl.format(vMes),diasVenda?`${diasVenda} dia(s) fechados · média ${brl.format(media)}/dia`:"nenhum caixa fechado ainda")+
+    card("Previsão do mês",proj?brl.format(proj):"—","se continuar nesse ritmo")+
+    `</div>`+
+    (pe!=null?`<div class="pnmeta"><span class="label">Para pagar as contas do mês precisa vender</span><span class="v num" style="font-size:24px;font-weight:700">${brl.format(pe)}</span>
+      <div class="pnbar" role="img" aria-label="${pct(Math.min(1,vMes/pe))} atingido"><b style="width:${Math.min(100,vMes/pe*100)}%"></b></div>
+      <span class="note">${falta>0?`Faltam <b>${brl.format(falta)}</b> (${brl.format(falta/Math.max(1,dias-dia+1))} por dia até o fim do mês).`:"<b>Meta batida:</b> daqui pra frente a margem é lucro."} Contas do mês: ${brl.format(fixos+outrosVar)} (fixos e despesas ${brl.format(fixos)}${outrosVar?`, gelo e outros ${brl.format(outrosVar)}`:""}). Margem média da bebida: ${pct(margem)}.</span></div>`:"")+
+    `<div class="pnbig" style="margin-top:10px">`+
+    card("Lucro estimado do mês",lucroEst!=null?brl.format(lucroEst):"—",margem!=null?`vendas × margem ${pct(margem)} − contas`:"cadastre custo e preço dos produtos",lucroEst<0?' style="color:var(--neg)"':' style="color:var(--pos)"')+
+    card("CMV (custo da bebida)",cmv!=null?pct(cmv):"—",`compras de bebida no mês: ${brl.format(bebidas)}${vMes?` (${pct(bebidas/vMes)} das vendas)`:""}`)+
+    card("Dinheiro com você",brl.format(Math.max(0,mao)),"até o depósito do fim do mês")+
+    card("Fiado a receber",brl.format(fiaCli+fiaFunc),`clientes ${brl.format(fiaCli)} · funcionários ${brl.format(fiaFunc)}`,fiaCli+fiaFunc?' style="color:var(--neg)"':"")+
+    card("Estoque (a custo)",brl.format(estCusto),`${pedir} item(ns) para pedir${vermelho?` · ${vermelho} acabando`:""}`)+
+    card("Pago no mês",brl.format(pagas),`de ${brl.format(saidas.reduce((t,it)=>t+it.valor,0))} em contas lançadas`)+
+    `</div>`+
+    `<h3 style="margin:16px 0 4px">Contas a pagar nos próximos 7 dias · ${brl.format(totProx)}</h3>`+
+    (prox.length?`<div class="pnlist">${prox.map(it=>`<div><span>${it.data<hoje?'<span class="badge b-red">vencida</span> ':""}${esc(it.descricao||it.categoria||"Conta")}</span><span class="num">${ddmm(it.data)} · ${brl.format(it.valor)}</span></div>`).join("")}</div>`:`<div class="note">Nada vencendo nos próximos 7 dias.</div>`)+
+    (venc.length?`<div class="note" style="color:var(--neg)">${venc.length} conta(s) com data passada e sem pagamento confirmado.</div>`:"");
+}
 
 /* ---------- saldo ---------- */
 let saldo=null;
