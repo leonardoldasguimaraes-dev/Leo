@@ -1348,6 +1348,7 @@ function analyze(p){
   return {st, perDay, calc, diasRest, caixas, status, last, n:ms.length, ultVenda, ultDe};
 }
 /* freezers: Original = trabalho, Brahma = reserva gelada, depósito = estoque quente; Coca = freezer próprio */
+let frzTxt="";
 function renderFreezers(){ const box=$("frzBody"); if(!box) return;
   const byId=Object.fromEntries(produtos.map(p=>[p.id,p]));
   const FO=frzCfg?.freezers?.find(f=>/original/i.test(f.nome))?.itens||{}, FB=frzCfg?.freezers?.find(f=>/brahma/i.test(f.nome))?.itens||{};
@@ -1365,10 +1366,14 @@ function renderFreezers(){ const box=$("frzBody"); if(!box) return;
   const tC=cocas.length?`<div class="tblwrap"><table class="vt frz"><thead><tr><th>Freezer da Coca</th><th>No freezer</th><th>Depósito</th><th>Média<br><span class="note">por dia</span></th></tr></thead><tbody>`+
     cocas.map(r=>`<tr><td>${esc(r.p.nome)}</td>${cell(r.inF,r.cap,r.falta)}<td class="num">${r.dep||"—"}</td><td class="num">${fmt(r.a.perDay)}</td></tr>`).join("")+`</tbody></table></div>`:"";
   const ultData=rowsA.find(r=>r.a.ultDe)?.a.last;
-  box.innerHTML=`<div class="note">A venda sai do freezer da <b>Original</b>. O da <b>Brahma</b> é a reserva gelada (só usa se acabar na Original). A reposição vem do <b>depósito</b>. “Repor” = o que saiu desde a contagem anterior${ultData?` (até ${ddmm(ultData)})`:""}. Em vermelho: falta para encher.</div>`+tA+(tC?`<h3 style="margin:6px 0 0">Freezer da Coca</h3>`+tC:"");
+  frzTxt=[`*Freezers e estoque · ${ddmm(today())}*`,...rowsA.filter(r=>r.st>0||r.cO||r.cB).sort((x,y)=>y.st-x.st).map(r=>`${r.p.nome}: total ${r.st} · Original ${r.inO}/${r.cO}${r.fO>0?` (falta ${r.fO})`:""} · Brahma ${r.inB}/${r.cB}${r.cB-r.inB>0?` (falta ${r.cB-r.inB})`:""} · depósito ${r.dep}`),...(cocas.length?["","*Freezer da Coca*",...cocas.map(r=>`${r.p.nome}: ${r.inF}/${r.cap}${r.falta>0?` (falta ${r.falta})`:""} · depósito ${r.dep}`)]:[])].join("\n");
+  box.innerHTML=`<div class="tools" style="justify-content:flex-end"><button type="button" class="btn" id="frzCopy">Copiar relatório</button></div><div class="note">A venda sai do freezer da <b>Original</b>. O da <b>Brahma</b> é a reserva gelada (só usa se acabar na Original). A reposição vem do <b>depósito</b>. “Repor” = o que saiu desde a contagem anterior${ultData?` (até ${ddmm(ultData)})`:""}. Em vermelho: falta para encher.</div>`+tA+(tC?`<h3 style="margin:6px 0 0">Freezer da Coca</h3>`+tC:"");
   const fC=cocas.filter(r=>r.falta>0).length;
   $("frzNote").textContent=`${faltaO?`${faltaO} cerveja(s) faltando na Original`:"Original cheia"}${reporTot?` · repor ${reporTot} do depósito`:""}${fC?` · ${fC} item(ns) faltando na Coca`:""}`;
 }
+$("frzBody").addEventListener("click",async e=>{ const b=e.target.closest("#frzCopy"); if(!b) return; try{ await navigator.clipboard.writeText(frzTxt); b.textContent="Copiado!"; }catch{ b.textContent="Não copiou"; } setTimeout(()=>{ b.textContent="Copiar relatório"; },2000); });
+// depois de dar entrada numa nota: abre o relatório dos freezers (estoque total dividido em Original, Brahma e depósito)
+function mostraFreezers(){ setTab("est"); $("frzBody").hidden=false; $("frzBtn").setAttribute("aria-expanded","true"); try{ localStorage.setItem("frzFechado",""); }catch{} setTimeout(()=>{ renderFreezers(); $("frzBtn").scrollIntoView({behavior:"smooth",block:"start"}); },400); }
 $("frzBtn").onclick=()=>{ const open=$("frzBody").hidden; $("frzBody").hidden=!open; $("frzBtn").setAttribute("aria-expanded",open); try{ localStorage.setItem("frzFechado",open?"":"1"); }catch{} };
 try{ if(localStorage.getItem("frzFechado")==="1"){ $("frzBody").hidden=true; $("frzBtn").setAttribute("aria-expanded","false"); } }catch{}
 function renderEstoque(){ try{ renderFreezers(); }catch(e){ console.error(e); }
@@ -2457,7 +2462,7 @@ $("pendList").addEventListener("click", async e=>{
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Toque de novo para confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Confirmar entrada"; },3000); return; }
   b.disabled=true;
   try{ await db.collection("lancamentos").doc(it.id).update({pendente:false,confirmadoEm:today(),atualizadoEm:Date.now()}); logChange(it.id, it, {...it,pendente:false,confirmadoEm:today()}, "confirmou");
-    let ent=""; if(it.itens?.length){ try{ const r=await entradaNota(it); ent=` ${r.n} bebida(s) entraram no estoque.${r.faltam.length?` ${r.faltam.length} item(ns) sem cadastro: veja no Estoque.`:""}`; }catch(err){ ent=" Não consegui dar entrada no estoque: "+(err?.message||err?.code); } }
+    let ent=""; if(it.itens?.length){ try{ const r=await entradaNota(it); ent=` ${r.n} bebida(s) entraram no estoque.${r.faltam.length?` ${r.faltam.length} item(ns) sem cadastro: veja no Estoque.`:""}${r.n?" Veja abaixo como ficaram os freezers e o depósito.":""}`; if(r.n) mostraFreezers(); }catch(err){ ent=" Não consegui dar entrada no estoque: "+(err?.message||err?.code); } }
     showStatus(`${it.descricao||"Lançamento"} confirmado: ${brl.format(it.valor)} agora conta no balanço de ${ymLabel(ymOf(it.data))}.${ent}`); setTimeout(()=>showStatus(""),7000); }
   catch(err){ b.disabled=false; showStatus("Não foi possível confirmar: "+(err?.message||err?.code),true); }
 });
