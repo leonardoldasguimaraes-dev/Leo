@@ -145,7 +145,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media (min-width:640px){.scrim{align-items:center}.sheet{border-radius:18px}}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .22s ease-out}@keyframes up{from{transform:translateY(24px);opacity:.6}}}
 body.travado{overflow:hidden}
-.clis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.clis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
 @media (max-width:520px){.clis{grid-template-columns:1fr}}
 .cli{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:6px;text-align:left;width:100%}
 .cli:hover{background:var(--sunk)}
@@ -155,7 +155,10 @@ body.travado{overflow:hidden}
 .cli .s{font-size:13px;color:var(--muted)}
 .ok{color:var(--pos)} .warn{color:var(--neg)}
 .convbox{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
-.convrow{display:grid;grid-template-columns:1fr 78px 78px;gap:8px;align-items:center}
+.convrow{display:grid;grid-template-columns:1fr 84px;gap:8px;align-items:center;font-size:14px}
+.convcli{display:flex;flex-direction:column;gap:6px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.convcli:last-of-type{border-bottom:0}
+.convcli>b{font-family:var(--display);font-size:16px}
 .convrow input{font:inherit;font-family:var(--mono);font-size:18px;text-align:center;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 4px;width:100%;min-width:0}
 .convrow.hd span{font-size:12px;color:var(--muted);text-align:center;font-weight:600}
 .convrow b{font-weight:600}
@@ -192,7 +195,7 @@ textarea.conta{font-family:var(--mono);font-size:13px;line-height:1.5;color:var(
 <main class="wrap" id="p-vendas" style="margin-top:4px">
   <div class="tiles" id="vTiles"></div>
   <section class="sec">
-    <div class="sechead"><h2>Floresta e Royal</h2><button type="button" class="btn" id="precoBtn">Preços</button></div>
+    <div class="sechead"><h2>Floresta, Royal e Progecon</h2><button type="button" class="btn" id="precoBtn">Preços</button></div>
     <div class="note">Pagam no fim do mês. Toque no cliente para ver a conta e marcar quando receber.</div>
     <div class="clis" id="convCards"></div>
   </section>
@@ -272,12 +275,7 @@ textarea.conta{font-family:var(--mono);font-size:13px;line-height:1.5;color:var(
     <div class="field"><label for="vCar"><i class="dot" style="background:var(--car)"></i>Cartão (relatório da maquininha)</label><input id="vCar" class="money" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
     <div class="field"><label for="vPix"><i class="dot" style="background:var(--pix)"></i>Pix</label><input id="vPix" class="money" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
     <div class="field"><label for="vMar">Marmitas avulsas (quantidade)</label><input id="vMar" inputmode="numeric" placeholder="0" autocomplete="off" style="font-family:var(--mono);font-size:18px;text-align:right"><span class="hint">Só para contar. O valor delas já está no dinheiro, cartão e Pix.</span></div>
-    <div class="convbox">
-      <div class="convrow hd"><span class="label" style="text-align:left">Floresta e Royal</span><span>Almoço</span><span>Marmita</span></div>
-      <div class="convrow"><b>Floresta</b><input id="vFA" inputmode="numeric" placeholder="0" aria-label="Floresta almoços" autocomplete="off"><input id="vFM" inputmode="numeric" placeholder="0" aria-label="Floresta marmitas" autocomplete="off"></div>
-      <div class="convrow"><b>Royal</b><input id="vRA" inputmode="numeric" placeholder="0" aria-label="Royal almoços" autocomplete="off"><input id="vRM" inputmode="numeric" placeholder="0" aria-label="Royal marmitas" autocomplete="off"></div>
-      <span class="hint note" id="vConvTot"></span>
-    </div>
+    <div class="convbox" id="convBox"></div>
     <div class="vtotal"><span class="label">Recebido no dia</span><span class="num" id="vTot">R$ 0,00</span></div>
     <div class="field"><label for="vObs">Anotação</label><input id="vObs" maxlength="120" autocomplete="off"></div>
     <div class="actions"><button type="button" class="btn danger" id="vDel" hidden>Apagar dia</button><span class="msg" id="vMsg"></span>
@@ -309,13 +307,8 @@ textarea.conta{font-family:var(--mono);font-size:13px;line-height:1.5;color:var(
 <!-- folha: preços Floresta e Royal -->
 <div class="scrim" id="sP" hidden>
   <form class="sheet" id="pForm" novalidate>
-    <h3>Preços do Floresta e do Royal</h3>
-    <div class="grid2">
-      <div class="field"><label for="pFA">Floresta · almoço</label><input id="pFA" class="money" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
-      <div class="field"><label for="pFM">Floresta · marmita</label><input id="pFM" class="money" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
-      <div class="field"><label for="pRA">Royal · almoço</label><input id="pRA" class="money" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
-      <div class="field"><label for="pRM">Royal · marmita</label><input id="pRM" class="money" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
-    </div>
+    <h3>Preços dos clientes do mês</h3>
+    <div class="grid2" id="pFields"></div>
     <div class="note">Os dias já lançados guardam o preço da época. Dias lançados sem preço passam a usar este.</div>
     <div class="actions"><span class="msg" id="pMsg"></span><div class="r"><button type="button" class="btn" data-close>Cancelar</button><button type="submit" class="btn primary">Salvar preços</button></div></div>
   </form>
@@ -346,7 +339,7 @@ const f=v=>brl.format(v||0);
 const pad=n=>String(n).padStart(2,"0");
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;};
 const ymOf=d=>String(d||"").slice(0,7);
-const ymLabel=ym=>{const [y,m]=ym.split("-").map(Number);const t=new Date(y,m-1,1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"});return t;};
+const ymLabel=ym=>{const [y,m]=ym.split("-").map(Number);return new Date(y,m-1,1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"});};
 const shiftYm=(ym,n)=>{const [y,m]=ym.split("-").map(Number);const d=new Date(y,m-1+n,1);return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;};
 const dLabel=d=>{const dt=new Date(d+"T12:00");return dt.toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit"}).replace(".","");};
 const dm=d=>`${d.slice(8)}/${d.slice(5,7)}`;
@@ -366,27 +359,39 @@ const CATS={
   contas:{n:"Contas",s:"Contas",c:"var(--c4)",d:"Qual conta (luz, gás, água…)"},
   outros:{n:"Outros",s:"Outros",c:"var(--c5)",d:"Descrição"}
 };
-const CLI={floresta:"Floresta",royal:"Royal"};
+/* clientes que pagam no fim do mês; t: "alm" = almoço no restaurante, "mar" = marmita entregue */
+const CLIS=[
+  {k:"floresta",n:"Floresta",itens:[{k:"alm",n:"Almoço no restaurante",t:"alm"},{k:"l23",n:"Loja 23 · Depósito Dutra",t:"mar"},{k:"l2",n:"Loja 2 · Amaral Peixoto",t:"mar"}]},
+  {k:"royal",n:"Royal",itens:[{k:"alm",n:"Almoço no restaurante",t:"alm"},{k:"vila",n:"Entrega Vila",t:"mar"},{k:"royale",n:"Entrega Royale",t:"mar"},{k:"cd",n:"Entrega CD",t:"mar"},{k:"r60",n:"Entrega 60",t:"mar"}]},
+  {k:"progecon",n:"Progecon",itens:[{k:"ent",n:"Entrega",t:"mar"}]}
+];
+const CLI=Object.fromEntries(CLIS.map(c=>[c.k,c.n]));
+const CLIBY=Object.fromEntries(CLIS.map(c=>[c.k,c]));
+const temTipo=(k,t)=>CLIBY[k].itens.some(i=>i.t===t);
 const CONV="var(--c1)";
 
 let db=null, canWrite=true;
-const st={ym:ymOf(today()),tab:"vendas",vendas:{},gastos:[],acertos:{},receb:{},precos:{floresta:{almoco:0,marmita:0},royal:{almoco:0,marmita:0}},loaded:false,gFiltro:"todos"};
+const st={ym:ymOf(today()),tab:"vendas",vendas:{},gastos:[],acertos:{},receb:{},precos:Object.fromEntries(CLIS.map(c=>[c.k,{almoco:0,marmita:0}])),loaded:false,gFiltro:"todos"};
 try{const t=localStorage.getItem("rs-tab");if(["vendas","gastos","acerto","mes"].includes(t))st.tab=t;}catch{}
 
 /* ---------- contas ---------- */
-function convDia(v,k){ const c=v[k]; if(!c||!(c.alm||c.mar)) return {alm:0,mar:0,pa:0,pm:0,valor:0,semPreco:false};
+function convDia(v,k){ const c=v.cli?.[k]; const z={q:{},alm:0,mar:0,pa:0,pm:0,valor:0,semPreco:false}; if(!c) return z;
+  let alm=0, mar=0; for(const i of CLIBY[k].itens){ const n=c.q[i.k]||0; if(i.t==="alm") alm+=n; else mar+=n; }
+  if(!(alm||mar)) return z;
   const pa=c.pa||st.precos[k].almoco, pm=c.pm||st.precos[k].marmita;
-  return {alm:c.alm,mar:c.mar,pa,pm,valor:r2(c.alm*pa+c.mar*pm),semPreco:(c.alm&&!pa)||(c.mar&&!pm)}; }
-const diaTot=v=>(v.dinheiro||0)+(v.cartao||0)+(v.pix||0)+Object.keys(CLI).reduce((t,k)=>t+convDia(v,k).valor,0);
+  return {q:c.q,alm,mar,pa,pm,valor:r2(alm*pa+mar*pm),semPreco:!!((alm&&!pa)||(mar&&!pm))}; }
+const convDiaTot=v=>CLIS.reduce((t,c)=>t+convDia(v,c.k).valor,0);
+const diaTot=v=>(v.dinheiro||0)+(v.cartao||0)+(v.pix||0)+convDiaTot(v);
 function calc(ym){
   const vs=Object.values(st.vendas).filter(v=>ymOf(v.data)===ym);
   const din=vs.reduce((t,v)=>t+(v.dinheiro||0),0), car=vs.reduce((t,v)=>t+(v.cartao||0),0), pix=vs.reduce((t,v)=>t+(v.pix||0),0);
   const marmAv=vs.reduce((t,v)=>t+(v.marmitas||0),0);
   const conv={}; let convTot=0, convMar=0;
   const rec=st.receb[ym]||{}; let recDin=0, recConta=0;
-  for(const k in CLI){ const o={alm:0,mar:0,valor:0,semPreco:false,dias:[]};
+  for(const k in CLI){ const o={alm:0,mar:0,valor:0,semPreco:false,dias:[],porItem:{}};
     for(const v of vs.slice().sort((a,b)=>a.data.localeCompare(b.data))){ const c=convDia(v,k); if(!(c.alm||c.mar)) continue;
-      o.alm+=c.alm; o.mar+=c.mar; o.valor+=c.valor; if(c.semPreco) o.semPreco=true; o.dias.push({data:v.data,...c}); }
+      o.alm+=c.alm; o.mar+=c.mar; o.valor+=c.valor; if(c.semPreco) o.semPreco=true; o.dias.push({data:v.data,...c});
+      for(const i in c.q) o.porItem[i]=(o.porItem[i]||0)+(c.q[i]||0); }
     o.valor=r2(o.valor); o.rec=rec[k]&&rec[k].pago?rec[k]:null;
     if(o.rec){ if(o.rec.forma==="dinheiro") recDin+=o.rec.valor; else recConta+=o.rec.valor; }
     conv[k]=o; convTot+=o.valor; convMar+=o.mar; }
@@ -426,12 +431,13 @@ function render(){
 const tile=(lbl,v,cor)=>`<div class="tile"><span class="label">${cor?`<i class="dot" style="background:${cor}"></i>`:""}${lbl}</span><span class="num v">${v}</span></div>`;
 
 function renderVendas(c){
-  $("vTiles").innerHTML=tile("Dinheiro",f(c.din),"var(--din)")+tile("Cartão",f(c.car),"var(--car)")+tile("Pix",f(c.pix),"var(--pix)")+tile("Floresta e Royal",f(c.convTot),CONV);
-  $("convCards").innerHTML=Object.entries(CLI).map(([k,n])=>{const o=c.conv[k], p=st.precos[k];
+  $("vTiles").innerHTML=tile("Dinheiro",f(c.din),"var(--din)")+tile("Cartão",f(c.car),"var(--car)")+tile("Pix",f(c.pix),"var(--pix)")+tile("Clientes do mês",f(c.convTot),CONV);
+  $("convCards").innerHTML=CLIS.map(cl=>{const k=cl.k, o=c.conv[k], p=st.precos[k];
     const status=(o.alm||o.mar)?(o.rec?`<span class="ok">Recebido ${dm(o.rec.data)}</span>`:`<span class="warn">A receber</span>`):"<span>Nada no mês</span>";
-    return `<button type="button" class="cli" data-cli="${k}"><span class="h"><b>${n}</b><span class="s">${status}</span></span>
-      <span class="num v">${f(o.valor)}</span>
-      <span class="s">${o.alm} almoço(s) × ${p.almoco?f(p.almoco):"sem preço"} · ${o.mar} marmita(s) × ${p.marmita?f(p.marmita):"sem preço"}</span>
+    const linhas=cl.itens.filter(i=>o.porItem[i.k]).map(i=>`<span class="s">${esc(i.n)}: <b class="num">${o.porItem[i.k]}</b></span>`).join("");
+    const precos=[temTipo(k,"alm")?`almoço ${p.almoco?f(p.almoco):"sem preço"}`:"",temTipo(k,"mar")?`marmita ${p.marmita?f(p.marmita):"sem preço"}`:""].filter(Boolean).join(" · ");
+    return `<button type="button" class="cli" data-cli="${k}"><span class="h"><b>${cl.n}</b><span class="s">${status}</span></span>
+      <span class="num v">${f(o.valor)}</span>${linhas}<span class="s">Preço: ${precos}</span>
       ${o.semPreco?`<span class="s warn">Falta o preço. Toque em Preços.</span>`:""}</button>`;}).join("");
   const dias=c.vs.slice().sort((a,b)=>b.data.localeCompare(a.data));
   const totMar=c.marmAv+c.convMar;
@@ -439,7 +445,7 @@ function renderVendas(c){
   if(!dias.length){
     $("vList").innerHTML=`<div class="empty"><strong>${st.loaded?"Nenhum dia lançado em "+ymLabel(st.ym):"Carregando…"}</strong>${st.loaded&&canWrite?"Toque em <b>+ Vendas do dia</b> e lance o dinheiro, o cartão, o Pix, as marmitas e o Floresta e o Royal.":""}</div>`;
   } else {
-    $("vList").innerHTML=dias.map(v=>{const cv=Object.entries(CLI).map(([k,n])=>{const x=v[k];return x&&(x.alm||x.mar)?`<span>${n} ${x.alm}A ${x.mar}M</span>`:"";}).join("");
+    $("vList").innerHTML=dias.map(v=>{const cv=CLIS.map(cl=>{const x=convDia(v,cl.k);return x.alm||x.mar?`<span>${cl.n}${x.alm?` ${x.alm} almoço(s)`:""}${x.mar?` ${x.mar} marmita(s)`:""}</span>`:"";}).join("");
       return `<button type="button" class="row" data-v="${v.data}"><span class="stripe" style="background:var(--pos)"></span><span class="main"><span class="t" style="text-transform:capitalize">${dLabel(v.data)}</span>
       <span class="s"><span>Din ${f(v.dinheiro)}</span><span>Cartão ${f(v.cartao)}</span><span>Pix ${f(v.pix)}</span>${v.marmitas?`<span>${v.marmitas} marmita(s)</span>`:""}${cv}${v.obs?`<span>· ${esc(v.obs)}</span>`:""}</span></span><span class="num amt">${f(diaTot(v))}</span></button>`;}).join("");
   }
@@ -449,11 +455,11 @@ function renderVendas(c){
   const mx=Math.max(1,...c.vs.map(diaTot)), sc=v=>v/mx*(H-pt-pb);
   let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Vendas por dia do mês"><line x1="${pl}" x2="${W-pr}" y1="${H-pb}" y2="${H-pb}" stroke="var(--line)"/>`;
   for(let d=1;d<=nd;d++){ const x=pl+(d-1)*bw+bw*.15, w=bw*.7; let yb=H-pb; const v=byDay[d];
-    if(v){ const partes=[[v.dinheiro||0,"var(--din)"],[v.cartao||0,"var(--car)"],[v.pix||0,"var(--pix)"],[convDia(v,"floresta").valor+convDia(v,"royal").valor,CONV]];
+    if(v){ const partes=[[v.dinheiro||0,"var(--din)"],[v.cartao||0,"var(--car)"],[v.pix||0,"var(--pix)"],[convDiaTot(v),CONV]];
       for(const [val,cor] of partes){ const h=sc(val); if(h>0){ yb-=h; s+=`<rect x="${x.toFixed(1)}" y="${yb.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="${cor}"/>`; } } }
     if(d===1||d%5===0||d===nd) s+=`<text x="${(x+w/2).toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="var(--mono)">${d}</text>`; }
   s+=`<text x="${pl}" y="11" font-size="11" fill="var(--muted)" font-family="var(--mono)">máx ${f(mx)}</text></svg>`;
-  $("vChart").innerHTML=s+`<div class="legend"><span><i class="dot" style="background:var(--din)"></i>Dinheiro</span><span><i class="dot" style="background:var(--car)"></i>Cartão</span><span><i class="dot" style="background:var(--pix)"></i>Pix</span><span><i class="dot" style="background:${CONV}"></i>Floresta e Royal</span></div>`;
+  $("vChart").innerHTML=s+`<div class="legend"><span><i class="dot" style="background:var(--din)"></i>Dinheiro</span><span><i class="dot" style="background:var(--car)"></i>Cartão</span><span><i class="dot" style="background:var(--pix)"></i>Pix</span><span><i class="dot" style="background:${CONV}"></i>Floresta, Royal e Progecon</span></div>`;
 }
 
 function renderGastos(c){
@@ -502,17 +508,17 @@ function renderAcerto(c){
 function renderMes(c){
   const l=(t,v,cls="")=>`<div class="${cls}"><span>${t}</span><span class="num">${v}</span></div>`;
   $("mMesLbl").textContent=ymLabel(st.ym);
-  $("mDre").innerHTML=l("<b>Vendas</b>",`<b>${f(c.vendas)}</b>`)+l("Dinheiro",f(c.din),"sub")+l("Cartão",f(c.car),"sub")+l("Pix",f(c.pix),"sub")+l("Floresta e Royal",f(c.convTot),"sub")+
+  $("mDre").innerHTML=l("<b>Vendas</b>",`<b>${f(c.vendas)}</b>`)+l("Dinheiro",f(c.din),"sub")+l("Cartão",f(c.car),"sub")+l("Pix",f(c.pix),"sub")+l("Floresta, Royal e Progecon",f(c.convTot),"sub")+
     l("Funcionários fichados","− "+f(c.porCat.fichado))+l("Freelancers","− "+f(c.porCat.freela))+l("Compras","− "+f(c.porCat.compras))+l("Contas","− "+f(c.porCat.contas))+
     (c.porCat.outros?l("Outros","− "+f(c.porCat.outros)):"")+(c.ac.gaveta?l("Gelo e passagens (gaveta do bar)","− "+f(c.ac.gaveta)):"")+
     `<div class="tot"><span>${c.lucro>=0?"Lucro":"Prejuízo"} do mês</span><span class="num" style="color:${c.lucro>=0?"var(--pos)":"var(--neg)"}">${f(Math.abs(c.lucro))}</span></div>`+
     (c.vendas?l("Margem",`${Math.round(c.lucro/c.vendas*100)}%`,"sub"):"")+
-    ((c.marmAv+c.convMar)?l("Marmitas no mês",`${c.marmAv+c.convMar} (avulsas ${c.marmAv}, Floresta ${c.conv.floresta.mar}, Royal ${c.conv.royal.mar})`,"sub"):"");
+    ((c.marmAv+c.convMar)?l("Marmitas no mês",`${c.marmAv+c.convMar} (avulsas ${c.marmAv}, ${CLIS.map(cl=>`${cl.n} ${c.conv[cl.k].mar}`).join(", ")})`,"sub"):"");
   const mao=c.din+c.ac.repasse+c.recDin-c.gDin, conta=c.car+c.pix+c.recConta-c.gConta;
   const card=(t,v,n)=>`<div class="card"><span class="label">${t}</span><span class="num v" style="color:${v<0?"var(--neg)":"var(--ink)"}">${v<0?"−":""}${f(Math.abs(v))}</span><span class="note">${n}</span></div>`;
-  $("mOnde").innerHTML=card("Dinheiro com a Drielle",mao,`Vendas em dinheiro ${f(c.din)} + repasse do bar ${f(c.ac.repasse)}${c.recDin?` + Floresta/Royal ${f(c.recDin)}`:""} − gastos pagos em dinheiro ${f(c.gDin)}.`)+
-    card("Restaurante na conta",conta,`Cartão e Pix ${f(c.car+c.pix)}${c.recConta?` + Floresta/Royal ${f(c.recConta)}`:""} − gastos pagos pela conta ${f(c.gConta)}. Não inclui o dinheiro do bar.`)+
-    card("A receber do Floresta e Royal",c.aReceber,"Pagam no fim do mês. Marque na aba Vendas quando receber.")+
+  $("mOnde").innerHTML=card("Dinheiro com a Drielle",mao,`Vendas em dinheiro ${f(c.din)} + repasse do bar ${f(c.ac.repasse)}${c.recDin?` + clientes do mês ${f(c.recDin)}`:""} − gastos pagos em dinheiro ${f(c.gDin)}.`)+
+    card("Restaurante na conta",conta,`Cartão e Pix ${f(c.car+c.pix)}${c.recConta?` + clientes do mês ${f(c.recConta)}`:""} − gastos pagos pela conta ${f(c.gConta)}. Não inclui o dinheiro do bar.`)+
+    card("A receber de Floresta, Royal e Progecon",c.aReceber,"Pagam no fim do mês. Marque na aba Vendas quando receber.")+
     card("Boletos a pagar do mês",c.aPagar,"Já contam no lucro. Saem do dinheiro ou da conta quando você marcar pago.");
 }
 
@@ -531,16 +537,18 @@ const armDel=(btn,txt,fn)=>{btn.textContent=txt;btn.dataset.arm="";btn.onclick=(
 const errTxt=err=>err?.message||err?.code||"erro";
 
 /* vendas do dia */
-const V_Q=[["vFA","floresta","alm"],["vFM","floresta","mar"],["vRA","royal","alm"],["vRM","royal","mar"]];
+/* uma linha por local, para cada cliente */
+const V_Q=CLIS.flatMap(c=>c.itens.map(i=>["q-"+c.k+"-"+i.k,c.k,i.k,i.t]));
+$("convBox").innerHTML=CLIS.map(c=>`<div class="convcli"><b>${c.n}</b>${c.itens.map(i=>`<label class="convrow" for="q-${c.k}-${i.k}"><span>${esc(i.n)}</span><input id="q-${c.k}-${i.k}" inputmode="numeric" placeholder="0" autocomplete="off"></label>`).join("")}</div>`).join("")+`<span class="hint note" id="vConvTot"></span>`;
 function defaultVDate(){const t=today();return ymOf(t)===st.ym?t:st.ym+"-01";}
 function fillV(d){const v=st.vendas[d];$("vData").value=d;$("vDin").value=fmtIn(v?.dinheiro);$("vCar").value=fmtIn(v?.cartao);$("vPix").value=fmtIn(v?.pix);$("vMar").value=qIn(v?.marmitas);
-  for(const [id,k,q] of V_Q) $(id).value=qIn(v?.[k]?.[q]);
+  for(const [id,k,ik] of V_Q) $(id).value=qIn(v?.cli?.[k]?.q?.[ik]);
   $("vObs").value=v?.obs||"";
   $("vTitle").textContent=v?"Corrigir vendas do dia":"Vendas do dia";$("vDel").hidden=!v||!canWrite;armDel($("vDel"),"Apagar dia",delV);vTot();}
 function openV(d){if(!canWrite)return;$("vMsg").textContent="";fillV(d||defaultVDate());openSheet("sV");}
 function vTot(){const t=["vDin","vCar","vPix"].reduce((s,id)=>s+(parseV($(id).value)||0),0);$("vTot").textContent=f(t);
-  let cv=0, falta=false; for(const [id,k,q] of V_Q){const n=parseQ($(id).value)||0, p=q==="alm"?st.precos[k].almoco:st.precos[k].marmita; cv+=n*p; if(n&&!p) falta=true;}
-  $("vConvTot").textContent=cv||falta?`A cobrar no fim do mês: ${f(cv)}${falta?" (falta preço)":""}`:"Pagam no fim do mês, pelo preço deles.";}
+  let cv=0, falta=false; for(const [id,k,,t] of V_Q){const n=parseQ($(id).value)||0, p=t==="alm"?st.precos[k].almoco:st.precos[k].marmita; cv+=n*p; if(n&&!p) falta=true;}
+  $("vConvTot").textContent=cv||falta?`A cobrar no fim do mês: ${f(cv)}${falta?" (falta preço)":""}`:"Floresta, Royal e Progecon pagam no fim do mês, pelo preço deles.";}
 ["vDin","vCar","vPix",...V_Q.map(x=>x[0])].forEach(id=>$(id).addEventListener("input",vTot));
 $("vData").addEventListener("change",()=>{if($("vData").value)fillV($("vData").value);});
 $("vList").onclick=e=>{const b=e.target.closest("[data-v]");if(b)openV(b.dataset.v);};
@@ -552,8 +560,9 @@ $("vForm").onsubmit=async e=>{e.preventDefault();
   if(isNaN(mar)||qs.some(isNaN)){$("vMsg").textContent="Quantidade é número inteiro (ex.: 12).";return;}
   if(!db){$("vMsg").textContent="Sem conexão com os dados.";return;}
   const old=st.vendas[d]||{}, doc={data:d,dinheiro:din,cartao:car,pix:pix,marmitas:mar,obs:$("vObs").value.trim().slice(0,120),atualizadoEm:Date.now()};
-  for(const k in CLI){ const alm=qs[V_Q.findIndex(x=>x[1]===k&&x[2]==="alm")], m=qs[V_Q.findIndex(x=>x[1]===k&&x[2]==="mar")];
-    doc[k]={alm,mar:m,pa:old[k]?.pa||st.precos[k].almoco,pm:old[k]?.pm||st.precos[k].marmita}; }
+  doc.cli={};
+  for(const c of CLIS){ const q={}; V_Q.forEach(([,k,ik],i)=>{ if(k===c.k&&qs[i]) q[ik]=qs[i]; });
+    if(Object.keys(q).length) doc.cli[c.k]={q,pa:old.cli?.[c.k]?.pa||st.precos[c.k].almoco,pm:old.cli?.[c.k]?.pm||st.precos[c.k].marmita}; }
   $("vMsg").textContent="Salvando…";
   try{await db.collection("vendas").doc(d).set(doc); closeSheets(); if(ymOf(d)!==st.ym){st.ym=ymOf(d);render();}}
   catch(err){$("vMsg").textContent="Não salvou: "+errTxt(err);}
@@ -561,27 +570,34 @@ $("vForm").onsubmit=async e=>{e.preventDefault();
 async function delV(){const d=$("vData").value;try{await db.collection("vendas").doc(d).delete();closeSheets();}catch(err){$("vMsg").textContent="Não apagou: "+errTxt(err);}}
 
 /* preços */
-$("precoBtn").onclick=()=>{if(!canWrite)return;$("pMsg").textContent="";$("pFA").value=fmtIn(st.precos.floresta.almoco);$("pFM").value=fmtIn(st.precos.floresta.marmita);$("pRA").value=fmtIn(st.precos.royal.almoco);$("pRM").value=fmtIn(st.precos.royal.marmita);openSheet("sP");};
+const P_F=CLIS.flatMap(c=>[...(temTipo(c.k,"alm")?[["p-"+c.k+"-almoco",c.k,"almoco",`${c.n} · almoço`]]:[]),...(temTipo(c.k,"mar")?[["p-"+c.k+"-marmita",c.k,"marmita",`${c.n} · marmita entregue`]]:[])]);
+$("pFields").innerHTML=P_F.map(([id,,,n])=>`<div class="field"><label for="${id}">${n}</label><input id="${id}" class="money" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>`).join("");
+$("precoBtn").onclick=()=>{if(!canWrite)return;$("pMsg").textContent="";for(const [id,k,t] of P_F) $(id).value=fmtIn(st.precos[k][t]);openSheet("sP");};
 $("pForm").onsubmit=async e=>{e.preventDefault();
-  const v=["pFA","pFM","pRA","pRM"].map(id=>parseV($(id).value));
+  const v=P_F.map(([id])=>parseV($(id).value));
   if(v.some(isNaN)){$("pMsg").textContent="Confira os valores (ex.: 18,00).";return;}
   if(!db){$("pMsg").textContent="Sem conexão com os dados.";return;}
   $("pMsg").textContent="Salvando…";
-  try{await db.collection("config").doc("clientes").set({floresta:{almoco:v[0],marmita:v[1]},royal:{almoco:v[2],marmita:v[3]},atualizadoEm:Date.now()});closeSheets();}
+  const doc={atualizadoEm:Date.now()}; for(const c of CLIS) doc[c.k]={almoco:0,marmita:0}; P_F.forEach(([,k,t],i)=>doc[k][t]=v[i]);
+  try{await db.collection("config").doc("clientes").set(doc);closeSheets();}
   catch(err){$("pMsg").textContent="Não salvou: "+errTxt(err);}
 };
 
 /* conta do cliente */
 let cKey=null, cFormaSel="conta";
-function contaTexto(k,c){const o=c.conv[k];
-  const ls=[`Restaurante Simpatia`,`Conta de ${CLI[k]} · ${ymLabel(st.ym)}`,""];
-  for(const d of o.dias) ls.push(`${dm(d.data)}: ${[d.alm?`${d.alm} almoço(s)`:"",d.mar?`${d.mar} marmita(s)`:""].filter(Boolean).join(", ")} = ${f(d.valor)}`);
-  if(!o.dias.length) ls.push("Nenhum almoço ou marmita no mês.");
-  ls.push("",`Almoços: ${o.alm}`,`Marmitas: ${o.mar}`,`Total: ${f(o.valor)}`);
+function contaTexto(k,c){const o=c.conv[k], cl=CLIBY[k], p=st.precos[k];
+  const ls=[`Restaurante Simpatia`,`Conta ${cl.n} · ${ymLabel(st.ym)}`,""];
+  for(const d of o.dias) ls.push(`${dm(d.data)}: ${cl.itens.filter(i=>d.q[i.k]).map(i=>`${i.n} ${d.q[i.k]}`).join(", ")} = ${f(d.valor)}`);
+  if(!o.dias.length) ls.push("Nada no mês.");
+  ls.push("");
+  for(const i of cl.itens) if(o.porItem[i.k]) ls.push(`${i.n}: ${o.porItem[i.k]}`);
+  if(o.alm) ls.push(`Almoços: ${o.alm} × ${f(p.almoco)}`);
+  if(o.mar) ls.push(`Marmitas: ${o.mar} × ${f(p.marmita)}`);
+  ls.push(`Total: ${f(o.valor)}`);
   return ls.join("\n");}
 function setForma(x){cFormaSel=x;$("cForma").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.f===x));}
 function fillC(){const c=calc(st.ym), o=c.conv[cKey];
-  $("cTitle").textContent=`Conta do ${CLI[cKey]} · ${ymLabel(st.ym)}`; $("cText").value=contaTexto(cKey,c);
+  $("cTitle").textContent=`Conta ${CLI[cKey]} · ${ymLabel(st.ym)}`; $("cText").value=contaTexto(cKey,c);
   const pago=!!o.rec; $("cAberto").hidden=pago||!canWrite; $("cRec").hidden=pago||!canWrite||!o.valor; $("cUndo").hidden=!pago||!canWrite;
   $("cPago").hidden=!pago; if(pago) $("cPago").textContent=`Recebido em ${dm(o.rec.data)} · ${f(o.rec.valor)} · ${o.rec.forma==="dinheiro"?"em dinheiro":"na conta"}`;}
 $("convCards").onclick=e=>{const b=e.target.closest("[data-cli]");if(!b)return;cKey=b.dataset.cli;$("cMsg").textContent="";$("cCopyMsg").textContent="";$("cData").value=today();setForma("conta");fillC();openSheet("sC");};
@@ -659,8 +675,8 @@ render();
   if(!canWrite) showStatus("Seu acesso é só para ver. Peça ao Léo acesso para lançar.");
   const timer=setTimeout(()=>showStatus("Ainda buscando os lançamentos. Verifique a internet."),10000);
   const int=v=>Number.isInteger(v)&&v>0?v:0;
-  const cv=o=>({alm:int(o?.alm),mar:int(o?.mar),pa:num(o?.pa),pm:num(o?.pm)});
-  db.collection("vendas").onSnapshot(sn=>{const m={};sn.docs.forEach(x=>{const v=x.data();if(/^\d{4}-\d{2}-\d{2}$/.test(v.data||""))m[v.data]={data:v.data,dinheiro:num(v.dinheiro),cartao:num(v.cartao),pix:num(v.pix),marmitas:int(v.marmitas),floresta:cv(v.floresta),royal:cv(v.royal),obs:v.obs||""};});
+  const cv=c=>{const o={};for(const cl of CLIS){const x=c?.[cl.k];if(!x||typeof x.q!=="object")continue;const q={};for(const i of cl.itens)if(int(x.q[i.k]))q[i.k]=int(x.q[i.k]);o[cl.k]={q,pa:num(x.pa),pm:num(x.pm)};}return o;};
+  db.collection("vendas").onSnapshot(sn=>{const m={};sn.docs.forEach(x=>{const v=x.data();if(/^\d{4}-\d{2}-\d{2}$/.test(v.data||""))m[v.data]={data:v.data,dinheiro:num(v.dinheiro),cartao:num(v.cartao),pix:num(v.pix),marmitas:int(v.marmitas),cli:cv(v.cli),obs:v.obs||""};});
     st.vendas=m;st.loaded=true;clearTimeout(timer);if($("status").textContent.startsWith("Ainda buscando"))showStatus("");render();},
     ()=>{clearTimeout(timer);st.loaded=true;render();showStatus("Conexão com os dados perdida. Recarregue a página.",true);});
   db.collection("gastos").onSnapshot(sn=>{st.gastos=sn.docs.map(x=>({id:x.id,...x.data()})).filter(g=>typeof g.valor==="number"&&/^\d{4}-\d{2}-\d{2}$/.test(g.data||""));render();},()=>{});
