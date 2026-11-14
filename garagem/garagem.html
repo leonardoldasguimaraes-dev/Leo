@@ -226,6 +226,8 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
     const x = parseFloat(s);
     return isFinite(x) ? x : null;
   };
+  // Km is always a whole number: "222.652", "222,652" and "222 652" all mean 222652.
+  const kmNum = (v) => { const d = String(v ?? "").replace(/\D/g, ""); return d ? parseInt(d, 10) : null; };
   const today = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
   const fmtDate = (s) => { if (!s) return "—"; const [y, m, d] = s.split("-"); return d + "/" + m + "/" + y; };
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -404,7 +406,7 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
     const titles = { abastecimento: "Abastecimento", manutencao: "Manutenção", km: "Anotar quilometragem" };
     const canScan = (tipo === "abastecimento" || tipo === "km") && state.imgOk;
     const scanHtml = canScan ? '<div class="scan"><button type="button" class="btn primary" id="scanBtn">' + (tipo === "km" ? "Foto do painel" : "Foto da notinha") + '</button><input type="file" id="scanFile" accept="image/*" multiple hidden><div class="hint" id="scanMsg">' + (tipo === "km" ? "Tire uma foto do painel e eu leio a quilometragem." : "Fotografe a notinha (e o painel, se quiser, pode mandar as duas fotos). Eu preencho os campos e você confere antes de salvar.") + "</div></div>" : "";
-    let html = '<div class="hint">' + esc(v.nome) + "</div>" + scanHtml + '<div class="grid2">' + F("fData", "Data", r.data || today(), 'type="date"') + F("fKm", "Km no painel", r.km ?? "", 'inputmode="numeric" placeholder="' + nInt.format(currentKm(v, recsFor(v.id))) + '"') + "</div>";
+    let html = '<div class="hint">' + esc(v.nome) + "</div>" + scanHtml + '<div class="grid2">' + F("fData", "Data", r.data || today(), 'type="date"') + F("fKm", "Km no painel", r.km ?? "", 'type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="digite o km"') + "</div>" + '<div class="hint">Último km registrado: ' + nInt.format(currentKm(v, recsFor(v.id))) + " km. Pode digitar com ou sem ponto.</div>";
     if (tipo === "abastecimento") {
       html += '<div class="grid2">' + F("fLitros", "Litros", r.litros ?? "", 'inputmode="decimal"') + F("fPreco", "Preço por litro (R$)", r.precoLitro ?? "", 'inputmode="decimal"') + "</div>" +
         '<div class="grid2">' + F("fTotal", "Total pago (R$)", r.total ?? "", 'inputmode="decimal"') +
@@ -425,7 +427,7 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
       html += '<div class="field"><label for="fObs">Observação</label><textarea id="fObs" rows="2">' + esc(r.obs || "") + "</textarea></div>";
     }
     openSheet(titles[tipo] + (rec ? " (editar)" : ""), html, async () => {
-      const data = { veiculo: v.id, tipo, data: $("fData").value || today(), km: num($("fKm").value) };
+      const data = { veiculo: v.id, tipo, data: $("fData").value || today(), km: kmNum($("fKm").value) };
       if (tipo === "km" && data.km === null) throw new Error("Informe a quilometragem do painel.");
       if (tipo === "abastecimento") {
         let L = num($("fLitros").value), p = num($("fPreco").value), t = num($("fTotal").value);
@@ -439,7 +441,7 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
         const itens = [...chosen];
         if (!s && itens.length) s = itens.map((id) => (vPlans.find((p) => p.id === id) || {}).nome).filter(Boolean).join(" + ");
         if (!s) throw new Error("Diga qual serviço foi feito.");
-        Object.assign(data, { servico: s, itens, valor: num($("fValor").value), proximaKm: num($("fProx").value), oficina: $("fOfic").value.trim(), obs: $("fObs").value.trim() });
+        Object.assign(data, { servico: s, itens, valor: num($("fValor").value), proximaKm: kmNum($("fProx").value), oficina: $("fOfic").value.trim(), obs: $("fObs").value.trim() });
       } else { data.obs = $("fObs").value.trim(); }
       const col = state.db.collection("registros");
       if (rec) { await col.doc(rec.id).set({ ...data, criadoEm: rec.criadoEm || Date.now() }); toast("Registro atualizado"); }
@@ -520,7 +522,7 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-sp
       F("fKmIni", "Km inicial (antes dos registros)", v.kmInicial ?? "", 'inputmode="numeric"');
     openSheet("Editar veículo", html, async () => {
       const nome = $("fNome").value.trim(); if (!nome) throw new Error("O veículo precisa de um nome.");
-      await state.db.collection("veiculos").doc(v.id).update({ nome, apelido: $("fApel").value.trim(), placa: $("fPlaca").value.trim().toUpperCase(), kmInicial: num($("fKmIni").value) });
+      await state.db.collection("veiculos").doc(v.id).update({ nome, apelido: $("fApel").value.trim(), placa: $("fPlaca").value.trim().toUpperCase(), kmInicial: kmNum($("fKmIni").value) });
       toast("Veículo atualizado");
     }, null);
   }
