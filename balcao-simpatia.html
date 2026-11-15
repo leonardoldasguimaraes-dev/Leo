@@ -154,7 +154,7 @@ body:not(.adm) .fcx{display:none}
 <header class="top">
   <div class="wrap">
     <div><h1>Balcão Simpatia</h1><div class="dia" id="dia"></div></div>
-    <div class="toprt"><button type="button" class="quem ptop" id="ptTop" aria-expanded="false">Ponto<span class="ptdot" id="ptDot" hidden></span></button><button type="button" class="quem" id="quemBtn"><span class="lbl">No caixa:</span><b id="quemTxt">Entrar</b></button><input id="quem" type="hidden"><span class="admtop" id="admBar" hidden><b>Modo Léo</b><input type="date" id="diaSel" aria-label="Dia de trabalho" title="Dia em que os lançamentos entram"><button type="button" id="admSairBtn">Sair</button></span></div>
+    <div class="toprt"><button type="button" class="quem ptop" id="ptTop" aria-expanded="false">Ponto<span class="ptdot" id="ptDot" hidden></span></button><button type="button" class="quem" id="quemBtn"><span class="lbl">No caixa:</span><b id="quemTxt">Entrar</b></button><input id="quem" type="hidden"><span class="admtop" id="admBar" hidden><b>Modo Léo</b><input type="date" id="diaSel" aria-label="Dia de trabalho" title="Dia em que os lançamentos entram"><button type="button" id="diaOntem">Ontem</button><button type="button" id="admSairBtn">Sair</button></span></div>
   </div>
 </header>
 
@@ -674,6 +674,7 @@ function fcxLoad(){ const d=fcxDocs[$("fcxData").value||hoje()]||{}; const fm=v=
   $("fcxGav").value=fm(d.gaveta); $("fcxDeb").value=fm(d.sicoob?.deb); $("fcxCre").value=fm(d.sicoob?.cre); $("fcxPix").value=fm(d.sicoob?.pix); $("fcxVou").value=fm(d.sicoob?.vou); renderFcx(); }
 $("fcxData").value=hoje();
 $("diaSel").addEventListener("change",diaSync);
+$("diaOntem").onclick=()=>{ const d=new Date(); d.setDate(d.getDate()-1); const y=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; $("diaSel").value=$("diaSel").value===y?hoje():y; $("diaOntem").textContent=$("diaSel").value===y?"Hoje":"Ontem"; diaSync(); };
 $("fcxData").addEventListener("change",fcxLoad);
 ["fcxGav","fcxDeb","fcxCre","fcxPix","fcxVou"].forEach(id=>$(id).addEventListener("input",renderFcx));
 $("fcxSalvar").onclick=async ()=>{ if(!ADMIN()||!db) return; const dia=$("fcxData").value||hoje(), c=fcxCalc(dia), b=$("fcxSalvar"); b.disabled=true;
