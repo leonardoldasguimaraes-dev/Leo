@@ -385,6 +385,9 @@ function status(msg,kind){ const s=$("status"); s.textContent=msg; s.className="
 function mostraDia(){ $("dia").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"}); }
 mostraDia(); setInterval(mostraDia,60000);
 try{ $("quem").value=localStorage.getItem("quem")||""; }catch{}
+/* fiado bloqueado: nomes em config/bloqueio (o Léo pede ao Claude para bloquear/liberar) */
+let bloqueados=[];
+const bloqueado=n=>{ const k=norm(n||"").trim(); if(!k) return false; return bloqueados.some(b=>k===b||k.split(/\s+/)[0]===b||k.startsWith(b+" ")); };
 /* login: Leonardo (com senha, entra no modo Léo) e dois logins da equipe com nome cadastrado pelo Léo */
 let logins={v1:"Visitante 1",v2:"Visitante 2"}, lgSel=null;
 const lgNomes=()=>["Leonardo",logins.v1,logins.v2];
@@ -567,6 +570,7 @@ $("comFechar").onclick=async ()=>{ const c=comDoc(); if(!c) return; const nome=$
   if(!forma){ status("Escolha como o cliente pagou.","err"); return; }
   if(!(c.valor>0)){ status("A comanda está vazia. Adicione os itens antes de fechar.","err"); return; }
   if(forma==="fia"&&!nome){ status("No fiado, escreva o nome de quem pegou.","err"); $("comNome").focus(); return; }
+  if(forma==="fia"&&bloqueado(nome)){ status(`Fiado BLOQUEADO para ${nome}: a conta está em aberto. Receba em dinheiro, cartão ou Pix.`,"err"); try{ alert(`Fiado bloqueado para ${nome}.\nA conta dele está em aberto. Só libera depois do pagamento.\nReceba em dinheiro, cartão ou Pix.`); }catch{} $("comNome").focus(); return; }
   const b=$("comFechar"); b.disabled=true;
   try{ await db.collection("mov").doc(c.id).update({status:"fechada",forma,nome:forma==="fia"?nome.slice(0,40):"",fechadoEm:Date.now(),fechadoPor:quemNome()});
     status(`Comanda ${COR[corDe(c)].toLowerCase()} ${c.numero} fechada: ${brl.format(c.valor)} (${FORMA[forma]}).`,"ok"); curId=null; $("comNome").value=""; PK.com.limpa(); $("comNum").value=""; renderCom(); }
@@ -729,7 +733,8 @@ setInterval(renderPonto,60000);
   const timer=setTimeout(()=>{ if(!db) { $("lista").innerHTML=`<div class="vazio">Não consegui conectar. Abra esta página pelo claude.ai, com a conta do bar.</div>`; } },10000);
   try{ db=await window.claude?.use?.("db"); }catch{ db=null; }
   if(!db){ clearTimeout(timer); $("lista").innerHTML=`<div class="vazio">Não consegui conectar. Abra esta página pelo claude.ai, com a conta do bar.</div>`; return; }
-  db.collection("config").onSnapshot(sn=>{ const d=sn.docs.find(x=>x.id==="logins"), v=d?d.data():{};
+  db.collection("config").onSnapshot(sn=>{ const bq=sn.docs.find(x=>x.id==="bloqueio"); bloqueados=(bq?.data()?.nomes||[]).map(n=>norm(n).trim()).filter(Boolean);
+    const d=sn.docs.find(x=>x.id==="logins"), v=d?d.data():{};
     const ant={...logins}; logins={v1:v.v1||"Visitante 1",v2:v.v2||"Visitante 2"};
     const q=quemNome(); if(q&&q!=="Leonardo"){ if(q===ant.v1&&q!==logins.v1) setQuem(logins.v1); else if(q===ant.v2&&q!==logins.v2) setQuem(logins.v2); else if(!lgNomes().includes(q)) setQuem(""); }
     if($("login").open) lgRender(); },()=>{});
