@@ -1367,25 +1367,27 @@ function analyze(p){
 let frzTxt="";
 function renderFreezers(){ const box=$("frzBody"); if(!box) return;
   const byId=Object.fromEntries(produtos.map(p=>[p.id,p]));
-  const FO=frzCfg?.freezers?.find(f=>/original/i.test(f.nome))?.itens||{}, FB=frzCfg?.freezers?.find(f=>/brahma/i.test(f.nome))?.itens||{};
-  const ids=[...new Set([...Object.keys(FO),...Object.keys(FB)])].filter(id=>byId[id]);
+  const FR=(frzCfg?.freezers||[]).map(f=>({nome:f.nome,curto:f.nome.replace(/^freezer\s*(da|do)?\s*/i,""),itens:f.itens||{},trab:/original/i.test(f.nome)}));
+  const RES=FR.filter(f=>!f.trab), TR=FR.find(f=>f.trab)||{curto:"Original",itens:{}};
+  const ids=[...new Set(FR.flatMap(f=>Object.keys(f.itens)))].filter(id=>byId[id]);
   const fmt=n=>n==null?"—":Number(n).toLocaleString("pt-BR",{maximumFractionDigits:1});
   let faltaO=0, reporTot=0;
-  const rowsA=ids.map(id=>{ const p=byId[id], a=analyze(p), st=Math.max(0,a.st), cO=FO[id]||0, cB=FB[id]||0;
-    const inB=Math.min(cB,st), inO=Math.min(cO,st-inB), dep=st-inB-inO, fO=cO-inO; if(fO>0) faltaO++;
+  const rowsA=ids.map(id=>{ const p=byId[id], a=analyze(p), st=Math.max(0,a.st); let rest=st;
+    const res=RES.map(f=>{ const c=f.itens[id]||0, n=Math.min(c,rest); rest-=n; return {c,n}; });
+    const cO=TR.itens[id]||0, inO=Math.min(cO,rest); rest-=inO; const dep=rest, fO=cO-inO; if(fO>0) faltaO++;
     const rep=a.ultVenda!=null?Math.min(a.ultVenda,dep+a.ultVenda):null; if(rep) reporTot+=rep;
-    return {p,a,st,cO,cB,inO,inB,dep,fO,rep}; }).sort((x,y)=>(y.a.perDay||0)-(x.a.perDay||0));
+    return {p,a,st,cO,inO,res,dep,fO,rep}; }).sort((x,y)=>(y.a.perDay||0)-(x.a.perDay||0));
   const cocas=produtos.filter(p=>/coca/i.test(p.fornecedor||"")&&p.capacidade>0).map(p=>{ const a=analyze(p), st=Math.max(0,a.st), inF=Math.min(p.capacidade,st); return {p,a,st,cap:p.capacidade,inF,falta:p.capacidade-inF,dep:st-inF}; }).sort((x,y)=>y.falta-x.falta||x.p.nome.localeCompare(y.p.nome));
-  const cell=(v,c,f)=>`<td class="num">${v}/${c}${f>0?` <span class="badge b-red">−${f}</span>`:""}</td>`;
-  const tA=rowsA.length?`<div class="tblwrap"><table class="vt frz"><thead><tr><th>Cerveja</th><th>Original<br><span class="note">trabalho</span></th><th>Brahma<br><span class="note">reserva</span></th><th>Depósito</th><th>Repor<br><span class="note">do depósito</span></th><th>Média<br><span class="note">por dia</span></th><th>Dura</th></tr></thead><tbody>`+
-    rowsA.map(r=>`<tr><td>${esc(r.p.nome)}</td>${cell(r.inO,r.cO,r.fO)}${cell(r.inB,r.cB,r.cB-r.inB)}<td class="num">${r.dep>0?r.dep:`<span class="badge b-red">0</span>`}</td><td class="num">${r.rep?`<b>${r.rep}</b>`:"—"}</td><td class="num">${fmt(r.a.perDay)}</td><td class="num">${r.a.diasRest!=null?`${fmt(r.a.diasRest)} d`:"—"}</td></tr>`).join("")+`</tbody></table></div>`:`<div class="note">Cadastre a capacidade dos freezers.</div>`;
+  const cell=(v,c,f)=>c?`<td class="num">${v}/${c}${f>0?` <span class="badge b-red">−${f}</span>`:""}</td>`:`<td class="num note">—</td>`;
+  const tA=rowsA.length?`<div class="tblwrap"><table class="vt frz"><thead><tr><th>Cerveja</th><th>${esc(TR.curto)}<br><span class="note">trabalho</span></th>${RES.map(f=>`<th>${esc(f.curto)}<br><span class="note">reserva</span></th>`).join("")}<th>Depósito</th><th>Repor<br><span class="note">do depósito</span></th><th>Média<br><span class="note">por dia</span></th><th>Dura</th></tr></thead><tbody>`+
+    rowsA.map(r=>`<tr><td>${esc(r.p.nome)}</td>${cell(r.inO,r.cO,r.fO)}${r.res.map(x=>cell(x.n,x.c,x.c-x.n)).join("")}<td class="num">${r.dep>0?r.dep:`<span class="badge b-red">0</span>`}</td><td class="num">${r.rep?`<b>${r.rep}</b>`:"—"}</td><td class="num">${fmt(r.a.perDay)}</td><td class="num">${r.a.diasRest!=null?`${fmt(r.a.diasRest)} d`:"—"}</td></tr>`).join("")+`</tbody></table></div>`:`<div class="note">Cadastre a capacidade dos freezers.</div>`;
   const tC=cocas.length?`<div class="tblwrap"><table class="vt frz"><thead><tr><th>Freezer da Coca</th><th>No freezer</th><th>Depósito</th><th>Média<br><span class="note">por dia</span></th></tr></thead><tbody>`+
     cocas.map(r=>`<tr><td>${esc(r.p.nome)}</td>${cell(r.inF,r.cap,r.falta)}<td class="num">${r.dep||"—"}</td><td class="num">${fmt(r.a.perDay)}</td></tr>`).join("")+`</tbody></table></div>`:"";
   const ultData=rowsA.find(r=>r.a.ultDe)?.a.last;
-  frzTxt=[`*Freezers e estoque · ${ddmm(today())}*`,...rowsA.filter(r=>r.st>0||r.cO||r.cB).sort((x,y)=>y.st-x.st).map(r=>`${r.p.nome}: total ${r.st} · Original ${r.inO}/${r.cO}${r.fO>0?` (falta ${r.fO})`:""} · Brahma ${r.inB}/${r.cB}${r.cB-r.inB>0?` (falta ${r.cB-r.inB})`:""} · depósito ${r.dep}`),...(cocas.length?["","*Freezer da Coca*",...cocas.map(r=>`${r.p.nome}: ${r.inF}/${r.cap}${r.falta>0?` (falta ${r.falta})`:""} · depósito ${r.dep}`)]:[])].join("\n");
-  box.innerHTML=`<div class="tools" style="justify-content:flex-end"><button type="button" class="btn" id="frzCopy">Copiar relatório</button></div><div class="note">A venda sai do freezer da <b>Original</b>. O da <b>Brahma</b> é a reserva gelada (só usa se acabar na Original). A reposição vem do <b>depósito</b>. “Repor” = o que saiu desde a contagem anterior${ultData?` (até ${ddmm(ultData)})`:""}. Em vermelho: falta para encher.</div>`+tA+(tC?`<h3 style="margin:6px 0 0">Freezer da Coca</h3>`+tC:"");
+  frzTxt=[`*Freezers e estoque · ${ddmm(today())}*`,...rowsA.filter(r=>r.st>0||r.cO||r.res.some(x=>x.c)).sort((x,y)=>y.st-x.st).map(r=>`${r.p.nome}: total ${r.st} · ${TR.curto} ${r.inO}/${r.cO}${r.fO>0?` (falta ${r.fO})`:""}${RES.map((f,i)=>r.res[i].c?` · ${f.curto} ${r.res[i].n}/${r.res[i].c}${r.res[i].c-r.res[i].n>0?` (falta ${r.res[i].c-r.res[i].n})`:""}`:"").join("")} · depósito ${r.dep}`),...(cocas.length?["","*Freezer da Coca*",...cocas.map(r=>`${r.p.nome}: ${r.inF}/${r.cap}${r.falta>0?` (falta ${r.falta})`:""} · depósito ${r.dep}`)]:[])].join("\n");
+  box.innerHTML=`<div class="tools" style="justify-content:flex-end"><button type="button" class="btn" id="frzCopy">Copiar relatório</button></div><div class="note">A venda sai do freezer da <b>${esc(TR.curto)}</b>. ${RES.length?`${RES.map(f=>`<b>${esc(f.curto)}</b>`).join(" e ")} ${RES.length>1?"são":"é"} reserva gelada (só usa se acabar na ${esc(TR.curto)}).`:""} A reposição vem do <b>depósito</b>. “Repor” = o que saiu desde a contagem anterior${ultData?` (até ${ddmm(ultData)})`:""}. Em vermelho: falta para encher.</div>`+tA+(tC?`<h3 style="margin:6px 0 0">Freezer da Coca</h3>`+tC:"");
   const fC=cocas.filter(r=>r.falta>0).length;
-  $("frzNote").textContent=`${faltaO?`${faltaO} cerveja(s) faltando na Original`:"Original cheia"}${reporTot?` · repor ${reporTot} do depósito`:""}${fC?` · ${fC} item(ns) faltando na Coca`:""}`;
+  $("frzNote").textContent=`${faltaO?`${faltaO} cerveja(s) faltando na ${TR.curto}`:`${TR.curto} cheia`}${reporTot?` · repor ${reporTot} do depósito`:""}${fC?` · ${fC} item(ns) faltando na Coca`:""}`;
 }
 $("frzBody").addEventListener("click",async e=>{ const b=e.target.closest("#frzCopy"); if(!b) return; try{ await navigator.clipboard.writeText(frzTxt); b.textContent="Copiado!"; }catch{ b.textContent="Não copiou"; } setTimeout(()=>{ b.textContent="Copiar relatório"; },2000); });
 // depois de dar entrada numa nota: abre o relatório dos freezers (estoque total dividido em Original, Brahma e depósito)
