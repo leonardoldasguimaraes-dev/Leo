@@ -113,6 +113,7 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 .ptdot{width:9px;height:9px;border-radius:50%;background:#7CE0A3;display:inline-block}
 .toprt{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .admtop{display:flex;align-items:center;gap:8px;background:var(--accent);color:var(--accent-ink);border-radius:12px;padding:6px 6px 6px 12px;font-size:14px}
+.admtop input{border:0;border-radius:9px;padding:6px 6px;font-size:14px;font-weight:700;background:rgba(255,255,255,.85);color:#222}
 .admtop button{border:0;border-radius:9px;padding:8px 12px;font-weight:700;font-size:14px;background:rgba(0,0,0,.18);color:inherit;cursor:pointer}
 .btn.cam{background:color-mix(in srgb,var(--brand) 14%,var(--surface));color:var(--brand)}
 .cambox{display:flex;flex-direction:column;gap:12px}
@@ -153,7 +154,7 @@ body:not(.adm) .fcx{display:none}
 <header class="top">
   <div class="wrap">
     <div><h1>Balcão Simpatia</h1><div class="dia" id="dia"></div></div>
-    <div class="toprt"><button type="button" class="quem ptop" id="ptTop" aria-expanded="false">Ponto<span class="ptdot" id="ptDot" hidden></span></button><button type="button" class="quem" id="quemBtn"><span class="lbl">No caixa:</span><b id="quemTxt">Entrar</b></button><input id="quem" type="hidden"><span class="admtop" id="admBar" hidden><b>Modo Léo</b><button type="button" id="admSairBtn">Sair</button></span></div>
+    <div class="toprt"><button type="button" class="quem ptop" id="ptTop" aria-expanded="false">Ponto<span class="ptdot" id="ptDot" hidden></span></button><button type="button" class="quem" id="quemBtn"><span class="lbl">No caixa:</span><b id="quemTxt">Entrar</b></button><input id="quem" type="hidden"><span class="admtop" id="admBar" hidden><b>Modo Léo</b><input type="date" id="diaSel" aria-label="Dia de trabalho" title="Dia em que os lançamentos entram"><button type="button" id="admSairBtn">Sair</button></span></div>
   </div>
 </header>
 
@@ -174,6 +175,7 @@ body:not(.adm) .fcx{display:none}
 </dialog>
 
 <main class="wrap">
+  <div class="banner err" id="diaAviso" hidden></div>
   <div class="banner" id="status" hidden></div>
 
   <section class="card ponto" id="ponto" hidden>
@@ -398,8 +400,11 @@ $("lgSalvar").onclick=async ()=>{ if(!ADMIN()||!db) return; const v1=$("lgV1").v
 /* modo Léo: entrar como Leonardo com senha libera apagar, tirar item e reabrir comanda (sai sozinho após 15 min parado) */
 let admTimer=null;
 const ADMIN=()=>$("quem").value.trim().toLowerCase()==="leonardo@";
+/* dia de trabalho: no modo Léo dá para lançar e fechar um dia anterior (ex.: o caixa de ontem) */
+const dia=()=>(ADMIN()&&$("diaSel").value)||hoje();
+function diaSync(){ const d=dia(); if($("fcadData")) $("fcadData").value=d; if($("fcxData")){ $("fcxData").value=d; try{ fcxLoad(); }catch{} } const b=$("diaAviso"); if(b){ b.hidden=d===hoje(); b.textContent=`Lançando no dia ${d.slice(8)}/${d.slice(5,7)} (não é hoje). Para voltar, troque a data lá em cima.`; } if(typeof render==="function"&&db) render(); }
 const quemNome=()=>$("quem").value.trim().replace(/@+$/,"");
-function admCheck(){ const on=ADMIN(); document.body.classList.toggle("adm",on); $("admBar").hidden=!on; clearTimeout(admTimer); if(on) admTimer=setTimeout(admSair,15*60*1000); if(typeof render==="function"&&db){ render(); renderCom(); } }
+function admCheck(){ const on=ADMIN(); document.body.classList.toggle("adm",on); $("admBar").hidden=!on; if(on&&!$("diaSel").value) $("diaSel").value=hoje(); if(!on) $("diaSel").value=""; try{ if(typeof fcxLoad==="function") diaSync(); }catch{} clearTimeout(admTimer); if(on) admTimer=setTimeout(admSair,15*60*1000); if(typeof render==="function"&&db){ render(); renderCom(); } }
 function admSair(){ $("quem").value="Leonardo"; try{ localStorage.setItem("quem","Leonardo"); }catch{} admCheck(); }
 ["click","input","keydown"].forEach(ev=>document.addEventListener(ev,()=>{ if(ADMIN()){ clearTimeout(admTimer); admTimer=setTimeout(admSair,15*60*1000); } },true));
 $("quem").addEventListener("input",quemTxt);
@@ -427,7 +432,7 @@ async function lancar(doc,btn){
   if(!quem){ status("Toque em \"No caixa\" lá em cima e entre com seu login.","err"); abrirLogin(); return false; }
   if(!db){ status("Sem conexão com o app. Confira a internet e abra de novo pelo claude.ai.","err"); return false; }
   btn.disabled=true;
-  try{ await db.collection("mov").doc().set({...doc,data:hoje(),quem,criadoEm:Date.now()}); return true; }
+  try{ await db.collection("mov").doc().set({...doc,data:dia(),quem,criadoEm:Date.now()}); return true; }
   catch(err){ status("Não salvou: "+(err?.message||err?.code||"erro")+". Tente de novo.","err"); return false; }
   finally{ btn.disabled=false; }
 }
@@ -457,7 +462,7 @@ $("comAbrirBtn").onclick=async ()=>{ const n=$("comNum").value.replace(/\D/g,"")
   if(ja&&ja.status==="aberta"){ curId=ja.id; divSet(false); renderCom(); return; }
   if(ja){ status(`A comanda ${COR[cor].toLowerCase()} ${num} já foi fechada. Confira na lista.`,"err"); return; }
   const id=`com-${cor}-${num}-${Date.now()}`;
-  try{ await db.collection("mov").doc(id).set({tipo:"comanda",cor,numero:num,status:"aberta",itens:[],valor:0,forma:"",nome:"",data:hoje(),quem,criadoEm:Date.now()}); curId=id; divSet(false); renderCom(); $("comDesc").focus(); }
+  try{ await db.collection("mov").doc(id).set({tipo:"comanda",cor,numero:num,status:"aberta",itens:[],valor:0,forma:"",nome:"",data:dia(),quem,criadoEm:Date.now()}); curId=id; divSet(false); renderCom(); $("comDesc").focus(); }
   catch(err){ status("Não abriu: "+(err?.message||err?.code),"err"); } };
 /* ler comanda pela câmera: foto -> Claude lê -> conferir -> lança */
 let samp=null, camCor="branca", camAppend=false;
@@ -503,7 +508,7 @@ $("camOk").onclick=async ()=>{ const rows=[...$("camItens").querySelectorAll(".c
       cor=camCor; [...$("comCor").children].forEach(x=>x.setAttribute("aria-pressed",x.dataset.c===cor)); $("comNum").value=n;
       const ja=movs.find(m=>m.tipo==="comanda"&&corDe(m)===cor&&parseInt(m.numero,10)===parseInt(n,10));
       if(ja&&ja.status!=="aberta"){ status(`A comanda ${COR[cor].toLowerCase()} ${n.padStart(4,"0")} já foi fechada.`,"err"); return; }
-      if(ja) curId=ja.id; else { const id=`com-${cor}-${n.padStart(4,"0")}-${Date.now()}`; await db.collection("mov").doc(id).set({tipo:"comanda",cor,numero:n.padStart(4,"0"),status:"aberta",itens:[],valor:0,forma:"",nome:"",data:hoje(),quem:quemNome(),criadoEm:Date.now(),lidaPorFoto:true}); curId=id; }
+      if(ja) curId=ja.id; else { const id=`com-${cor}-${n.padStart(4,"0")}-${Date.now()}`; await db.collection("mov").doc(id).set({tipo:"comanda",cor,numero:n.padStart(4,"0"),status:"aberta",itens:[],valor:0,forma:"",nome:"",data:dia(),quem:quemNome(),criadoEm:Date.now(),lidaPorFoto:true}); curId=id; }
       await new Promise(r=>setTimeout(r,300)); c=comDoc()||{itens:[]}; }
     const itens=[...(c.itens||[]),...rows]; const valor=Math.round(itens.reduce((t,x)=>t+x.v,0)*100)/100;
     await db.collection("mov").doc(curId).update({itens,valor});
@@ -571,7 +576,7 @@ function bate(m,q){ const ws=norm(q).split(/\s+/).filter(Boolean); if(!ws.length
   return txt.every(w=>hay.includes(w)); }
 let filtro="tudo";
 const TIPOF={com:"comanda",bal:"caderno",ret:"retirada"};
-function resumo(){ const H=movs.filter(m=>m.data===hoje()); const soma=f=>H.filter(f).reduce((t,m)=>t+(m.valor||0),0);
+function resumo(){ const H=movs.filter(m=>m.data===dia()); const soma=f=>H.filter(f).reduce((t,m)=>t+(m.valor||0),0);
   const fech=H.filter(m=>m.tipo==="comanda"&&m.status==="fechada"), ab=H.filter(m=>m.tipo==="comanda"&&m.status==="aberta");
   const partes=m=>m.pagamentos?.length?m.pagamentos:[{f:m.forma,v:m.valor||0}];
   const P=H.filter(m=>m.tipo==="caderno"||(m.tipo==="comanda"&&m.status==="fechada")).flatMap(partes);
@@ -588,11 +593,11 @@ $("lhBtn").onclick=()=>setLh($("lhBody").hidden);
 try{ if(localStorage.getItem("lhFechado")==="1") setLh(false); }catch{}
 $("filtro").addEventListener("click",e=>{ const b=e.target.closest("[data-v]"); if(!b) return; filtro=b.dataset.v; [...$("filtro").children].forEach(x=>x.setAttribute("aria-pressed",x===b)); render(); });
 function render(){ const q=$("busca").value.trim(); resumo(); try{ renderFcx(); }catch(e){ console.error(e); }
-  const L=movs.filter(m=>q?bate(m,q):(m.data===hoje()&&(filtro==="tudo"||m.tipo===TIPOF[filtro]))).sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
-  $("listaTit").textContent=q?`Busca: ${L.length} resultado(s)`:"Lançado hoje";
+  const L=movs.filter(m=>q?bate(m,q):(m.data===dia()&&(filtro==="tudo"||m.tipo===TIPOF[filtro]))).sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
+  $("listaTit").textContent=q?`Busca: ${L.length} resultado(s)`:dia()===hoje()?"Lançado hoje":`Lançado em ${dia().slice(8)}/${dia().slice(5,7)}`;
   if(!L.length&&q){ $("lista").innerHTML=`<div class="vazio">Nada encontrado para "${esc(q)}".</div>`; return; }
   if(!L.length){ $("lista").innerHTML=`<div class="vazio">Nada lançado hoje ainda. Escolha acima o que lançar.</div>`; return; }
-  $("lista").innerHTML=L.map(m=>{ const h=new Date(m.criadoEm||0); const hh=(m.data!==hoje()?`${m.data.slice(8)}/${m.data.slice(5,7)} `:"")+`${pad(h.getHours())}:${pad(h.getMinutes())}`;
+  $("lista").innerHTML=L.map(m=>{ const h=new Date(m.criadoEm||0); const hh=(m.data!==dia()?`${m.data.slice(8)}/${m.data.slice(5,7)} `:"")+`${pad(h.getHours())}:${pad(h.getMinutes())}`;
     let t="",s="",v="";
     if(m.tipo==="caderno"){ t=esc(m.desc); s=`Balcão · ${(CADF[m.forma]||"Dinheiro")}`; v=brl.format(m.valor); }
     else if(m.tipo==="comanda"){ t=`Comanda ${COR[corDe(m)]} ${esc(m.numero)}${m.itens?.length?` <span class="note">(${m.itens.length} itens)</span>`:""}`; s=m.status==="aberta"?`<span class="tag">Aberta</span>`:m.forma==="div"?`Dividida: ${(m.pagamentos||[]).map(x=>`${FORMA[x.f]||x.f} ${brl.format(x.v)}`).join(" + ")}`:`${m.forma==="fia"?`<span class="tag fia">Fiado</span> ${esc(m.nome)}`:FORMA[m.forma]||""}`; v=brl.format(m.valor||0); }
@@ -668,6 +673,7 @@ function renderFcx(){ if(!ADMIN()) return; const dia=$("fcxData").value||hoje(),
 function fcxLoad(){ const d=fcxDocs[$("fcxData").value||hoje()]||{}; const fm=v=>v==null?"":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:2});
   $("fcxGav").value=fm(d.gaveta); $("fcxDeb").value=fm(d.sicoob?.deb); $("fcxCre").value=fm(d.sicoob?.cre); $("fcxPix").value=fm(d.sicoob?.pix); $("fcxVou").value=fm(d.sicoob?.vou); renderFcx(); }
 $("fcxData").value=hoje();
+$("diaSel").addEventListener("change",diaSync);
 $("fcxData").addEventListener("change",fcxLoad);
 ["fcxGav","fcxDeb","fcxCre","fcxPix","fcxVou"].forEach(id=>$(id).addEventListener("input",renderFcx));
 $("fcxSalvar").onclick=async ()=>{ if(!ADMIN()||!db) return; const dia=$("fcxData").value||hoje(), c=fcxCalc(dia), b=$("fcxSalvar"); b.disabled=true;
