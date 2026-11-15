@@ -31,7 +31,11 @@ h1{font-family:var(--display);font-size:26px;margin:0;letter-spacing:-.01em}
 button.quem{color:var(--brand-ink);cursor:pointer;padding:10px 14px;font-size:16px}
 .quem .lbl{font-size:13px;opacity:.8}
 dialog#login{border:0;border-radius:var(--r);padding:20px;width:min(420px,calc(100vw - 32px));background:var(--surface);color:var(--ink)}
-dialog#login::backdrop{background:rgba(0,0,0,.45)}
+dialog#login::backdrop,dialog.fcxdlg::backdrop{background:rgba(0,0,0,.45)}
+dialog.fcxdlg{border:0;border-radius:var(--r);padding:20px;width:min(520px,calc(100vw - 32px));background:var(--surface);color:var(--ink)}
+dialog.fcxdlg h2{font-family:var(--display);margin:0 0 10px;font-size:22px;color:var(--pos)}
+dialog.fcxdlg pre{white-space:pre-wrap;font-family:var(--body);font-size:16px;line-height:1.5;margin:0;background:var(--bg);border-radius:12px;padding:12px;max-height:60vh;overflow:auto}
+.fcxok{color:var(--pos);font-weight:700}
 #login h2{font-family:var(--display);margin:0 0 12px;font-size:22px}
 .lglista{display:flex;flex-direction:column;gap:8px}
 .lglista button{text-align:left;display:flex;justify-content:space-between;align-items:center}
@@ -158,6 +162,11 @@ body:not(.adm) .fcx{display:none}
   </div>
 </header>
 
+<dialog id="fcxDlg" class="fcxdlg">
+  <h2 id="fcxDlgT">Caixa fechado ✓</h2>
+  <pre id="fcxDlgTxt"></pre>
+  <div class="lgrow"><button type="button" class="btn" id="fcxDlgCopy">Copiar resumo</button><button type="button" class="btn primary" id="fcxDlgOk">OK, confere</button></div>
+</dialog>
 <dialog id="login">
   <h2>Quem está no caixa?</h2>
   <div class="lglista" id="lgLista"></div>
@@ -307,6 +316,7 @@ body:not(.adm) .fcx{display:none}
 
   <section class="card fcx" id="fcx">
     <div class="pthead"><h2>Fechar caixa</h2><input type="date" id="fcxData" aria-label="Dia do caixa"></div>
+    <div class="fcxok" id="fcxStatus" hidden></div>
     <div class="note">Só no modo Léo. O app soma o que foi lançado; você digita a gaveta e o Sicoob e vê na hora se bateu.</div>
     <div class="fcxres" id="fcxLanc"></div>
     <div class="grid2">
@@ -668,8 +678,9 @@ function renderFcx(){ if(!ADMIN()) return; const dia=$("fcxData").value||hoje(),
   if(anyS){ const sic=(S.deb||0)+(S.cre||0)+(S.pix||0)+(S.vou||0), lan=c.maq; h+=linha(`Sicoob ${f(sic)} × lançado ${f(lan)}`,dif(sic,lan));
     for(const [k,l] of [["deb","Débito"],["cre","Crédito"],["pix","Pix"],["vou","Voucher"]]) if(S[k]!=null&&Math.abs(S[k]-c[k])>=0.005) h+=linha(`· ${l}: Sicoob ${f(S[k])} × lançado ${f(c[k])}`,dif(S[k],c[k]));
     t.push(`Sicoob ${f(sic)} (déb ${f(S.deb||0)}, créd ${f(S.cre||0)}, Pix ${f(S.pix||0)}${S.vou?`, voucher ${f(S.vou)}`:""}) × lançado ${f(lan)}`); }
+  if(g!=null&&anyS){ const sic=(S.deb||0)+(S.cre||0)+(S.pix||0)+(S.vou||0), real=g+c.ret+sic+c.ale; t.push(`Total que entrou no dia (gaveta + retiradas + Sicoob + Alelo): ${f(real)}`); if(Math.abs(real-c.vendido)>=0.01) t.push(`Lançado no Balcão: ${f(c.vendido)} → ${real>c.vendido?"vendido sem lançar":"lançado a mais"}: ${f(Math.abs(real-c.vendido))}`); }
   if(c.ale) t.push(`Alelo: ${f(c.ale)}`); if(c.fia) t.push(`Fiado: ${f(c.fia)} (fora do caixa)`); if(c.retL.length) t.push(`Retiradas: ${c.retL.map(m=>`${RET[m.ret]||""} ${m.nome||""} ${f(m.valor)}`.trim()).join("; ")}`); if(c.ab.length) t.push(`Abertas: ${c.ab.map(m=>`${COR[corDe(m)]} ${m.numero}`).join(", ")}`);
-  $("fcxConf").innerHTML=h; fcxTxt=t.join("\n"); }
+  $("fcxConf").innerHTML=h; fcxTxt=t.join("\n"); fcxStat(); }
 function fcxLoad(){ const d=fcxDocs[$("fcxData").value||hoje()]||{}; const fm=v=>v==null?"":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:2});
   $("fcxGav").value=fm(d.gaveta); $("fcxDeb").value=fm(d.sicoob?.deb); $("fcxCre").value=fm(d.sicoob?.cre); $("fcxPix").value=fm(d.sicoob?.pix); $("fcxVou").value=fm(d.sicoob?.vou); renderFcx(); }
 $("fcxData").value=hoje();
@@ -678,8 +689,11 @@ $("diaOntem").onclick=()=>{ const d=new Date(); d.setDate(d.getDate()-1); const 
 $("fcxData").addEventListener("change",fcxLoad);
 ["fcxGav","fcxDeb","fcxCre","fcxPix","fcxVou"].forEach(id=>$(id).addEventListener("input",renderFcx));
 $("fcxSalvar").onclick=async ()=>{ if(!ADMIN()||!db) return; const dia=$("fcxData").value||hoje(), c=fcxCalc(dia), b=$("fcxSalvar"); b.disabled=true;
-  try{ await db.collection("fechamentos").doc(dia).set({data:dia,gaveta:num($("fcxGav").value),sicoob:{deb:num($("fcxDeb").value),cre:num($("fcxCre").value),pix:num($("fcxPix").value),vou:num($("fcxVou").value)},lancado:{din:c.din,deb:c.deb,cre:c.cre,pix:c.pix,vou:c.vou,cart:c.cart,ale:c.ale,fia:c.fia,ret:c.ret,esperado:c.esperado},resumo:fcxTxt,em:Date.now(),por:"Leonardo"}); status("Fechamento salvo. O Claude passa para o Financeiro.","ok"); }
+  try{ await db.collection("fechamentos").doc(dia).set({data:dia,gaveta:num($("fcxGav").value),sicoob:{deb:num($("fcxDeb").value),cre:num($("fcxCre").value),pix:num($("fcxPix").value),vou:num($("fcxVou").value)},lancado:{din:c.din,deb:c.deb,cre:c.cre,pix:c.pix,vou:c.vou,cart:c.cart,ale:c.ale,fia:c.fia,ret:c.ret,esperado:c.esperado},resumo:fcxTxt,em:Date.now(),por:"Leonardo"}); $("fcxDlgT").textContent=`Caixa de ${dia.slice(8)}/${dia.slice(5,7)} fechado ✓`; $("fcxDlgTxt").textContent=fcxTxt.replace(/\*/g,""); $("fcxDlg").showModal(); fcxStat(); }
   catch(err){ status("Não salvou: "+(err?.message||err?.code),"err"); } finally{ b.disabled=false; } };
+function fcxStat(){ const d=fcxDocs[$("fcxData").value||hoje()], e=$("fcxStatus"); if(!e) return; e.hidden=!d; if(d){ const h=new Date(d.em||0); e.textContent=`Dia fechado ✓ às ${pad(h.getHours())}:${pad(h.getMinutes())} de ${pad(h.getDate())}/${pad(h.getMonth()+1)}. Se mudar algo, salve de novo.`; } }
+$("fcxDlgOk").onclick=()=>$("fcxDlg").close();
+$("fcxDlgCopy").onclick=async ()=>{ try{ await navigator.clipboard.writeText(fcxTxt); $("fcxDlgCopy").textContent="Copiado!"; }catch{ $("fcxDlgCopy").textContent="Não copiou"; } setTimeout(()=>{ $("fcxDlgCopy").textContent="Copiar resumo"; },2000); };
 $("fcxCopiar").onclick=async ()=>{ renderFcx(); try{ await navigator.clipboard.writeText(fcxTxt); $("fcxCopiar").textContent="Copiado!"; }catch{ $("fcxCopiar").textContent="Não copiou"; } setTimeout(()=>{ $("fcxCopiar").textContent="Copiar resumo"; },2000); };
 
 /* ponto: entrada e saída de quem está no caixa; soma as horas do dia e do mês */
@@ -719,7 +733,7 @@ setInterval(renderPonto,60000);
     const ant={...logins}; logins={v1:v.v1||"Visitante 1",v2:v.v2||"Visitante 2"};
     const q=quemNome(); if(q&&q!=="Leonardo"){ if(q===ant.v1&&q!==logins.v1) setQuem(logins.v1); else if(q===ant.v2&&q!==logins.v2) setQuem(logins.v2); else if(!lgNomes().includes(q)) setQuem(""); }
     if($("login").open) lgRender(); },()=>{});
-  db.collection("fechamentos").onSnapshot(sn=>{ fcxDocs={}; sn.docs.forEach(x=>{ fcxDocs[x.id]=x.data(); }); if(ADMIN()&&!$("fcxGav").value) fcxLoad(); },()=>{});
+  db.collection("fechamentos").onSnapshot(sn=>{ fcxDocs={}; sn.docs.forEach(x=>{ fcxDocs[x.id]=x.data(); }); if(ADMIN()&&!$("fcxGav").value) fcxLoad(); try{ fcxStat(); }catch{} },()=>{});
   db.collection("ponto").onSnapshot(sn=>{ ponto=sn.docs.map(x=>x.data()).filter(x=>x.k&&x.ts&&x.data); renderPonto(); },()=>{});
   db.collection("mov").onSnapshot(sn=>{ clearTimeout(timer); movs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.tipo&&typeof m.data==="string"); render(); renderCom(); if(tipo==="comanda"&&!$("comNum").value) $("comNum").value=proxComanda(); },
     ()=>{ clearTimeout(timer); status("Conexão perdida. Recarregue a página.","err"); });
