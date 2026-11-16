@@ -32,6 +32,13 @@ button.quem{color:var(--brand-ink);cursor:pointer;padding:10px 14px;font-size:16
 .quem .lbl{font-size:13px;opacity:.8}
 dialog#login{border:0;border-radius:var(--r);padding:20px;width:min(420px,calc(100vw - 32px));background:var(--surface);color:var(--ink)}
 dialog#login::backdrop,dialog.fcxdlg::backdrop{background:rgba(0,0,0,.45)}
+dialog.numdlg::backdrop{background:rgba(0,0,0,.45)}
+dialog.numdlg{border:0;border-radius:var(--r);padding:18px;width:min(360px,calc(100vw - 32px));background:var(--surface);color:var(--ink)}
+.numtit{font-weight:700;color:var(--muted);text-align:center}
+.numvis{font-family:var(--mono);font-size:44px;font-weight:700;text-align:center;padding:8px 0 12px;letter-spacing:.06em}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.numpad button{height:68px;border-radius:14px;border:1px solid var(--line);background:var(--sunk);font-size:28px;font-weight:700;cursor:pointer;color:var(--ink)}
+.numpad button.ok{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 dialog.fcxdlg{border:0;border-radius:var(--r);padding:20px;width:min(520px,calc(100vw - 32px));background:var(--surface);color:var(--ink)}
 dialog.fcxdlg h2{font-family:var(--display);margin:0 0 10px;font-size:22px;color:var(--pos)}
 dialog.fcxdlg pre{white-space:pre-wrap;font-family:var(--body);font-size:16px;line-height:1.5;margin:0;background:var(--bg);border-radius:12px;padding:12px;max-height:60vh;overflow:auto}
@@ -166,6 +173,16 @@ body:not(.adm) .fcx{display:none}
   </div>
 </header>
 
+<dialog id="numDlg" class="numdlg" aria-label="Número da comanda">
+  <div class="numtit" id="numTit">Número da comanda</div>
+  <div class="numvis" id="numVis">—</div>
+  <div class="numpad" id="numPad">
+    <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+    <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+    <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+    <button type="button" data-k="del" aria-label="Apagar">⌫</button><button type="button" data-k="0">0</button><button type="button" data-k="ok" class="ok">OK</button>
+  </div>
+</dialog>
 <dialog id="fcxDlg" class="fcxdlg">
   <h2 id="fcxDlgT">Caixa fechado ✓</h2>
   <pre id="fcxDlgTxt"></pre>
@@ -234,7 +251,7 @@ body:not(.adm) .fcx{display:none}
         </div>
       </div>
       <div class="grid2">
-        <div class="field"><label for="comNum">Número da comanda</label><input id="comNum" class="m" inputmode="numeric" placeholder="digite o número" autocomplete="off"></div>
+        <div class="field"><label for="comNum">Número da comanda</label><input id="comNum" class="m" inputmode="none" readonly placeholder="toque para digitar" autocomplete="off"></div>
         <div class="field"><label>&nbsp;</label><button type="button" class="btn primary" id="comAbrirBtn">Abrir comanda</button></div>
       </div>
       <button type="button" class="btn cam" id="camBtn">📷 Ler comanda pela câmera</button>
@@ -389,6 +406,18 @@ function status(msg,kind){ const s=$("status"); s.textContent=msg; s.className="
 function mostraDia(){ $("dia").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"}); }
 mostraDia(); setInterval(mostraDia,60000);
 try{ $("quem").value=localStorage.getItem("quem")||""; }catch{}
+/* teclado só de números para o número da comanda */
+let numBuf="";
+function numShow(){ $("numVis").textContent=numBuf?numBuf.padStart(4,"0"):"—"; $("numTit").textContent=`Número da comanda ${cor==="amarela"?"amarela":"branca"}`; }
+function numOpen(){ numBuf=($("comNum").value||"").replace(/\D/g,"").replace(/^0+/,""); numShow(); const d=$("numDlg"); if(!d.open) d.showModal(); }
+$("comNum").addEventListener("click",numOpen);
+$("comNum").addEventListener("focus",e=>{ e.target.blur(); numOpen(); });
+$("numPad").addEventListener("click",e=>{ const b=e.target.closest("[data-k]"); if(!b) return; const k=b.dataset.k;
+  if(k==="del") numBuf=numBuf.slice(0,-1);
+  else if(k==="ok"){ $("comNum").value=numBuf; $("numDlg").close(); if(numBuf) $("comAbrirBtn").focus(); return; }
+  else if(numBuf.length<4) numBuf=(numBuf+k).replace(/^0+/,"");
+  numShow(); });
+$("numDlg").addEventListener("click",e=>{ if(e.target===$("numDlg")) $("numDlg").close(); });
 /* fiado bloqueado: nomes em config/bloqueio (o Léo pede ao Claude para bloquear/liberar) */
 let bloqueados=[];
 const bloqueado=n=>{ const k=norm(n||"").trim(); if(!k) return false; return bloqueados.some(b=>k===b||k.split(/\s+/)[0]===b||k.startsWith(b+" ")); };
