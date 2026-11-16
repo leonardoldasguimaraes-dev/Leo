@@ -82,6 +82,7 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 .tag{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--sunk);color:var(--muted)}
 .tag.fia{background:color-mix(in srgb,var(--neg) 16%,var(--surface));color:var(--neg)}
 .del{border:0;background:none;color:var(--muted);font-size:14px;padding:8px;cursor:pointer;border-radius:8px}
+.del.edt{color:var(--accent-ink);background:var(--accent);font-weight:700}
 .del[data-armed="1"]{background:var(--neg);color:#fff}
 .sug{display:flex;flex-wrap:wrap;gap:8px;max-height:260px;overflow:auto}
 .sg{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;gap:10px;align-items:baseline;cursor:pointer;font-weight:600}
@@ -466,7 +467,7 @@ function renderCom(){ const ab=abertas(); $("comAbertasWrap").hidden=!ab.length;
   $("comAbertas").innerHTML=ab.map(m=>`<button type="button" class="chip" data-open="${esc(m.id)}">${COR[corDe(m)]} ${esc(m.numero)} · ${brl.format(m.valor||0)}</button>`).join("");
   const c=comDoc(); const cam=!$("camBox").hidden; $("comAbrir").hidden=!!c||cam; $("comAberta").hidden=!c||cam; if(!c) return;
   $("comTit").textContent=`Comanda ${COR[corDe(c)]} ${c.numero}`;
-  const it=c.itens||[]; $("comItens").innerHTML=it.length?it.map((x,i)=>`<div class="item" style="grid-template-columns:1fr auto auto"><span class="t">${esc(x.d)}</span><span class="v">${brl.format(x.v)}</span>${ADMIN()?`<button type="button" class="del" data-rmi="${i}" aria-label="Tirar item">Tirar</button>`:"<span></span>"}</div>`).join(""):`<div class="vazio">Nenhum item ainda. Adicione abaixo.</div>`;
+  const it=c.itens||[]; $("comItens").innerHTML=it.length?it.map((x,i)=>`<div class="item" style="grid-template-columns:1fr auto auto"><span class="t">${esc(x.d)}</span><span class="v">${brl.format(x.v)}</span>${ADMIN()?`<span class="admbtns"><button type="button" class="del edt" data-edi="${i}" aria-label="Alterar item">Alterar</button><button type="button" class="del" data-rmi="${i}" aria-label="Tirar item">Tirar</button></span>`:"<span></span>"}</div>`).join(""):`<div class="vazio">Nenhum item ainda. Adicione abaixo.</div>`;
   $("comTot").textContent=brl.format(c.valor||0); }
 async function salvaItens(itens){ const c=comDoc(); if(!c) return; const valor=Math.round(itens.reduce((t,x)=>t+x.v,0)*100)/100;
   try{ await db.collection("mov").doc(c.id).update({itens,valor}); }catch(err){ status("Não salvou: "+(err?.message||err?.code),"err"); } }
@@ -536,7 +537,11 @@ $("comAdd").addEventListener("submit",async e=>{ e.preventDefault(); const c=com
   if(!d){ status("Escolha ou escreva o produto.","err"); $("comDesc").focus(); return; }
   if(!(v>0)){ status("Digite o valor.","err"); $("comVal").focus(); return; }
   const b=$("comAddBtn"); b.disabled=true; await salvaItens([...(c.itens||[]),{d:d.slice(0,80),v}]); b.disabled=false; PK.com.limpa(); $("comDesc").focus(); });
-$("comItens").addEventListener("click",async e=>{ const b=e.target.closest("[data-rmi]"); if(!b||!ADMIN()) return; const c=comDoc(); if(!c) return;
+$("comItens").addEventListener("click",async e=>{ const ed=e.target.closest("[data-edi]"); if(ed&&ADMIN()){ const c=comDoc(); if(!c) return; const i=Number(ed.dataset.edi), x=(c.itens||[])[i]; if(!x) return;
+    const d=prompt("Produto (ex.: 2x Brahma litro):",x.d); if(d===null) return; const vs=prompt("Valor total do item (R$):",String(x.v).replace(".",",")); if(vs===null) return;
+    const v=Number(String(vs).replace(/\./g,"").replace(",",".")); if(!isFinite(v)||v<0){ status("Valor inválido.","err"); return; }
+    const it=[...(c.itens||[])]; it[i]={d:d.trim().slice(0,80)||x.d,v:Math.round(v*100)/100}; await salvaItens(it); status("Item alterado.","ok"); return; }
+  const b=e.target.closest("[data-rmi]"); if(!b||!ADMIN()) return; const c=comDoc(); if(!c) return;
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Tirar"; },3000); return; }
   const it=[...(c.itens||[])]; it.splice(Number(b.dataset.rmi),1); await salvaItens(it); });
 /* dividir a conta: cada pessoa paga a sua parte de um jeito */
@@ -626,7 +631,7 @@ function render(){ const q=$("busca").value.trim(); resumo(); try{ renderFcx(); 
     else if(m.tipo==="retirada"){ t=`${RET[m.ret]||"Retirada"}${m.nome?` · ${esc(m.nome)}`:""}`; s="Retirada do caixa"; v=brl.format(m.valor); }
     else if(m.tipo==="cascos"){ t=`Cascos: ${m.litros||0} litrões · ${m.seiscentos||0} de 600`; s="Contagem de vazios"; v=""; }
     const its=m.tipo==="comanda"&&m.itens?.length?`<br><span class="s">${m.itens.map(x=>`${esc(x.d)} ${brl.format(x.v)}`).join(" · ")}</span>`:"";
-    return `<div class="item"><span class="hora">${hh}</span><span><span class="t">${t}</span><br><span class="s">${s}${m.quem?` · ${esc(m.quem)}`:""}</span>${its}</span><span class="v">${v}</span>${ADMIN()?`<span class="admbtns">${m.tipo==="comanda"&&m.status==="fechada"?`<button type="button" class="del" data-reab="${esc(m.id)}">Reabrir</button>`:""}<button type="button" class="del" data-del="${esc(m.id)}">Apagar</button></span>`:""}</div>`; }).join("");
+    return `<div class="item"><span class="hora">${hh}</span><span><span class="t">${t}</span><br><span class="s">${s}${m.quem?` · ${esc(m.quem)}`:""}</span>${its}</span><span class="v">${v}</span>${ADMIN()?`<span class="admbtns">${m.tipo==="comanda"?`<button type="button" class="del edt" data-reab="${esc(m.id)}">Editar</button>`:""}<button type="button" class="del" data-del="${esc(m.id)}">Apagar</button></span>`:""}</div>`; }).join("");
 }
 $("busca").addEventListener("input",render);
 $("admSairBtn").onclick=admSair;
@@ -637,8 +642,10 @@ $("comCancel").onclick=async ()=>{ if(!ADMIN()) return; const c=comDoc(); if(!c)
 admCheck();
 $("lista").addEventListener("click",async e=>{ if(!ADMIN()||!db) return;
   const r=e.target.closest("[data-reab]");
-  if(r){ if(r.dataset.armed!=="1"){ r.dataset.armed="1"; r.textContent="Confirmar"; setTimeout(()=>{ r.dataset.armed=""; r.textContent="Reabrir"; },3000); return; }
-    try{ await db.collection("mov").doc(r.dataset.reab).update({status:"aberta",forma:"",pagamentos:[],nome:""}); setTipo("comanda"); curId=r.dataset.reab; divSet(false); renderCom(); status("Comanda reaberta. Corrija os itens e feche de novo.","ok"); window.scrollTo({top:0,behavior:"smooth"}); }catch(err){ status("Não reabriu: "+(err?.message||err?.code),"err"); } return; }
+  if(r){ const m=movs.find(x=>x.id===r.dataset.reab); if(!m) return;
+    try{ if(m.status==="fechada") await db.collection("mov").doc(m.id).update({status:"aberta",forma:"",pagamentos:[],reabertaDe:{forma:m.forma||"",nome:m.nome||"",pagamentos:m.pagamentos||[]}});
+      setTipo("comanda"); curId=m.id; divSet(false); renderCom(); if(m.forma==="fia"&&m.nome) $("comNome").value=m.nome;
+      status(`Editando a comanda ${COR[corDe(m)]} ${m.numero}${m.status==="fechada"?` (estava no ${FORMA[m.forma]||m.forma||"—"}${m.nome?` · ${m.nome}`:""})`:""}. Altere ou tire itens e feche de novo.`,"ok"); $("fComanda").scrollIntoView({behavior:"smooth",block:"start"}); }catch(err){ status("Não abriu para editar: "+(err?.message||err?.code),"err"); } return; }
   const b=e.target.closest("[data-del]"); if(!b) return;
   if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Confirmar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Apagar"; },3000); return; }
   try{ await db.collection("mov").doc(b.dataset.del).delete(); status("Lançamento apagado.","ok"); }catch(err){ status("Não apagou: "+(err?.message||err?.code),"err"); } });
