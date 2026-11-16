@@ -43,6 +43,7 @@ dialog.fcxdlg{border:0;border-radius:var(--r);padding:20px;width:min(520px,calc(
 dialog.fcxdlg h2{font-family:var(--display);margin:0 0 10px;font-size:22px;color:var(--pos)}
 dialog.fcxdlg pre{white-space:pre-wrap;font-family:var(--body);font-size:16px;line-height:1.5;margin:0;background:var(--bg);border-radius:12px;padding:12px;max-height:60vh;overflow:auto}
 .fcxok{color:var(--pos);font-weight:700}
+#fcxEnvio.ok{color:var(--pos);font-weight:700}#fcxEnvio.err{color:var(--neg);font-weight:700}
 #login h2{font-family:var(--display);margin:0 0 12px;font-size:22px}
 .lglista{display:flex;flex-direction:column;gap:8px}
 .lglista button{text-align:left;display:flex;justify-content:space-between;align-items:center}
@@ -186,6 +187,7 @@ body:not(.adm) .fcx{display:none}
 <dialog id="fcxDlg" class="fcxdlg">
   <h2 id="fcxDlgT">Caixa fechado ✓</h2>
   <pre id="fcxDlgTxt"></pre>
+  <div class="note" id="fcxEnvio" style="margin-top:10px"></div>
   <div class="lgrow"><button type="button" class="btn" id="fcxDlgCopy">Copiar resumo</button><button type="button" class="btn primary" id="fcxDlgOk">OK, confere</button></div>
 </dialog>
 <dialog id="login">
@@ -737,9 +739,18 @@ $("diaOntem").onclick=()=>{ const d=new Date(); d.setDate(d.getDate()-1); const 
 $("fcxData").addEventListener("change",fcxLoad);
 ["fcxGav","fcxDeb","fcxCre","fcxPix","fcxVou"].forEach(id=>$(id).addEventListener("input",renderFcx));
 $("fcxSalvar").onclick=async ()=>{ if(!ADMIN()||!db) return; const dia=$("fcxData").value||hoje(), c=fcxCalc(dia), b=$("fcxSalvar"); b.disabled=true;
-  try{ await db.collection("fechamentos").doc(dia).set({data:dia,gaveta:num($("fcxGav").value),sicoob:{deb:num($("fcxDeb").value),cre:num($("fcxCre").value),pix:num($("fcxPix").value),vou:num($("fcxVou").value)},lancado:{din:c.din,deb:c.deb,cre:c.cre,pix:c.pix,vou:c.vou,cart:c.cart,ale:c.ale,fia:c.fia,ret:c.ret,esperado:c.esperado},resumo:fcxTxt,em:Date.now(),por:"Leonardo"}); $("fcxDlgT").textContent=`Caixa de ${dia.slice(8)}/${dia.slice(5,7)} fechado ✓`; $("fcxDlgTxt").textContent=fcxTxt.replace(/\*/g,""); $("fcxDlg").showModal(); fcxStat(); }
+  try{ await db.collection("fechamentos").doc(dia).set({data:dia,gaveta:num($("fcxGav").value),sicoob:{deb:num($("fcxDeb").value),cre:num($("fcxCre").value),pix:num($("fcxPix").value),vou:num($("fcxVou").value)},lancado:{din:c.din,deb:c.deb,cre:c.cre,pix:c.pix,vou:c.vou,cart:c.cart,ale:c.ale,fia:c.fia,ret:c.ret,esperado:c.esperado},resumo:fcxTxt,em:Date.now(),por:"Leonardo"}); $("fcxDlgT").textContent=`Caixa de ${dia.slice(8)}/${dia.slice(5,7)} fechado ✓`; $("fcxDlgTxt").textContent=fcxTxt.replace(/\*/g,""); $("fcxEnvio").textContent="Enviando para o Simpatia Financeiro…"; $("fcxEnvio").className="note"; $("fcxDlg").showModal(); fcxStat(); avisaClaude(dia); }
   catch(err){ status("Não salvou: "+(err?.message||err?.code),"err"); } finally{ b.disabled=false; } };
 function fcxStat(){ const d=fcxDocs[$("fcxData").value||hoje()], e=$("fcxStatus"); if(!e) return; e.hidden=!d; if(d){ const h=new Date(d.em||0); e.textContent=`Dia fechado ✓ às ${pad(h.getHours())}:${pad(h.getMinutes())} de ${pad(h.getDate())}/${pad(h.getMonth()+1)}. Se mudar algo, salve de novo.`; } }
+/* ao salvar o fechamento, avisa a conversa do Claude (Claude Code) para lançar no Simpatia Financeiro */
+const CLAUDE_SESSAO="session_015u3gRo2YEfpZ3yeME2Boui";
+async function avisaClaude(dia){ const el=$("fcxEnvio"); let mcp=null; try{ mcp=await window.claude?.use?.("mcp"); }catch{}
+  if(!mcp){ el.textContent="Não deu para enviar daqui. Avise o Claude que o caixa foi fechado."; el.className="note err"; return; }
+  try{ await mcp.callTool("Claude Code Remote","send_message",{session_id:CLAUDE_SESSAO,message:`[Balcão Simpatia] Caixa de ${dia.slice(8)}/${dia.slice(5,7)}/${dia.slice(0,4)} fechado pelo Léo. Passe para o Simpatia Financeiro: vendas (dinheiro, Sicoob, Alelo), retiradas e fiados do dia (dados em fechamentos/${dia} e mov do dia no Balcão).\n\n${fcxTxt}`},{cache:false});
+    el.textContent="Enviado ✓ O Claude vai lançar no Simpatia Financeiro em instantes."; el.className="note ok"; }
+  catch(err){ const c=err?.code||"";
+    el.textContent= c==="not_in_manifest"||c==="approval_required" ? "Envio não autorizado. Toque em Salvar de novo e permita o Claude Code quando o claude.ai perguntar, ou avise o Claude." : c==="server_not_connected" ? "O Claude Code não está conectado neste aparelho. Avise o Claude que o caixa foi fechado." : "Não consegui avisar o Claude ("+(c||"erro")+"). Avise que o caixa foi fechado.";
+    el.className="note err"; } }
 $("fcxDlgOk").onclick=()=>$("fcxDlg").close();
 $("fcxDlgCopy").onclick=async ()=>{ try{ await navigator.clipboard.writeText(fcxTxt); $("fcxDlgCopy").textContent="Copiado!"; }catch{ $("fcxDlgCopy").textContent="Não copiou"; } setTimeout(()=>{ $("fcxDlgCopy").textContent="Copiar resumo"; },2000); };
 $("fcxCopiar").onclick=async ()=>{ renderFcx(); try{ await navigator.clipboard.writeText(fcxTxt); $("fcxCopiar").textContent="Copiado!"; }catch{ $("fcxCopiar").textContent="Não copiou"; } setTimeout(()=>{ $("fcxCopiar").textContent="Copiar resumo"; },2000); };
