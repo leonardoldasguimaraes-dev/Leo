@@ -1637,7 +1637,7 @@ $("cPad").addEventListener("click", e=>e.stopPropagation());
 $("eCountBtn").onclick=openCount;
 
 // quebras e perdas
-const MOTIVOS=[["quebra","Quebra"],["estragado","Estragado / vencido"],["doacao","Doação"],["consumo","Consumo próprio"],["restaurante","Foi para o restaurante"],["outro","Outro"]];
+const MOTIVOS=[["quebra","Quebra"],["estragado","Estragado / vencido"],["doacao","Doação"],["consumo","Consumo próprio"],["restaurante","Foi para o restaurante"],["varejo","Aberto para vender avulso"],["outro","Outro"]];
 const motName=k=>(MOTIVOS.find(m=>m[0]===k)||["","Saída / perda"])[1];
 let qMesSel="atual", qMotSel="quebra";
 let qRelTxt="";
@@ -1647,7 +1647,7 @@ function renderQuebras(){
   const L=movs.filter(m=>m.tipo==="saida" && ymOf(m.data)===ym).sort((a,b)=>b.data.localeCompare(a.data)||(b.criadoEm||0)-(a.criadoEm||0));
   const prodOf=id=>produtos.find(p=>p.id===id);
   const val=m=>m.qtd*(m.custoUnit ?? prodOf(m.produtoId)?.custoUnit ?? 0);
-  const LR=L.filter(m=>m.motivo==="restaurante"), LP=L.filter(m=>m.motivo!=="restaurante");
+  const LR=L.filter(m=>m.motivo==="restaurante"), LP=L.filter(m=>m.motivo!=="restaurante"&&m.motivo!=="varejo"); // "varejo": maço aberto para vender avulso não é perda
   const tot=LP.reduce((t,m)=>t+val(m),0), un=LP.reduce((t,m)=>t+m.qtd,0);
   const mesL=L.filter(()=>true), atual=movs.filter(m=>m.tipo==="saida"&&ymOf(m.data)===thisMonth());
   const vAtual=atual.reduce((t,m)=>t+val(m),0);
