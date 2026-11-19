@@ -107,6 +107,15 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 .aberta{border:2px solid var(--line);background:var(--bg);border-radius:12px;padding:12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px}
 .aberta b{font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .aberta span{font-size:13px;color:var(--muted)}
+.rap{display:flex;flex-direction:column;gap:8px}
+.rap .lab{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.rapg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.rp{border:2px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px;font-weight:700;font-size:15px}
+.rp span{font-family:var(--mono);font-weight:500;font-size:14px;color:var(--muted)}
+.rp.food{border-color:color-mix(in srgb,var(--accent) 55%,var(--line));background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
+.rp:active{transform:scale(.98)}
+.beb summary{cursor:pointer;font-weight:700;padding:12px 14px;border-radius:12px;background:var(--sunk);list-style-position:inside}
+.beb[open] summary{margin-bottom:8px}
 .locais{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
 .resumo{display:flex;flex-wrap:wrap;gap:6px 16px;background:var(--sunk);border-radius:12px;padding:10px 12px;font-size:14px}
 .resumo b{font-family:var(--mono)}
@@ -175,6 +184,8 @@ textarea.res{font-family:var(--mono);font-size:13px;line-height:1.5;background:v
       <div class="lista" id="comItens"></div>
       <div class="comtot"><span>Total da comanda</span><b id="comTot">R$ 0,00</b></div>
       <form id="comAdd" novalidate style="display:flex;flex-direction:column;gap:12px">
+        <div class="rap" id="comRap"></div>
+        <span class="note">Toque no produto para pôr na comanda. Para mais de um, ajuste a quantidade antes. Outro produto: escreva abaixo.</span>
         <div class="grid2">
           <div class="field"><label for="comDesc">Produto</label><input id="comDesc" placeholder="digite a 1ª letra: A, M, R…" autocomplete="off"></div>
           <div class="field"><label for="comVal">Valor de cada (R$)</label><input id="comVal" class="m" inputmode="numeric" placeholder="0,00" autocomplete="off"></div>
@@ -197,6 +208,7 @@ textarea.res{font-family:var(--mono);font-size:13px;line-height:1.5;background:v
   <!-- BALCÃO -->
   <form class="card" id="fBalcao" novalidate hidden>
     <h2>Venda no balcão</h2>
+    <div class="rap" id="balRap"></div>
     <div class="field"><span class="lab">Como pagou</span><div class="chips" id="balForma" role="group" aria-label="Como pagou"></div></div>
     <div class="grid2">
       <div class="field"><label for="balDesc">O que foi</label><input id="balDesc" placeholder="ex.: Marmita" autocomplete="off"></div>
@@ -282,6 +294,12 @@ const CLIS=[
 ];
 const CLIBY=Object.fromEntries(CLIS.map(c=>[c.k,c]));
 const RET=[["compra","Compra"],["freela","Freela"],["outro","Outro"]];
+/* cardápio: comida do restaurante e tudo do freezer da Coca (preços do bar) */
+const CARDAPIO=[
+  ["Comida",[["Marmita 22",22],["Marmita 20",20],["Prato feito",22],["Acréscimo de carne",6]]],
+  ["Bebidas",[["Coca-Cola 200",5],["Coca-Cola Zero 200",5],["Coca-Cola lata 220",6],["Coca-Cola Zero lata 220",6],["Coca-Cola lata 350",8],["Coca-Cola Zero lata 350",8],["Coca-Cola KS 290",7],["Coca-Cola Zero KS 290",7],["Coca-Cola 1L vidro",10],["Coca-Cola Zero 1L",10],["Coca-Cola 2L",16],["Coca-Cola Zero 2L",16],["Guaraná Zero 200",5],["Del Valle 290",7],["H2OH limão 500",9],["Água sem gás 500",4],["Água com gás 500",5],["Água 1,5L",7]]]
+];
+const CAT_ALL=CARDAPIO.flatMap(([,ps])=>ps);
 const isMarmita=d=>/marmit/i.test(d||"");
 
 let db=null, movs=[], coms=[], fechs={}, logins={v1:"",v2:""};
@@ -338,7 +356,8 @@ function produtos(){const m={};
   const add=(d,v,ts)=>{if(!d)return;const k=d.trim().toLowerCase();const o=m[k]||(m[k]={d:d.trim(),v,ts:0,n:0});o.n++;if(ts>=o.ts){o.ts=ts;o.v=v;o.d=d.trim();}};
   for(const x of movs) if(x.tipo==="venda") add(x.desc,x.valor,x.em||0);
   for(const c of coms) for(const it of c.itens||[]) add(it.d,it.v,it.em||c.em||0);
-  return Object.values(m).sort((a,b)=>b.n-a.n);}
+  const hist=Object.values(m).sort((a,b)=>b.n-a.n).filter(p=>!CAT_ALL.some(([n])=>n.toLowerCase()===p.d.toLowerCase()));
+  return [...CAT_ALL.map(([d,v])=>({d,v,n:0})),...hist];}
 function sugestoes(inp,box,val,onPick){
   const q=inp.value.trim().toLowerCase();
   const ps=produtos().filter(p=>!q||p.d.toLowerCase().startsWith(q)||p.d.toLowerCase().includes(" "+q)).slice(0,12);
@@ -347,6 +366,16 @@ function sugestoes(inp,box,val,onPick){
   box.onclick=e=>{const b=e.target.closest(".sg");if(!b)return;const p=ps[+b.dataset.i];inp.value=p.d;setM(val,p.v);box.hidden=true;onPick&&onPick();};}
 [["comDesc","comSug","comVal"],["balDesc","balSug","balVal",()=>balTot()]].forEach(([i,b,v,cb])=>{
   $(i).addEventListener("input",()=>sugestoes($(i),$(b),$(v),cb));$(i).addEventListener("focus",()=>sugestoes($(i),$(b),$(v),cb));});
+
+/* botões rápidos do cardápio */
+function rapHtml(){const bt=(g,ps)=>`<div class="rapg">${ps.map(([n,v])=>`<button type="button" class="rp${g==="Comida"?" food":""}" data-n="${esc(n)}" data-v="${v}">${esc(n)}<span>${f(v)}</span></button>`).join("")}</div>`;
+  return CARDAPIO.map(([g,ps])=>g==="Comida"?`<span class="lab">${g}</span>${bt(g,ps)}`:`<details class="beb"><summary>${g} do freezer da Coca (${ps.length})</summary>${bt(g,ps)}</details>`).join("");}
+$("comRap").innerHTML=rapHtml(); $("balRap").innerHTML=rapHtml();
+$("comRap").onclick=async e=>{const b=e.target.closest(".rp");if(!b)return;if(precisaQuem())return;const c=coms.find(x=>x.id===comId);if(!c)return;
+  const it={d:b.dataset.n,q:qn.com,v:Number(b.dataset.v),em:Date.now(),por:quemNome()};
+  try{await db.collection("com").doc(c.id).update({itens:[...(c.itens||[]),it]});status(`Adicionado: ${it.q>1?it.q+"× ":""}${it.d}`,"ok");resetQ("com");}
+  catch(err){status("Não salvou: "+(err?.message||err?.code),"err");}};
+$("balRap").onclick=e=>{const b=e.target.closest(".rp");if(!b)return;$("balDesc").value=b.dataset.n;setM($("balVal"),Number(b.dataset.v));$("balSug").hidden=true;balTot();status(`${b.dataset.n} escolhido. Confira a forma de pagamento e toque em Lançar venda.`);};
 
 /* ---------- gravação ---------- */
 async function addMov(doc){if(!db){status("Sem conexão com os dados.","err");return false;}
