@@ -2195,7 +2195,9 @@ function caixaInfo(){
   const ym=state.ym; let cart=0, din=0, dinTot=0;
   for(const it of state.items){ if(it.pendente||it.tipo!=="entrada") continue; const d=isDin(it); dinTot+=d; if(ymOf(it.data)===ym){ din+=d; cart+=isCart(it); } }
   const entTot=entregas.reduce((t,e)=>t+e.valor,0), entMes=entregas.filter(e=>ymOf(e.data)===ym).reduce((t,e)=>t+e.valor,0);
-  return {cart,din,mao:Math.round((dinTot-entTot)*100)/100,entMes};
+  // contas do bar pagas com o dinheiro da mão também saem da mão
+  const pagoDin=state.items.filter(it=>it.tipo!=="entrada"&&!it.pendente&&it.pago!==false&&it.pagoPor==="bar"&&it.pagamento==="Dinheiro").reduce((t,it)=>t+it.valor,0);
+  return {cart,din,mao:Math.round((dinTot-entTot-pagoDin)*100)/100,entMes,pagoDin};
 }
 function renderCaixa(){
   const c=caixaInfo();
