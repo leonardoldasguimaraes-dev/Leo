@@ -55,8 +55,9 @@ main{display:flex;flex-direction:column;gap:18px;padding-block:18px 40px}
 .banner{border-radius:12px;padding:12px 14px;background:var(--sunk);font-weight:600}
 .banner.ok{background:color-mix(in srgb,var(--pos) 16%,var(--surface));color:var(--pos)}
 .banner.err{background:color-mix(in srgb,var(--neg) 14%,var(--surface));color:var(--neg)}
-.tipos{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-@media (max-width:480px){.tipos{grid-template-columns:1fr}}
+.tipos{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media (max-width:640px){.tipos{grid-template-columns:1fr 1fr}}
+.qbsel{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:18px;width:100%}
 .tipo{border:2px solid var(--line);background:var(--surface);border-radius:var(--r);padding:16px 12px;text-align:left;display:flex;flex-direction:column;gap:4px;cursor:pointer;min-height:92px}
 .tipo b{font-family:var(--display);font-size:19px}
 .tipo span{font-size:13px;color:var(--muted)}
@@ -223,6 +224,7 @@ body:not(.adm) .soadm{display:none} /* visitante: só o histórico do que ele la
     <button type="button" class="tipo" data-t="caderno" aria-pressed="true"><b>Balcão</b><span>Venda no balcão: dinheiro ou cartão</span></button>
     <button type="button" class="tipo" data-t="comanda" aria-pressed="false"><b>Comanda</b><span>Mesa paga ou no fiado</span></button>
     <button type="button" class="tipo" data-t="retirada" aria-pressed="false"><b>Retirada</b><span>Gelo e passagens</span></button>
+    <button type="button" class="tipo" data-t="quebra" aria-pressed="false"><b>Quebra</b><span>Garrafa quebrada, choca ou perdida</span></button>
   </div>
 
   <form class="card" id="fCaderno" novalidate>
@@ -329,6 +331,27 @@ body:not(.adm) .soadm{display:none} /* visitante: só o histórico do que ele la
   </form>
 
 
+  <form class="card" id="fQuebra" novalidate hidden>
+    <h2>Quebra e perda</h2>
+    <p class="hint">Quebrou, congelou, ficou choca ou saiu sem venda? Lance aqui na hora. Guarde o casco ou a garrafa para o Léo ver.</p>
+    <div class="field"><label for="qbProd">Produto</label><select id="qbProd" class="qbsel"></select></div>
+    <div class="qtd"><span>Quantidade</span><button type="button" class="qb" id="qbMenos" aria-label="Diminuir">−</button><b id="qbN">1</b><button type="button" class="qb" id="qbMais" aria-label="Aumentar">+</button></div>
+    <div class="field"><label>O que aconteceu</label>
+      <div class="chips" id="qbMot" role="group" aria-label="Motivo">
+        <button type="button" class="chip" data-m="quebra" aria-pressed="true">Quebrou</button>
+        <button type="button" class="chip" data-m="congelou" aria-pressed="false">Congelou / estourou</button>
+        <button type="button" class="chip" data-m="estragado" aria-pressed="false">Choca / estragada</button>
+        <button type="button" class="chip" data-m="restaurante" aria-pressed="false">Foi para o restaurante</button>
+        <button type="button" class="chip" data-m="consumo" aria-pressed="false">Consumo próprio</button>
+        <button type="button" class="chip" data-m="varejo" aria-pressed="false">Maço aberto para avulso</button>
+        <button type="button" class="chip" data-m="outro" aria-pressed="false">Outro</button>
+      </div>
+    </div>
+    <div class="field"><label for="qbObs">Observação (opcional)</label><input id="qbObs" placeholder="ex.: caiu da caixa, comanda amarela 116" autocomplete="off"></div>
+    <button class="btn primary" type="submit">Lançar quebra</button>
+    <div class="retrel"><div class="pthead"><b id="qbRelTit">Quebras já lançadas hoje</b><b class="v" id="qbRelTot"></b></div><div class="lista" id="qbRel"></div></div>
+  </form>
+
   <section class="card fcx" id="fcad">
     <div class="pthead"><h2>Lançar caderno</h2><input type="date" id="fcadData" aria-label="Dia do caderno"></div>
     <div class="note">Só no modo Léo. Digite quantos risquinhos tem de cada produto (só dinheiro) e salve tudo de uma vez.</div>
@@ -361,7 +384,7 @@ body:not(.adm) .soadm{display:none} /* visitante: só o histórico do que ele la
     <button type="button" class="lhead" id="lhBtn" aria-expanded="true"><h2 id="listaTit">Lançado hoje</h2><span class="seta" aria-hidden="true"></span></button>
     <div id="lhBody" style="display:contents">
     <p class="hint">Lançou errado? Avise o Léo. Correções e exclusões são feitas só por ele.</p>
-    <div class="chips soadm" id="filtro" role="group" aria-label="Mostrar"><button type="button" class="chip" data-v="tudo" aria-pressed="true">Total do dia</button><button type="button" class="chip" data-v="com" aria-pressed="false">Comandas</button><button type="button" class="chip" data-v="bal" aria-pressed="false">Balcão</button><button type="button" class="chip" data-v="ret" aria-pressed="false">Retiradas</button></div>
+    <div class="chips soadm" id="filtro" role="group" aria-label="Mostrar"><button type="button" class="chip" data-v="tudo" aria-pressed="true">Total do dia</button><button type="button" class="chip" data-v="com" aria-pressed="false">Comandas</button><button type="button" class="chip" data-v="bal" aria-pressed="false">Balcão</button><button type="button" class="chip" data-v="ret" aria-pressed="false">Retiradas</button><button type="button" class="chip" data-v="qb" aria-pressed="false">Quebras</button></div>
     <div class="resumo soadm" id="resumo"></div>
     <div class="field soadm"><input id="busca" type="search" placeholder="Buscar: amarela 5, branca 12, Nei, Brahma…" autocomplete="off" aria-label="Buscar lançamento"></div>
     <div class="lista" id="lista"><div class="vazio">Carregando…</div></div>
@@ -464,7 +487,7 @@ quemTxt();
 $("quem").addEventListener("input",()=>{ try{ localStorage.setItem("quem",ADMIN()?"Leonardo":$("quem").value.trim()); }catch{} admCheck(); });
 
 function setTipo(t){ tipo=t; document.querySelectorAll(".tipo").forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===t));
-  $("fCaderno").hidden=t!=="caderno"; $("fComanda").hidden=t!=="comanda"; $("fRetirada").hidden=t!=="retirada";
+  $("fCaderno").hidden=t!=="caderno"; $("fComanda").hidden=t!=="comanda"; $("fRetirada").hidden=t!=="retirada"; $("fQuebra").hidden=t!=="quebra";
   if(t==="comanda" && !$("comNum").value) $("comNum").value=proxComanda(); }
 document.querySelector(".tipos").addEventListener("click",e=>{ const b=e.target.closest("[data-t]"); if(b) setTipo(b.dataset.t); });
 $("comForma").addEventListener("click",e=>{ const b=e.target.closest("[data-f]"); if(!b) return; setForma(b.dataset.f); });
@@ -619,6 +642,21 @@ $("comFechar").onclick=async ()=>{ const c=comDoc(); if(!c) return; const nome=$
     status(`Comanda ${COR[corDe(c)].toLowerCase()} ${c.numero} fechada: ${brl.format(c.valor)} (${FORMA[forma]}).`,"ok"); curId=null; $("comNome").value=""; PK.com.limpa(); $("comNum").value=""; renderCom(); }
   catch(err){ status("Não fechou: "+(err?.message||err?.code),"err"); } finally{ b.disabled=false; } };
 
+/* quebra: produto + quantidade + motivo (o Claude passa para o estoque do Financeiro no fechamento) */
+const QBMOT={quebra:"Quebrou",congelou:"Congelou / estourou",estragado:"Choca / estragada",restaurante:"Foi para o restaurante",consumo:"Consumo próprio",varejo:"Maço aberto para avulso",outro:"Outro"};
+let qbM="quebra", qbQ=1;
+$("qbProd").innerHTML=`<option value="">Escolha o produto…</option>`+PRODUTOS.filter(([n])=>!/^(Outros|Banheiro|Acréscimo|Bala$|Sambiquira|Coxinha|Linguiça|Bolinho|Língua|Espetinho|Mini coxinha|Amendoim|Copo de vinho)/.test(n)&&!/\(dose|^Dose /i.test(n)).map(([n])=>`<option>${esc(n)}</option>`).join("");
+$("qbMot").addEventListener("click",e=>{ const b=e.target.closest("[data-m]"); if(!b) return; qbM=b.dataset.m; [...$("qbMot").children].forEach(x=>x.setAttribute("aria-pressed",x===b)); });
+$("qbMais").onclick=()=>{ qbQ=Math.min(99,qbQ+1); $("qbN").textContent=qbQ; };
+$("qbMenos").onclick=()=>{ qbQ=Math.max(1,qbQ-1); $("qbN").textContent=qbQ; };
+$("fQuebra").addEventListener("submit",async e=>{ e.preventDefault(); const p=$("qbProd").value;
+  if(!p){ status("Escolha o produto que quebrou.","err"); $("qbProd").focus(); return; }
+  if(await lancar({tipo:"quebra",desc:p,qtd:qbQ,motivo:qbM,obs:$("qbObs").value.trim().slice(0,80),valor:0},e.submitter||e.target.querySelector("button[type=submit]"))){
+    status(`Quebra lançada: ${qbQ}x ${p} (${QBMOT[qbM]}).`,"ok"); $("qbProd").value=""; $("qbObs").value=""; qbQ=1; $("qbN").textContent="1"; } });
+function renderQb(){ const d=dia(), R=movs.filter(m=>m.tipo==="quebra"&&m.data===d).sort((a,b)=>(a.criadoEm||0)-(b.criadoEm||0));
+  $("qbRelTit").textContent=d===hoje()?"Quebras já lançadas hoje":`Quebras lançadas em ${d.slice(8)}/${d.slice(5,7)}`;
+  $("qbRelTot").textContent=R.length?`${R.reduce((t,m)=>t+(m.qtd||0),0)} un.`:"";
+  $("qbRel").innerHTML=R.length?R.map(m=>{ const h=new Date(m.criadoEm||0); return `<div class="item"><span class="hora">${pad(h.getHours())}:${pad(h.getMinutes())}</span><span><span class="t">${m.qtd||1}x ${esc(m.desc)}</span><br><span class="s">${QBMOT[m.motivo]||"Quebra"}${m.obs?` · ${esc(m.obs)}`:""}${m.quem?` · ${esc(m.quem)}`:""}</span></span><span></span></div>`; }).join(""):`<div class="vazio">Nenhuma quebra lançada.</div>`; }
 $("fRetirada").addEventListener("submit",async e=>{ e.preventDefault(); const v=money($("retVal").value), nome=$("retNome").value.trim();
   if(retT==="pass"&&!nome){ status("Escreva quem pegou a passagem.","err"); $("retNome").focus(); return; }
   if(!(v>0)){ status("Digite o valor.","err"); $("retVal").focus(); return; }
@@ -632,7 +670,7 @@ function bate(m,q){ const ws=norm(q).split(/\s+/).filter(Boolean); if(!ws.length
   const hay=norm([m.tipo==="comanda"?`comanda ${COR[corDe(m)]}`:"",m.desc,m.nome,m.quem,FORMA[m.forma]||CADF[m.forma]||"",RET[m.ret]||"",...(m.itens||[]).map(x=>x.d)].join(" "));
   return txt.every(w=>hay.includes(w)); }
 let filtro="tudo";
-const TIPOF={com:"comanda",bal:"caderno",ret:"retirada"};
+const TIPOF={com:"comanda",bal:"caderno",ret:"retirada",qb:"quebra"};
 const QTDRES=[["Antarctica litro",/^antarctica litro/],["Brahma litro",/^brahma litro/],["Skol litro",/^skol litro/],["Antarctica 600",/^antarctica 600/],["Brahma 600",/^brahma 600/],["Skol 600",/^skol 600/],["Barril",/barril/],["Salinas",/salinas/]];
 function resumo(){ const H=movs.filter(m=>m.data===dia()); const soma=f=>H.filter(f).reduce((t,m)=>t+(m.valor||0),0);
   const fech=H.filter(m=>m.tipo==="comanda"&&m.status==="fechada"), ab=H.filter(m=>m.tipo==="comanda"&&m.status==="aberta");
@@ -659,7 +697,7 @@ function renderRet(){ const d=dia(), R=movs.filter(m=>m.tipo==="retirada"&&m.dat
   $("retRelTit").textContent=d===hoje()?"Retiradas já lançadas hoje":`Retiradas já lançadas em ${d.slice(8)}/${d.slice(5,7)}`;
   $("retRelTot").textContent=R.length?`${R.length} · ${brl.format(R.reduce((t,m)=>t+(m.valor||0),0))}`:"";
   $("retRel").innerHTML=R.length?R.map(m=>{ const h=new Date(m.criadoEm||0); return `<div class="item"><span class="hora">${pad(h.getHours())}:${pad(h.getMinutes())}</span><span><span class="t">${RET[m.ret]||"Retirada"}${m.nome?` · ${esc(m.nome)}`:""}</span>${m.quem?`<br><span class="s">lançado por ${esc(m.quem)}</span>`:""}</span><span class="v">${brl.format(m.valor||0)}</span></div>`; }).join(""):`<div class="vazio">Nenhuma retirada lançada ainda.</div>`; }
-function render(){ try{ renderRet(); }catch(e){ console.error(e); } const adm=ADMIN(), eu=norm(quemNome()); const q=adm?$("busca").value.trim():""; resumo(); try{ renderFcx(); }catch(e){ console.error(e); }
+function render(){ try{ renderRet(); renderQb(); }catch(e){ console.error(e); } const adm=ADMIN(), eu=norm(quemNome()); const q=adm?$("busca").value.trim():""; resumo(); try{ renderFcx(); }catch(e){ console.error(e); }
   $("lhSec").hidden=!adm&&!eu;
   // visitante: só o que ele mesmo lançou hoje (abriu ou fechou)
   const meu=m=>!!eu&&(norm(m.quem||"")===eu||norm(m.fechadoPor||"")===eu);
@@ -672,6 +710,7 @@ function render(){ try{ renderRet(); }catch(e){ console.error(e); } const adm=AD
     if(m.tipo==="caderno"){ t=esc(m.desc); s=`Balcão · ${(CADF[m.forma]||"Dinheiro")}`; v=brl.format(m.valor); }
     else if(m.tipo==="comanda"){ t=`Comanda ${COR[corDe(m)]} ${esc(m.numero)}${m.itens?.length?` <span class="note">(${m.itens.length} itens)</span>`:""}`; s=m.status==="aberta"?`<span class="tag">Aberta</span>`:m.forma==="div"?`Dividida: ${(m.pagamentos||[]).map(x=>`${FORMA[x.f]||x.f} ${brl.format(x.v)}`).join(" + ")}`:`${m.forma==="fia"?`<span class="tag fia">Fiado</span> ${esc(m.nome)}`:FORMA[m.forma]||""}`; v=brl.format(m.valor||0); }
     else if(m.tipo==="retirada"){ t=`${RET[m.ret]||"Retirada"}${m.nome?` · ${esc(m.nome)}`:""}`; s="Retirada do caixa"; v=brl.format(m.valor); }
+    else if(m.tipo==="quebra"){ t=`Quebra: ${m.qtd||1}x ${esc(m.desc)}`; s=`${QBMOT[m.motivo]||"Quebra"}${m.obs?` · ${esc(m.obs)}`:""}`; v=""; }
     else if(m.tipo==="cascos"){ t=`Cascos: ${m.litros||0} litrões · ${m.seiscentos||0} de 600`; s="Contagem de vazios"; v=""; }
     const its=m.tipo==="comanda"&&m.itens?.length?`<br><span class="s">${m.itens.map(x=>`${esc(x.d)} ${brl.format(x.v)}`).join(" · ")}</span>`:"";
     return `<div class="item"><span class="hora">${hh}</span><span><span class="t">${t}</span><br><span class="s">${s}${m.quem?` · ${esc(m.quem)}`:""}</span>${its}</span><span class="v">${v}</span>${ADMIN()?`<span class="admbtns">${m.tipo==="comanda"?`<button type="button" class="del edt" data-reab="${esc(m.id)}">Editar</button>`:""}<button type="button" class="del" data-del="${esc(m.id)}">Apagar</button></span>`:""}</div>`; }).join("");
@@ -741,7 +780,7 @@ function renderFcx(){ if(!ADMIN()) return; const dia=$("fcxData").value||hoje(),
     for(const [k,l] of [["deb","Débito"],["cre","Crédito"],["pix","Pix"],["vou","Voucher"]]) if(S[k]!=null&&Math.abs(S[k]-c[k])>=0.005) h+=linha(`· ${l}: Sicoob ${f(S[k])} × lançado ${f(c[k])}`,dif(S[k],c[k]));
     t.push(`Sicoob ${f(sic)} (déb ${f(S.deb||0)}, créd ${f(S.cre||0)}, Pix ${f(S.pix||0)}${S.vou?`, voucher ${f(S.vou)}`:""}) × lançado ${f(lan)}`); }
   if(g!=null&&anyS){ const sic=(S.deb||0)+(S.cre||0)+(S.pix||0)+(S.vou||0), real=g+c.ret+sic+c.ale; t.push(`Total que entrou no dia (gaveta + retiradas + Sicoob + Alelo): ${f(real)}`); if(Math.abs(real-c.vendido)>=0.01) t.push(`Lançado no Balcão: ${f(c.vendido)} → ${real>c.vendido?"vendido sem lançar":"lançado a mais"}: ${f(Math.abs(real-c.vendido))}`); }
-  if(c.ale) t.push(`Alelo: ${f(c.ale)}`); if(c.fia) t.push(`Fiado: ${f(c.fia)} (fora do caixa)`); if(c.retL.length) t.push(`Retiradas: ${c.retL.map(m=>`${RET[m.ret]||""} ${m.nome||""} ${f(m.valor)}`.trim()).join("; ")}`); if(c.ab.length) t.push(`Abertas: ${c.ab.map(m=>`${COR[corDe(m)]} ${m.numero}`).join(", ")}`);
+  if(c.ale) t.push(`Alelo: ${f(c.ale)}`); if(c.fia) t.push(`Fiado: ${f(c.fia)} (fora do caixa)`); if(c.retL.length) t.push(`Retiradas: ${c.retL.map(m=>`${RET[m.ret]||""} ${m.nome||""} ${f(m.valor)}`.trim()).join("; ")}`); { const Q=movs.filter(m=>m.tipo==="quebra"&&m.data===dia); if(Q.length) t.push(`Quebras: ${Q.map(m=>`${m.qtd||1}x ${m.desc} (${QBMOT[m.motivo]||"quebra"})`).join("; ")}`); } if(c.ab.length) t.push(`Abertas: ${c.ab.map(m=>`${COR[corDe(m)]} ${m.numero}`).join(", ")}`);
   $("fcxConf").innerHTML=h; fcxTxt=t.join("\n"); fcxStat(); }
 function fcxLoad(){ const d=fcxDocs[$("fcxData").value||hoje()]||{}; const fm=v=>v==null?"":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:2});
   $("fcxGav").value=fm(d.gaveta); $("fcxDeb").value=fm(d.sicoob?.deb); $("fcxCre").value=fm(d.sicoob?.cre); $("fcxPix").value=fm(d.sicoob?.pix); $("fcxVou").value=fm(d.sicoob?.vou); renderFcx(); }
