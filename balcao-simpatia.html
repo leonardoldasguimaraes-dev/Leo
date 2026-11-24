@@ -145,7 +145,7 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 .pthoje span.on{background:color-mix(in srgb,var(--pos) 18%,var(--surface));color:var(--pos);font-weight:700}
 .ptbtns{display:flex;gap:8px;flex-wrap:wrap}
 body:not(.adm) .fcx{display:none}
-body:not(.adm) .admsec{display:none} /* "Lançado hoje" só no modo Léo: visitante vê só o que lança */
+body:not(.adm) .soadm{display:none} /* visitante: só o histórico do que ele lançou, sem resumo, filtros ou busca */
 .fcadbusca{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px;width:100%}
 .fcadlist{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:520px;overflow:auto;padding:2px}
 @media (max-width:560px){.fcadlist{grid-template-columns:1fr}}
@@ -354,13 +354,13 @@ body:not(.adm) .admsec{display:none} /* "Lançado hoje" só no modo Léo: visita
     <div class="ptbtns"><button type="button" class="btn primary" id="fcxSalvar">Salvar fechamento</button><button type="button" class="btn" id="fcxCopiar">Copiar resumo</button></div>
   </section>
 
-  <section class="card admsec">
+  <section class="card" id="lhSec">
     <button type="button" class="lhead" id="lhBtn" aria-expanded="true"><h2 id="listaTit">Lançado hoje</h2><span class="seta" aria-hidden="true"></span></button>
     <div id="lhBody" style="display:contents">
     <p class="hint">Lançou errado? Avise o Léo. Correções e exclusões são feitas só por ele.</p>
-    <div class="chips" id="filtro" role="group" aria-label="Mostrar"><button type="button" class="chip" data-v="tudo" aria-pressed="true">Total do dia</button><button type="button" class="chip" data-v="com" aria-pressed="false">Comandas</button><button type="button" class="chip" data-v="bal" aria-pressed="false">Balcão</button><button type="button" class="chip" data-v="ret" aria-pressed="false">Retiradas</button></div>
-    <div class="resumo" id="resumo"></div>
-    <div class="field"><input id="busca" type="search" placeholder="Buscar: amarela 5, branca 12, Nei, Brahma…" autocomplete="off" aria-label="Buscar lançamento"></div>
+    <div class="chips soadm" id="filtro" role="group" aria-label="Mostrar"><button type="button" class="chip" data-v="tudo" aria-pressed="true">Total do dia</button><button type="button" class="chip" data-v="com" aria-pressed="false">Comandas</button><button type="button" class="chip" data-v="bal" aria-pressed="false">Balcão</button><button type="button" class="chip" data-v="ret" aria-pressed="false">Retiradas</button></div>
+    <div class="resumo soadm" id="resumo"></div>
+    <div class="field soadm"><input id="busca" type="search" placeholder="Buscar: amarela 5, branca 12, Nei, Brahma…" autocomplete="off" aria-label="Buscar lançamento"></div>
     <div class="lista" id="lista"><div class="vazio">Carregando…</div></div>
   </div>
   </section>
@@ -651,9 +651,12 @@ function setLh(open){ $("lhBody").hidden=!open; $("lhBtn").setAttribute("aria-ex
 $("lhBtn").onclick=()=>setLh($("lhBody").hidden);
 try{ if(localStorage.getItem("lhFechado")==="1") setLh(false); }catch{}
 $("filtro").addEventListener("click",e=>{ const b=e.target.closest("[data-v]"); if(!b) return; filtro=b.dataset.v; [...$("filtro").children].forEach(x=>x.setAttribute("aria-pressed",x===b)); render(); });
-function render(){ const q=$("busca").value.trim(); resumo(); try{ renderFcx(); }catch(e){ console.error(e); }
-  const L=movs.filter(m=>q?bate(m,q):(m.data===dia()&&(filtro==="tudo"||m.tipo===TIPOF[filtro]))).sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
-  $("listaTit").textContent=q?`Busca: ${L.length} resultado(s)`:dia()===hoje()?"Lançado hoje":`Lançado em ${dia().slice(8)}/${dia().slice(5,7)}`;
+function render(){ const adm=ADMIN(), eu=norm(quemNome()); const q=adm?$("busca").value.trim():""; resumo(); try{ renderFcx(); }catch(e){ console.error(e); }
+  $("lhSec").hidden=!adm&&!eu;
+  // visitante: só o que ele mesmo lançou hoje (abriu ou fechou)
+  const meu=m=>!!eu&&(norm(m.quem||"")===eu||norm(m.fechadoPor||"")===eu);
+  const L=movs.filter(m=>adm?(q?bate(m,q):(m.data===dia()&&(filtro==="tudo"||m.tipo===TIPOF[filtro]))):(m.data===hoje()&&meu(m))).sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
+  $("listaTit").textContent=!adm?"Meus lançamentos de hoje":q?`Busca: ${L.length} resultado(s)`:dia()===hoje()?"Lançado hoje":`Lançado em ${dia().slice(8)}/${dia().slice(5,7)}`;
   if(!L.length&&q){ $("lista").innerHTML=`<div class="vazio">Nada encontrado para "${esc(q)}".</div>`; return; }
   if(!L.length){ $("lista").innerHTML=`<div class="vazio">Nada lançado hoje ainda. Escolha acima o que lançar.</div>`; return; }
   $("lista").innerHTML=L.map(m=>{ const h=new Date(m.criadoEm||0); const hh=(m.data!==dia()?`${m.data.slice(8)}/${m.data.slice(5,7)} `:"")+`${pad(h.getHours())}:${pad(h.getMinutes())}`;
