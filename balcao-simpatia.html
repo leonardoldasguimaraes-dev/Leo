@@ -145,6 +145,7 @@ body.adm .lista .item{grid-template-columns:auto 1fr auto auto}
 .pthoje span.on{background:color-mix(in srgb,var(--pos) 18%,var(--surface));color:var(--pos);font-weight:700}
 .ptbtns{display:flex;gap:8px;flex-wrap:wrap}
 body:not(.adm) .fcx{display:none}
+body:not(.adm) .admsec{display:none} /* "Lançado hoje" só no modo Léo: visitante vê só o que lança */
 .fcadbusca{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px;width:100%}
 .fcadlist{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:520px;overflow:auto;padding:2px}
 @media (max-width:560px){.fcadlist{grid-template-columns:1fr}}
@@ -353,7 +354,7 @@ body:not(.adm) .fcx{display:none}
     <div class="ptbtns"><button type="button" class="btn primary" id="fcxSalvar">Salvar fechamento</button><button type="button" class="btn" id="fcxCopiar">Copiar resumo</button></div>
   </section>
 
-  <section class="card">
+  <section class="card admsec">
     <button type="button" class="lhead" id="lhBtn" aria-expanded="true"><h2 id="listaTit">Lançado hoje</h2><span class="seta" aria-hidden="true"></span></button>
     <div id="lhBody" style="display:contents">
     <p class="hint">Lançou errado? Avise o Léo. Correções e exclusões são feitas só por ele.</p>
