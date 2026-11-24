@@ -165,6 +165,8 @@ body:not(.adm) .soadm{display:none} /* visitante: só o histórico do que ele la
 .ptbtns .sai{background:var(--brand);color:var(--brand-ink)}
 .pthoje span i{font-style:normal;font-family:var(--body);font-weight:700;margin-right:6px}
 .vazio{color:var(--muted);text-align:center;padding:18px 0}
+.retrel{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:4px}
+.retrel .item{grid-template-columns:auto 1fr auto;padding:8px 0}
 @media (prefers-reduced-motion:no-preference){.card{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(6px)}}}
 </style>
 
@@ -323,6 +325,7 @@ body:not(.adm) .soadm{display:none} /* visitante: só o histórico do que ele la
       <div class="field"><label for="retVal">Valor (R$)</label><input id="retVal" class="m din" inputmode="numeric" placeholder="0,00" autocomplete="off"></div>
     </div>
     <button class="btn primary" type="submit">Lançar retirada</button>
+    <div class="retrel"><div class="pthead"><b id="retRelTit">Retiradas já lançadas hoje</b><b class="v" id="retRelTot"></b></div><div class="lista" id="retRel"></div></div>
   </form>
 
 
@@ -651,7 +654,12 @@ function setLh(open){ $("lhBody").hidden=!open; $("lhBtn").setAttribute("aria-ex
 $("lhBtn").onclick=()=>setLh($("lhBody").hidden);
 try{ if(localStorage.getItem("lhFechado")==="1") setLh(false); }catch{}
 $("filtro").addEventListener("click",e=>{ const b=e.target.closest("[data-v]"); if(!b) return; filtro=b.dataset.v; [...$("filtro").children].forEach(x=>x.setAttribute("aria-pressed",x===b)); render(); });
-function render(){ const adm=ADMIN(), eu=norm(quemNome()); const q=adm?$("busca").value.trim():""; resumo(); try{ renderFcx(); }catch(e){ console.error(e); }
+/* relatório das retiradas do dia, dentro da tela de Retirada, para não lançar duas vezes */
+function renderRet(){ const d=dia(), R=movs.filter(m=>m.tipo==="retirada"&&m.data===d).sort((a,b)=>(a.criadoEm||0)-(b.criadoEm||0));
+  $("retRelTit").textContent=d===hoje()?"Retiradas já lançadas hoje":`Retiradas já lançadas em ${d.slice(8)}/${d.slice(5,7)}`;
+  $("retRelTot").textContent=R.length?`${R.length} · ${brl.format(R.reduce((t,m)=>t+(m.valor||0),0))}`:"";
+  $("retRel").innerHTML=R.length?R.map(m=>{ const h=new Date(m.criadoEm||0); return `<div class="item"><span class="hora">${pad(h.getHours())}:${pad(h.getMinutes())}</span><span><span class="t">${RET[m.ret]||"Retirada"}${m.nome?` · ${esc(m.nome)}`:""}</span>${m.quem?`<br><span class="s">lançado por ${esc(m.quem)}</span>`:""}</span><span class="v">${brl.format(m.valor||0)}</span></div>`; }).join(""):`<div class="vazio">Nenhuma retirada lançada ainda.</div>`; }
+function render(){ try{ renderRet(); }catch(e){ console.error(e); } const adm=ADMIN(), eu=norm(quemNome()); const q=adm?$("busca").value.trim():""; resumo(); try{ renderFcx(); }catch(e){ console.error(e); }
   $("lhSec").hidden=!adm&&!eu;
   // visitante: só o que ele mesmo lançou hoje (abriu ou fechou)
   const meu=m=>!!eu&&(norm(m.quem||"")===eu||norm(m.fechadoPor||"")===eu);
