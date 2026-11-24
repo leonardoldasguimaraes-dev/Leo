@@ -796,7 +796,7 @@ body.travado{position:fixed;left:0;right:0;width:100%;overflow:hidden}
     <div class="actions"><div class="r"><button type="button" class="btn" id="cCancel">Cancelar</button><button type="submit" class="btn primary" id="cSave">Salvar contagem</button></div></div>
   </form>
   <div class="cpad" id="cPad" hidden>
-    <div class="cpadtop"><span id="padLbl"></span><span class="cpaddisp num" id="padDisp">0</span></div>
+    <div class="cpadtop"><span id="padLbl"></span><span style="display:flex;gap:8px;align-items:center"><button type="button" class="btn" id="padClose">Fechar</button><span class="cpaddisp num" id="padDisp">0</span></span></div>
     <div class="cpadkeys" id="padKeys">
       <button type="button" data-p="1">1</button><button type="button" data-p="2">2</button><button type="button" data-p="3">3</button>
       <button type="button" data-p="4">4</button><button type="button" data-p="5">5</button><button type="button" data-p="6">6</button>
@@ -1622,16 +1622,26 @@ let padIn=null, padVal="", padTs=0;
 function openPad(inp){ if(padIn) padIn.classList.remove("on"); padIn=inp; padVal=inp.value||""; inp.classList.add("on");
   const row=inp.closest("[data-cp]"), p=produtos.find(x=>x.id===row.dataset.cp);
   $("padLbl").textContent=`${p?.nome||""} · ${inp.hasAttribute("data-c")?"caixas":"avulsas"}`; $("padDisp").textContent=padVal||"0"; $("cPad").hidden=false;
-  const r=inp.getBoundingClientRect(), padTop=window.innerHeight-$("cPad").offsetHeight-12; if(r.bottom>padTop) inp.scrollIntoView({block:"center"}); }
+  // rola só o necessário para a casinha ficar logo acima do teclado (sem pular várias linhas)
+  const r=inp.getBoundingClientRect(), padTop=window.innerHeight-$("cPad").offsetHeight-12, sc=inp.closest(".sheet");
+  if(r.bottom>padTop){ const d=r.bottom-padTop+8; if(sc) sc.scrollTop+=d; else window.scrollBy(0,d); }
+  else if(r.top<8){ const d=r.top-8; if(sc) sc.scrollTop+=d; else window.scrollBy(0,d); } }
+/* próxima casinha logo abaixo (mesma coluna; se estiver bloqueada, a outra coluna da linha) */
+function nextPadIn(inp){ const col=inp.hasAttribute("data-c")?"[data-c]":"[data-u]";
+  const rows=[...$("cRows").querySelectorAll("[data-cp]")].filter(r=>r.offsetParent!==null&&!r.hidden);
+  const i=rows.indexOf(inp.closest("[data-cp]"));
+  for(const r of rows.slice(i+1)){ const a=r.querySelector(col); if(a&&!a.disabled) return a; const b=r.querySelector("[data-u]"); if(b&&!b.disabled) return b; }
+  return null; }
 function closePad(){ if(padIn) padIn.classList.remove("on"); padIn=null; $("cPad").hidden=true; }
 $("cRows").addEventListener("pointerdown", e=>{ const i=e.target.closest(".padin"); if(i && !i.disabled){ e.preventDefault(); openPad(i); } });
 $("padKeys").addEventListener("pointerdown", e=>{ const b=e.target.closest("[data-p]"); if(!b||!padIn) return; e.preventDefault(); padTs=Date.now(); b.classList.add("hit"); setTimeout(()=>b.classList.remove("hit"),120); const k=b.dataset.p;
-  if(k==="ok"){ padIn.value=padVal; closePad(); const filled=[...$("cRows").querySelectorAll("[data-cp]")].filter(r=>r.querySelector("[data-c]").value!==""||r.querySelector("[data-u]").value!=="").length; $("cSave").textContent = filled ? `Salvar contagem (${filled})` : "Salvar contagem"; return; }
+  if(k==="ok"){ padIn.value=padVal; const nx=nextPadIn(padIn); if(nx) openPad(nx); else closePad(); const filled=[...$("cRows").querySelectorAll("[data-cp]")].filter(r=>r.querySelector("[data-c]").value!==""||r.querySelector("[data-u]").value!=="").length; $("cSave").textContent = filled ? `Salvar contagem (${filled})` : "Salvar contagem"; return; }
   if(k==="back") padVal=padVal.slice(0,-1); else if(padVal.length<5) padVal=(padVal==="0"?"":padVal)+k;
   $("padDisp").textContent=padVal||"0"; });
 $("cForns").addEventListener("click", e=>{ const b=e.target.closest("[data-cf]"); if(!b) return; cForn=b.dataset.cf; showCForn(); $("cForns").scrollIntoView({block:"nearest"}); });
 $("cRows").addEventListener("input", e=>{ if(e.target.matches("[data-c],[data-u]")) e.target.value=e.target.value.replace(/\D/g,""); const filled=[...$("cRows").querySelectorAll("[data-cp]")].filter(r=>r.querySelector("[data-c]").value!==""||r.querySelector("[data-u]").value!=="").length; $("cSave").textContent = filled ? `Salvar contagem (${filled})` : "Salvar contagem"; });
 $("cCancel").onclick=()=>{ closePad(); $("scrim5").hidden=true; };
+$("padClose").addEventListener("pointerdown", e=>{ e.preventDefault(); padTs=Date.now(); if(padIn) padIn.value=padVal; closePad(); });
 $("scrim5").addEventListener("click", e=>{ if(Date.now()-padTs<600) return; if(e.target===$("scrim5")){ closePad(); $("scrim5").hidden=true; } });
 $("cPad").addEventListener("click", e=>e.stopPropagation());
 $("eCountBtn").onclick=openCount;
