@@ -1342,6 +1342,8 @@ const dayDiff=(a,b)=>Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00")
 const ddmm=d=>`${d.slice(8)}/${d.slice(5,7)}`;
 function fmtCx(u,cx){ u=Math.round(u); if(!cx||cx<=1) return `${u} un`; const c=Math.floor(Math.abs(u)/cx)*(u<0?-1:1), r=Math.abs(u)%cx; return c&&r?`${c} cx + ${r} un`:c?`${c} cx`:`${u} un`; }
 function movOrder(a,b){ return a.data.localeCompare(b.data) || (a.criadoEm||0)-(b.criadoEm||0); }
+/* última contagem feita de verdade (ignora as calculadas pelo sistema "calc-") */
+function ultCont(p){ let u=null; for(const m of movs){ if(m.produtoId!==p.id||m.tipo!=="contagem"||String(m.id||"").startsWith("calc-")) continue; if(!u||m.data>u.data||(m.data===u.data&&(m.criadoEm||0)>(u.criadoEm||0))) u=m; } return u; }
 function analyze(p){
   const ms=movs.filter(m=>m.produtoId===p.id).sort(movOrder), since=addDays(today(),-28);
   let st=0, prev=null, ent=0, cons=0, days=0, last=null;
@@ -1424,7 +1426,7 @@ function renderEstoque(){ try{ renderFreezers(); }catch(e){ console.error(e); }
   else $("eList").innerHTML=A.sort((x,y)=>({red:0,amb:1,ok:2,gray:3}[x.a.status]-{red:0,amb:1,ok:2,gray:3}[y.a.status])||x.p.nome.localeCompare(y.p.nome)).map(({p,a})=>{
     const lbl={red:"Comprar",amb:"Pedir logo",ok:"OK",gray:a.n?"Sem consumo":"Sem contagem"}[a.status];
     return `<button class="row" data-pid="${esc(p.id)}"><span class="stripe" style="background:${a.status==="red"?"var(--neg)":a.status==="amb"?"var(--accent)":a.status==="ok"?"var(--pos)":"var(--line)"}"></span>
-      <span class="main"><span class="t">${esc(p.nome)}</span><span class="s">${p.precoVenda?`<span class="num">venda ${brl.format(p.precoVenda)}${p.custoUnit?` · custo ${brl.format(p.custoUnit)} · margem ${Math.round((p.precoVenda-p.custoUnit)/p.precoVenda*100)}%`:""}</span><span>·</span>`:p.custoUnit?`<span class="num">custo ${brl.format(p.custoUnit)}</span><span>·</span>`:""}<span>${esc(p.embalagem||"")}</span>${eCat==="todas"&&catOf(p)!=="cerveja"?`<span>· ${esc(catName(catOf(p)))}</span>`:""}${a.perDay?`<span>· vende ~${(a.perDay*7).toLocaleString("pt-BR",{maximumFractionDigits:0})}/sem${a.calc===null?" (informado)":""}</span>`:""}${a.diasRest!==null?`<span>· dura ~${Math.max(0,Math.floor(a.diasRest))} dias</span>`:""}${p.capacidade?`<span>· cabe ${p.capacidade}</span>`:""}${a.last?`<span>· contado ${ddmm(a.last)}</span>`:""}</span></span>
+      <span class="main"><span class="t">${esc(p.nome)}</span><span class="s">${p.precoVenda?`<span class="num">venda ${brl.format(p.precoVenda)}${p.custoUnit?` · custo ${brl.format(p.custoUnit)} · margem ${Math.round((p.precoVenda-p.custoUnit)/p.precoVenda*100)}%`:""}</span><span>·</span>`:p.custoUnit?`<span class="num">custo ${brl.format(p.custoUnit)}</span><span>·</span>`:""}<span>${esc(p.embalagem||"")}</span>${eCat==="todas"&&catOf(p)!=="cerveja"?`<span>· ${esc(catName(catOf(p)))}</span>`:""}${a.perDay?`<span>· vende ~${(a.perDay*7).toLocaleString("pt-BR",{maximumFractionDigits:0})}/sem${a.calc===null?" (informado)":""}</span>`:""}${a.diasRest!==null?`<span>· dura ~${Math.max(0,Math.floor(a.diasRest))} dias</span>`:""}${p.capacidade?`<span>· cabe ${p.capacidade}</span>`:""}${ultCont(p)?`<span>· contado ${ddmm(ultCont(p).data)}</span>`:""}</span></span>
       <span class="amt"><span class="num">${fmtCx(a.st,p.porCaixa)}</span><br><span class="badge ${"b-"+a.status}">${lbl}</span></span></button>`; }).join("");
   renderCompras(); renderQuebras();
 }
@@ -1600,7 +1602,7 @@ function openCount(){
   if(!fs.includes(cForn)) cForn=fs.find(f=>produtos.some(p=>fornOf(p)===f))||fs[0];
   $("cForns").innerHTML=fs.map(f=>`<button type="button" class="chip" data-cf="${esc(f)}">${esc(f)} <span class="num">${produtos.filter(p=>fornOf(p)===f).length}</span></button>`).join("");
   $("cRows").innerHTML=`<div class="cnt"><span class="h" style="text-align:left">Produto</span><span class="h">Caixas</span><span class="h">Avulsas</span></div><div class="empty" id="cEmpty" hidden></div>`+
-    [...produtos].sort(ordemProd).map(p=>{ const a=analyze(p); return `<div class="cnt" data-cp="${esc(p.id)}" data-cforn="${esc(fornOf(p))}"><span><b>${esc(p.nome)}</b><br><span class="note">${p.porCaixa>1?`cx de ${p.porCaixa} · `:""}sistema: ${fmtCx(a.st,p.porCaixa)}</span> <span class="ctag" hidden>✓ já contado</span></span>
+    [...produtos].sort(ordemProd).map(p=>{ const a=analyze(p); return `<div class="cnt" data-cp="${esc(p.id)}" data-cforn="${esc(fornOf(p))}"><span><b>${esc(p.nome)}</b><br><span class="note">${p.porCaixa>1?`cx de ${p.porCaixa} · `:""}sistema: ${fmtCx(a.st,p.porCaixa)}${(u=>u?` · última contagem ${ddmm(u.data)} (${u.qtd})`:" · nunca contado")(ultCont(p))}</span> <span class="ctag" hidden>✓ já contado</span></span>
       <input type="text" readonly inputmode="none" tabindex="-1" autocomplete="off" class="padin" data-c aria-label="Caixas de ${esc(p.nome)}"${p.porCaixa>1?"":" disabled"}><input type="text" readonly inputmode="none" tabindex="-1" autocomplete="off" class="padin" data-u aria-label="Unidades avulsas de ${esc(p.nome)}"></div>`; }).join("");
   preencherCont(); $("scrim5").hidden=false;
 }
