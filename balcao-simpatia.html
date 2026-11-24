@@ -602,7 +602,7 @@ $("comFechar").onclick=async ()=>{ const c=comDoc(); if(!c) return; const nome=$
   if(divOn){ const P=divPartes(), soma=Math.round(P.reduce((t,x)=>t+x.v,0)*100)/100;
     if(!P.every(x=>x.f&&x.v>0)||Math.abs(soma-(c.valor||0))>=0.005){ status("Confira os valores e o pagamento de cada pessoa.","err"); return; }
     const b=$("comFechar"); b.disabled=true;
-    try{ await db.collection("mov").doc(c.id).update({status:"fechada",forma:"div",pagamentos:P,nome:"",fechadoEm:Date.now(),fechadoPor:quemNome()});
+    try{ await db.collection("mov").doc(c.id).update({status:"fechada",forma:"div",pagamentos:P,nome:"",fechadoEm:Date.now(),fechadoPor:quemNome()}); window.somFechar?.();
       status(`Comanda ${COR[corDe(c)].toLowerCase()} ${c.numero} fechada dividida: ${P.map(x=>`${FORMA[x.f]} ${brl.format(x.v)}`).join(" + ")}.`,"ok"); curId=null; divSet(false); PK.com.limpa(); $("comNum").value=""; renderCom(); }
     catch(err){ status("Não fechou: "+(err?.message||err?.code),"err"); } finally{ b.disabled=false; }
     return; }
@@ -611,7 +611,7 @@ $("comFechar").onclick=async ()=>{ const c=comDoc(); if(!c) return; const nome=$
   if(forma==="fia"&&!nome){ status("No fiado, escreva o nome de quem pegou.","err"); $("comNome").focus(); return; }
   if(forma==="fia"&&bloqueado(nome)){ status(`Fiado BLOQUEADO para ${nome}: a conta está em aberto. Receba em dinheiro, cartão ou Pix.`,"err"); try{ alert(`Fiado bloqueado para ${nome}.\nA conta dele está em aberto. Só libera depois do pagamento.\nReceba em dinheiro, cartão ou Pix.`); }catch{} $("comNome").focus(); return; }
   const b=$("comFechar"); b.disabled=true;
-  try{ await db.collection("mov").doc(c.id).update({status:"fechada",forma,nome:forma==="fia"?nome.slice(0,40):"",fechadoEm:Date.now(),fechadoPor:quemNome()});
+  try{ await db.collection("mov").doc(c.id).update({status:"fechada",forma,nome:forma==="fia"?nome.slice(0,40):"",fechadoEm:Date.now(),fechadoPor:quemNome()}); window.somFechar?.();
     status(`Comanda ${COR[corDe(c)].toLowerCase()} ${c.numero} fechada: ${brl.format(c.valor)} (${FORMA[forma]}).`,"ok"); curId=null; $("comNome").value=""; PK.com.limpa(); $("comNum").value=""; renderCom(); }
   catch(err){ status("Não fechou: "+(err?.message||err?.code),"err"); } finally{ b.disabled=false; } };
 
@@ -808,6 +808,12 @@ setInterval(()=>{ if(db) render(); },60000);
       g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.3,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+0.07);
       o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+0.08); }catch{}
     try{ navigator.vibrate&&navigator.vibrate(12); }catch{} }
+  /* comanda fechada: som diferente, três notas subindo ("plim-plim-plim") */
+  window.somFechar=()=>{ if(!on) return; try{ ctx=ctx||new (window.AudioContext||window.webkitAudioContext)(); if(ctx.state==="suspended") ctx.resume();
+      [784,988,1319].forEach((fq,i)=>{ const t=ctx.currentTime+0.1+i*0.13, o=ctx.createOscillator(), g=ctx.createGain(); o.type="triangle"; o.frequency.value=fq;
+        g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.35,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+(i===2?0.45:0.16));
+        o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+0.5); }); }catch{}
+    try{ navigator.vibrate&&navigator.vibrate([40,60,40,60,80]); }catch{} };
   btn.addEventListener("click",()=>{ on=!on; try{ localStorage.setItem("balcaoSom",on?"1":"0"); }catch{} pinta(); if(on) bip(); });
   document.addEventListener("pointerdown",e=>{ if(e.target.closest("#somBtn")) return; if(e.target.closest("button,input,select,textarea,label,[data-p],[data-k]")) bip(); },true);
   document.addEventListener("keydown",e=>{ if(e.target.matches&&e.target.matches("input,textarea")) bip(); },true);
