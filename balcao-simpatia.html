@@ -170,7 +170,7 @@ body:not(.adm) .fcx{display:none}
 <header class="top">
   <div class="wrap">
     <div><h1>Balcão Simpatia</h1><div class="dia" id="dia"></div></div>
-    <div class="toprt"><button type="button" class="quem ptop" id="ptTop" aria-expanded="false">Ponto<span class="ptdot" id="ptDot" hidden></span></button><button type="button" class="quem" id="quemBtn"><span class="lbl">No caixa:</span><b id="quemTxt">Entrar</b></button><input id="quem" type="hidden"><span class="admtop" id="admBar" hidden><b>Modo Léo</b><input type="date" id="diaSel" aria-label="Dia de trabalho" title="Dia em que os lançamentos entram"><button type="button" id="diaOntem">Ontem</button><button type="button" id="admSairBtn">Sair</button></span></div>
+    <div class="toprt"><button type="button" class="quem ptop" id="somBtn" aria-pressed="true" title="Som ao tocar">🔊 Som</button><button type="button" class="quem ptop" id="ptTop" aria-expanded="false">Ponto<span class="ptdot" id="ptDot" hidden></span></button><button type="button" class="quem" id="quemBtn"><span class="lbl">No caixa:</span><b id="quemTxt">Entrar</b></button><input id="quem" type="hidden"><span class="admtop" id="admBar" hidden><b>Modo Léo</b><input type="date" id="diaSel" aria-label="Dia de trabalho" title="Dia em que os lançamentos entram"><button type="button" id="diaOntem">Ontem</button><button type="button" id="admSairBtn">Sair</button></span></div>
   </div>
 </header>
 
@@ -799,4 +799,17 @@ setInterval(renderPonto,60000);
     ()=>{ clearTimeout(timer); status("Conexão perdida. Recarregue a página.","err"); });
 })();
 setInterval(()=>{ if(db) render(); },60000);
+
+/* som ao tocar: um "bip" curto em cada toque/tecla para confirmar (liga/desliga no botão Som, lembra no aparelho) */
+(function(){ let on=true, ctx=null; try{ on=localStorage.getItem("balcaoSom")!=="0"; }catch{}
+  const btn=$("somBtn"); const pinta=()=>{ btn.textContent=on?"🔊 Som":"🔇 Som"; btn.setAttribute("aria-pressed",on); };
+  function bip(){ if(!on) return; try{ ctx=ctx||new (window.AudioContext||window.webkitAudioContext)(); if(ctx.state==="suspended") ctx.resume();
+      const t=ctx.currentTime, o=ctx.createOscillator(), g=ctx.createGain(); o.type="sine"; o.frequency.value=1100;
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.3,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+0.07);
+      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+0.08); }catch{}
+    try{ navigator.vibrate&&navigator.vibrate(12); }catch{} }
+  btn.addEventListener("click",()=>{ on=!on; try{ localStorage.setItem("balcaoSom",on?"1":"0"); }catch{} pinta(); if(on) bip(); });
+  document.addEventListener("pointerdown",e=>{ if(e.target.closest("#somBtn")) return; if(e.target.closest("button,input,select,textarea,label,[data-p],[data-k]")) bip(); },true);
+  document.addEventListener("keydown",e=>{ if(e.target.matches&&e.target.matches("input,textarea")) bip(); },true);
+  pinta(); })();
 </script>
