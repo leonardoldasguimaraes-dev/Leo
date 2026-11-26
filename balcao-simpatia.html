@@ -213,6 +213,7 @@ body:not(.adm) .soadm{display:none} /* visitante: só o histórico do que ele la
 <main class="wrap">
   <div class="banner err" id="diaAviso" hidden></div>
   <div class="banner" id="status" hidden></div>
+  <div class="banner" id="salvando" hidden style="position:fixed;right:12px;bottom:12px;z-index:50;padding:6px 12px;font-size:14px;opacity:.9">Salvando…</div>
 
   <section class="card ponto" id="ponto" hidden>
     <div class="pthead"><div><h2>Ponto</h2><span class="note" id="ptNome"></span></div><div class="ptbtns" id="ptBtns"></div></div>
@@ -502,14 +503,24 @@ const corDe=m=>m.cor||"branca";
 $("comCor").addEventListener("click",e=>{ const b=e.target.closest("[data-c]"); if(!b) return; cor=b.dataset.c; [...$("comCor").children].forEach(x=>x.setAttribute("aria-pressed",x===b)); $("comNum").value=proxComanda(); });
 function proxComanda(){ return ""; } // número da comanda sempre digitado à mão
 
+/* gravação rápida: a tela já mostra o lançamento na hora e a gravação termina em segundo plano.
+   Se a internet falhar, aparece um aviso vermelho dizendo o que NÃO foi salvo, para lançar de novo. */
+let srvMovs=[]; const pend=new Map();
+function aplicaPend(){ movs=srvMovs.map(m=>({...m})); for(const [id,p] of pend){ const i=movs.findIndex(m=>m.id===id); if(i>=0) movs[i]={...movs[i],...p.d}; else if(p.create) movs.push({id,...p.d}); } }
+function telaJa(){ aplicaPend(); try{ render(); renderCom(); }catch(e){ console.error(e); } }
+function pendInd(){ const n=[...pend.values()].filter(p=>!p.ok).length, el=$("salvando"); if(el){ el.hidden=!n; el.textContent=n>1?`Salvando ${n}…`:"Salvando…"; } }
+function grava(id,d,create,oque){ const ant=pend.get(id); const p={d:{...(ant?.d||{}),...d},create:create||!!ant?.create,ok:false}; pend.set(id,p); telaJa(); pendInd();
+  const ref=db.collection("mov").doc(id); const pr=(p.create&&!srvMovs.some(m=>m.id===id))?ref.set(p.d):ref.update(d);
+  return pr.then(()=>{ p.ok=true; pendInd(); setTimeout(()=>{ if(pend.get(id)===p){ pend.delete(id); telaJa(); } },8000); return true; })
+    .catch(err=>{ if(pend.get(id)===p) pend.delete(id); telaJa(); pendInd(); status(`NÃO SALVOU: ${oque}. Sem internet? Lance de novo. (${err?.message||err?.code||"erro"})`,"err"); return false; }); }
 async function lancar(doc,btn){
   const quem=quemNome();
   if(!quem){ status("Toque em \"No caixa\" lá em cima e entre com seu login.","err"); abrirLogin(); return false; }
   if(!db){ status("Sem conexão com o app. Confira a internet e abra de novo pelo claude.ai.","err"); return false; }
-  btn.disabled=true;
-  try{ await db.collection("mov").doc().set({...doc,data:dia(),quem,criadoEm:Date.now()}); return true; }
-  catch(err){ status("Não salvou: "+(err?.message||err?.code||"erro")+". Tente de novo.","err"); return false; }
-  finally{ btn.disabled=false; }
+  const id=`m-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
+  const oque=doc.tipo==="retirada"?`retirada ${doc.nome||""} ${brl.format(doc.valor||0)}`:doc.tipo==="quebra"?`quebra ${doc.qtd||1}x ${doc.desc}`:`venda ${doc.desc||""} ${brl.format(doc.valor||0)}`;
+  grava(id,{...doc,data:dia(),quem,criadoEm:Date.now()},true,oque);
+  return true;
 }
 
 $("fCaderno").addEventListener("submit",async e=>{ e.preventDefault(); const v=money($("cadVal").value), d=$("cadDesc").value.trim();
@@ -528,7 +539,7 @@ function renderCom(){ const ab=abertas(); $("comAbertasWrap").hidden=!ab.length;
   const it=c.itens||[]; $("comItens").innerHTML=it.length?it.map((x,i)=>`<div class="item" style="grid-template-columns:1fr auto auto"><span class="t">${esc(x.d)}</span><span class="v">${brl.format(x.v)}</span>${ADMIN()?`<span class="admbtns"><button type="button" class="del edt" data-edi="${i}" aria-label="Alterar item">Alterar</button><button type="button" class="del" data-rmi="${i}" aria-label="Tirar item">Tirar</button></span>`:"<span></span>"}</div>`).join(""):`<div class="vazio">Nenhum item ainda. Adicione abaixo.</div>`;
   $("comTot").textContent=brl.format(c.valor||0); }
 async function salvaItens(itens){ const c=comDoc(); if(!c) return; const valor=Math.round(itens.reduce((t,x)=>t+x.v,0)*100)/100;
-  try{ await db.collection("mov").doc(c.id).update({itens,valor}); }catch(err){ status("Não salvou: "+(err?.message||err?.code),"err"); } }
+  grava(c.id,{itens,valor},false,`itens da comanda ${COR[corDe(c)].toLowerCase()} ${c.numero}`); }
 $("comAbrirBtn").onclick=async ()=>{ const n=$("comNum").value.replace(/\D/g,""), quem=quemNome();
   if(!quem){ status("Toque em \"No caixa\" lá em cima e entre com seu login.","err"); abrirLogin(); return; }
   if(!n){ status("Digite o número da comanda.","err"); $("comNum").focus(); return; }
@@ -537,8 +548,7 @@ $("comAbrirBtn").onclick=async ()=>{ const n=$("comNum").value.replace(/\D/g,"")
   if(ja&&ja.status==="aberta"){ curId=ja.id; divSet(false); renderCom(); return; }
   if(ja){ status(`A comanda ${COR[cor].toLowerCase()} ${num} já foi fechada. Confira na lista.`,"err"); return; }
   const id=`com-${cor}-${num}-${Date.now()}`;
-  try{ await db.collection("mov").doc(id).set({tipo:"comanda",cor,numero:num,status:"aberta",itens:[],valor:0,forma:"",nome:"",data:dia(),quem,criadoEm:Date.now()}); curId=id; divSet(false); renderCom(); $("comDesc").focus(); }
-  catch(err){ status("Não abriu: "+(err?.message||err?.code),"err"); } };
+  curId=id; divSet(false); grava(id,{tipo:"comanda",cor,numero:num,status:"aberta",itens:[],valor:0,forma:"",nome:"",data:dia(),quem,criadoEm:Date.now()},true,`abrir comanda ${COR[cor].toLowerCase()} ${num}`).then(ok=>{ if(!ok&&curId===id){ curId=null; renderCom(); } }); $("comDesc").focus(); };
 /* ler comanda pela câmera: foto -> Claude lê -> conferir -> lança */
 let samp=null, camCor="branca", camAppend=false;
 (async()=>{ try{ samp=await window.claude?.use?.("sample"); const lim=samp?await samp.limits().catch(()=>null):null; if(!lim?.images){ samp=null; } }catch{ samp=null; } $("camBtn").hidden=!samp; $("camBtn2").hidden=!samp; })();
@@ -594,7 +604,7 @@ $("comSair").onclick=()=>{ if(divOn) divSet(false); curId=null; PK.com.limpa(); 
 $("comAdd").addEventListener("submit",async e=>{ e.preventDefault(); const c=comDoc(); if(!c) return; const v=money($("comVal").value), d=$("comDesc").value.trim();
   if(!d){ status("Escolha ou escreva o produto.","err"); $("comDesc").focus(); return; }
   if(!(v>0)){ status("Digite o valor.","err"); $("comVal").focus(); return; }
-  const b=$("comAddBtn"); b.disabled=true; await salvaItens([...(c.itens||[]),{d:d.slice(0,80),v}]); b.disabled=false; PK.com.limpa(); $("comDesc").focus(); });
+  salvaItens([...(c.itens||[]),{d:d.slice(0,80),v}]); PK.com.limpa(); $("comDesc").focus(); });
 $("comItens").addEventListener("click",async e=>{ const ed=e.target.closest("[data-edi]"); if(ed&&ADMIN()){ const c=comDoc(); if(!c) return; const i=Number(ed.dataset.edi), x=(c.itens||[])[i]; if(!x) return;
     const d=prompt("Produto (ex.: 2x Brahma litro):",x.d); if(d===null) return; const vs=prompt("Valor total do item (R$):",String(x.v).replace(".",",")); if(vs===null) return;
     const v=Number(String(vs).replace(/\./g,"").replace(",",".")); if(!isFinite(v)||v<0){ status("Valor inválido.","err"); return; }
@@ -628,19 +638,15 @@ $("divMenos").onclick=()=>{ divN=Math.max(2,divN-1); divMonta(); };
 $("comFechar").onclick=async ()=>{ const c=comDoc(); if(!c) return; const nome=$("comNome").value.trim();
   if(divOn){ const P=divPartes(), soma=Math.round(P.reduce((t,x)=>t+x.v,0)*100)/100;
     if(!P.every(x=>x.f&&x.v>0)||Math.abs(soma-(c.valor||0))>=0.005){ status("Confira os valores e o pagamento de cada pessoa.","err"); return; }
-    const b=$("comFechar"); b.disabled=true;
-    try{ await db.collection("mov").doc(c.id).update({status:"fechada",forma:"div",pagamentos:P,nome:"",fechadoEm:Date.now(),fechadoPor:quemNome()}); window.somFechar?.();
-      status(`Comanda ${COR[corDe(c)].toLowerCase()} ${c.numero} fechada dividida: ${P.map(x=>`${FORMA[x.f]} ${brl.format(x.v)}`).join(" + ")}.`,"ok"); curId=null; divSet(false); PK.com.limpa(); $("comNum").value=""; renderCom(); }
-    catch(err){ status("Não fechou: "+(err?.message||err?.code),"err"); } finally{ b.disabled=false; }
+    grava(c.id,{status:"fechada",forma:"div",pagamentos:P,nome:"",fechadoEm:Date.now(),fechadoPor:quemNome()},false,`fechar comanda ${COR[corDe(c)].toLowerCase()} ${c.numero}`); window.somFechar?.();
+    status(`Comanda ${COR[corDe(c)].toLowerCase()} ${c.numero} fechada dividida: ${P.map(x=>`${FORMA[x.f]} ${brl.format(x.v)}`).join(" + ")}.`,"ok"); curId=null; divSet(false); PK.com.limpa(); $("comNum").value=""; renderCom();
     return; }
   if(!forma){ status("Escolha como o cliente pagou.","err"); return; }
   if(!(c.valor>0)){ status("A comanda está vazia. Adicione os itens antes de fechar.","err"); return; }
   if(forma==="fia"&&!nome){ status("No fiado, escreva o nome de quem pegou.","err"); $("comNome").focus(); return; }
   if(forma==="fia"&&bloqueado(nome)){ status(`Fiado BLOQUEADO para ${nome}: a conta está em aberto. Receba em dinheiro, cartão ou Pix.`,"err"); try{ alert(`Fiado bloqueado para ${nome}.\nA conta dele está em aberto. Só libera depois do pagamento.\nReceba em dinheiro, cartão ou Pix.`); }catch{} $("comNome").focus(); return; }
-  const b=$("comFechar"); b.disabled=true;
-  try{ await db.collection("mov").doc(c.id).update({status:"fechada",forma,nome:forma==="fia"?nome.slice(0,40):"",fechadoEm:Date.now(),fechadoPor:quemNome()}); window.somFechar?.();
-    status(`Comanda ${COR[corDe(c)].toLowerCase()} ${c.numero} fechada: ${brl.format(c.valor)} (${FORMA[forma]}).`,"ok"); curId=null; $("comNome").value=""; PK.com.limpa(); $("comNum").value=""; renderCom(); }
-  catch(err){ status("Não fechou: "+(err?.message||err?.code),"err"); } finally{ b.disabled=false; } };
+  grava(c.id,{status:"fechada",forma,nome:forma==="fia"?nome.slice(0,40):"",fechadoEm:Date.now(),fechadoPor:quemNome()},false,`fechar comanda ${COR[corDe(c)].toLowerCase()} ${c.numero}`); window.somFechar?.();
+  status(`Comanda ${COR[corDe(c)].toLowerCase()} ${c.numero} fechada: ${brl.format(c.valor)} (${FORMA[forma]}).`,"ok"); curId=null; $("comNome").value=""; PK.com.limpa(); $("comNum").value=""; renderCom(); };
 
 /* quebra: produto + quantidade + motivo (o Claude passa para o estoque do Financeiro no fechamento) */
 const QBMOT={quebra:"Quebrou",congelou:"Congelou / estourou",estragado:"Choca / estragada",restaurante:"Foi para o restaurante",consumo:"Consumo próprio",varejo:"Maço aberto para avulso",outro:"Outro"};
@@ -849,7 +855,7 @@ setInterval(renderPonto,60000);
   // só os últimos 21 dias (o histórico inteiro deixava o tablet lento); a tela é redesenhada no máximo 1 vez a cada 150 ms
   const desde=(()=>{ const d=new Date(); d.setDate(d.getDate()-21); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; })();
   let rTimer=null; const agenda=()=>{ if(rTimer) return; rTimer=setTimeout(()=>{ rTimer=null; render(); renderCom(); if(tipo==="comanda"&&!$("comNum").value) $("comNum").value=proxComanda(); },150); };
-  db.collection("mov").where("data",">=",desde).onSnapshot(sn=>{ clearTimeout(timer); movs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.tipo&&typeof m.data==="string"); agenda(); },
+  db.collection("mov").where("data",">=",desde).onSnapshot(sn=>{ clearTimeout(timer); srvMovs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.tipo&&typeof m.data==="string"); aplicaPend(); agenda(); },
     ()=>{ clearTimeout(timer); status("Conexão perdida. Recarregue a página.","err"); });
 })();
 setInterval(()=>{ if(db) render(); },60000);
