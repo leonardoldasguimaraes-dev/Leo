@@ -846,7 +846,10 @@ setInterval(renderPonto,60000);
     if($("login").open) lgRender(); },()=>{});
   db.collection("fechamentos").onSnapshot(sn=>{ fcxDocs={}; sn.docs.forEach(x=>{ fcxDocs[x.id]=x.data(); }); if(ADMIN()&&!$("fcxGav").value) fcxLoad(); try{ fcxStat(); }catch{} },()=>{});
   db.collection("ponto").onSnapshot(sn=>{ ponto=sn.docs.map(x=>x.data()).filter(x=>x.k&&x.ts&&x.data); renderPonto(); },()=>{});
-  db.collection("mov").onSnapshot(sn=>{ clearTimeout(timer); movs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.tipo&&typeof m.data==="string"); render(); renderCom(); if(tipo==="comanda"&&!$("comNum").value) $("comNum").value=proxComanda(); },
+  // só os últimos 21 dias (o histórico inteiro deixava o tablet lento); a tela é redesenhada no máximo 1 vez a cada 150 ms
+  const desde=(()=>{ const d=new Date(); d.setDate(d.getDate()-21); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; })();
+  let rTimer=null; const agenda=()=>{ if(rTimer) return; rTimer=setTimeout(()=>{ rTimer=null; render(); renderCom(); if(tipo==="comanda"&&!$("comNum").value) $("comNum").value=proxComanda(); },150); };
+  db.collection("mov").where("data",">=",desde).onSnapshot(sn=>{ clearTimeout(timer); movs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(m=>m.tipo&&typeof m.data==="string"); agenda(); },
     ()=>{ clearTimeout(timer); status("Conexão perdida. Recarregue a página.","err"); });
 })();
 setInterval(()=>{ if(db) render(); },60000);
