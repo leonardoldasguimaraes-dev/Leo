@@ -852,26 +852,25 @@ setInterval(renderPonto,60000);
 setInterval(()=>{ if(db) render(); },60000);
 
 /* som ao tocar: um "bip" curto em cada toque/tecla para confirmar (liga/desliga no botão Som, lembra no aparelho)
-   iPhone: o áudio "dorme" quando a tela apaga ou o app vai para segundo plano; aqui ele é acordado (ou recriado) a cada toque,
-   e o tipo de sessão "transient" deixa tocar mesmo com o celular no silencioso, onde o aparelho permite. */
-(function(){ let on=true, ctx=null; try{ on=localStorage.getItem("balcaoSom")!=="0"; }catch{}
-  try{ if(navigator.audioSession) navigator.audioSession.type="transient"; }catch{}
-  const AC=window.AudioContext||window.webkitAudioContext;
+   Usa arquivos de som curtinhos (gerados aqui mesmo) tocados como áudio normal: funciona melhor em tablet e iPhone
+   do que o "Web Audio", que o aparelho desliga quando a tela apaga. */
+(function(){ let on=true; try{ on=localStorage.getItem("balcaoSom")!=="0"; }catch{}
   const btn=$("somBtn"); const pinta=()=>{ btn.textContent=on?"🔊 Som":"🔇 Som"; btn.setAttribute("aria-pressed",on); };
-  function comCtx(fn){ if(!AC) return; try{
-      if(!ctx||ctx.state==="closed") ctx=new AC();
-      if(ctx.state==="running"){ fn(ctx); return; }
-      const c=ctx; c.resume().then(()=>{ if(c.state==="running") fn(c); else { try{ c.close(); }catch{} ctx=new AC(); ctx.resume().then(()=>fn(ctx)).catch(()=>{}); } }).catch(()=>{ ctx=null; });
-    }catch{ ctx=null; } }
-  function tom(c,fq,t0,dur,vol,tipo){ const t=c.currentTime+t0, o=c.createOscillator(), g=c.createGain(); o.type=tipo; o.frequency.value=fq;
-    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+0.008); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t+dur+0.02); }
-  function bip(){ if(!on) return; comCtx(c=>tom(c,1100,0,0.07,0.3,"sine")); try{ navigator.vibrate&&navigator.vibrate(12); }catch{} }
+  // gera um WAV (16 bits, mono) com notas em sequência: [[freq, segundos], ...]
+  function wav(notas,vol){ const sr=22050, n=notas.reduce((t,[,d])=>t+Math.round(d*sr),0), buf=new ArrayBuffer(44+n*2), v=new DataView(buf);
+    const w=(o,str)=>{ for(let i=0;i<str.length;i++) v.setUint8(o+i,str.charCodeAt(i)); };
+    w(0,"RIFF"); v.setUint32(4,36+n*2,true); w(8,"WAVE"); w(12,"fmt "); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+    v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,"data"); v.setUint32(40,n*2,true);
+    let p=44; for(const [fq,d] of notas){ const m=Math.round(d*sr); for(let i=0;i<m;i++){ const env=Math.min(1,i/80)*Math.min(1,(m-i)/(m*0.6)); v.setInt16(p,Math.round(Math.sin(2*Math.PI*fq*i/sr)*env*vol*32767),true); p+=2; } }
+    return URL.createObjectURL(new Blob([buf],{type:"audio/wav"})); }
+  let uBip=null, uFecha=null; try{ uBip=wav([[1100,0.07]],0.5); uFecha=wav([[784,0.13],[988,0.13],[1319,0.4]],0.55); }catch{}
+  // vários players para tocar rápido sem cortar o anterior
+  const pool=(u,k)=>Array.from({length:k},()=>{ const a=new Audio(u); a.preload="auto"; return a; });
+  const PB=uBip?pool(uBip,4):[], PF=uFecha?pool(uFecha,2):[]; let iB=0, iF=0;
+  function toca(lista,i){ const a=lista[i]; if(!a) return; try{ a.currentTime=0; const pr=a.play(); if(pr&&pr.catch) pr.catch(()=>{}); }catch{} }
+  function bip(){ if(!on) return; toca(PB,iB); iB=(iB+1)%Math.max(1,PB.length); try{ navigator.vibrate&&navigator.vibrate(12); }catch{} }
   /* comanda fechada: som diferente, três notas subindo ("plim-plim-plim") */
-  window.somFechar=()=>{ if(!on) return; comCtx(c=>[784,988,1319].forEach((fq,i)=>tom(c,fq,0.1+i*0.13,i===2?0.45:0.16,0.35,"triangle")));
-    try{ navigator.vibrate&&navigator.vibrate([40,60,40,60,80]); }catch{} };
-  // ao voltar para o app (tela apagou, trocou de app), joga fora o áudio "travado" para recriar no próximo toque
-  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&ctx&&ctx.state!=="running"){ try{ ctx.close(); }catch{} ctx=null; } });
+  window.somFechar=()=>{ if(!on) return; toca(PF,iF); iF=(iF+1)%Math.max(1,PF.length); try{ navigator.vibrate&&navigator.vibrate([40,60,40,60,80]); }catch{} };
   btn.addEventListener("click",()=>{ on=!on; try{ localStorage.setItem("balcaoSom",on?"1":"0"); }catch{} pinta(); if(on) bip(); });
   document.addEventListener("pointerdown",e=>{ if(e.target.closest("#somBtn")) return; if(e.target.closest("button,input,select,textarea,label,[data-p],[data-k]")) bip(); },true);
   document.addEventListener("keydown",e=>{ if(e.target.matches&&e.target.matches("input,textarea")) bip(); },true);
