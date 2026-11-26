@@ -872,7 +872,10 @@ setInterval(()=>{ if(db) render(); },60000);
   /* comanda fechada: som diferente, três notas subindo ("plim-plim-plim") */
   window.somFechar=()=>{ if(!on) return; toca(PF,iF); iF=(iF+1)%Math.max(1,PF.length); try{ navigator.vibrate&&navigator.vibrate([40,60,40,60,80]); }catch{} };
   btn.addEventListener("click",()=>{ on=!on; try{ localStorage.setItem("balcaoSom",on?"1":"0"); }catch{} pinta(); if(on) bip(); });
-  document.addEventListener("pointerdown",e=>{ if(e.target.closest("#somBtn")) return; if(e.target.closest("button,input,select,textarea,label,[data-p],[data-k]")) bip(); },true);
+  // iPad/iPhone (Safari) só deixa tocar som quando o dedo SOLTA da tela (pointerup); no mouse vale o clique (pointerdown)
+  const alvo=e=>!e.target.closest("#somBtn")&&e.target.closest("button,input,select,textarea,label,[data-p],[data-k]");
+  document.addEventListener("pointerdown",e=>{ if(e.pointerType==="mouse"&&alvo(e)) bip(); },true);
+  document.addEventListener("pointerup",e=>{ if(e.pointerType!=="mouse"&&alvo(e)) bip(); },true);
   document.addEventListener("keydown",e=>{ if(e.target.matches&&e.target.matches("input,textarea")) bip(); },true);
   pinta(); })();
 </script>
