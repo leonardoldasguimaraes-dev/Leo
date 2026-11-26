@@ -851,20 +851,27 @@ setInterval(renderPonto,60000);
 })();
 setInterval(()=>{ if(db) render(); },60000);
 
-/* som ao tocar: um "bip" curto em cada toque/tecla para confirmar (liga/desliga no botão Som, lembra no aparelho) */
+/* som ao tocar: um "bip" curto em cada toque/tecla para confirmar (liga/desliga no botão Som, lembra no aparelho)
+   iPhone: o áudio "dorme" quando a tela apaga ou o app vai para segundo plano; aqui ele é acordado (ou recriado) a cada toque,
+   e o tipo de sessão "transient" deixa tocar mesmo com o celular no silencioso, onde o aparelho permite. */
 (function(){ let on=true, ctx=null; try{ on=localStorage.getItem("balcaoSom")!=="0"; }catch{}
+  try{ if(navigator.audioSession) navigator.audioSession.type="transient"; }catch{}
+  const AC=window.AudioContext||window.webkitAudioContext;
   const btn=$("somBtn"); const pinta=()=>{ btn.textContent=on?"🔊 Som":"🔇 Som"; btn.setAttribute("aria-pressed",on); };
-  function bip(){ if(!on) return; try{ ctx=ctx||new (window.AudioContext||window.webkitAudioContext)(); if(ctx.state==="suspended") ctx.resume();
-      const t=ctx.currentTime, o=ctx.createOscillator(), g=ctx.createGain(); o.type="sine"; o.frequency.value=1100;
-      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.3,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+0.07);
-      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+0.08); }catch{}
-    try{ navigator.vibrate&&navigator.vibrate(12); }catch{} }
+  function comCtx(fn){ if(!AC) return; try{
+      if(!ctx||ctx.state==="closed") ctx=new AC();
+      if(ctx.state==="running"){ fn(ctx); return; }
+      const c=ctx; c.resume().then(()=>{ if(c.state==="running") fn(c); else { try{ c.close(); }catch{} ctx=new AC(); ctx.resume().then(()=>fn(ctx)).catch(()=>{}); } }).catch(()=>{ ctx=null; });
+    }catch{ ctx=null; } }
+  function tom(c,fq,t0,dur,vol,tipo){ const t=c.currentTime+t0, o=c.createOscillator(), g=c.createGain(); o.type=tipo; o.frequency.value=fq;
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+0.008); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t+dur+0.02); }
+  function bip(){ if(!on) return; comCtx(c=>tom(c,1100,0,0.07,0.3,"sine")); try{ navigator.vibrate&&navigator.vibrate(12); }catch{} }
   /* comanda fechada: som diferente, três notas subindo ("plim-plim-plim") */
-  window.somFechar=()=>{ if(!on) return; try{ ctx=ctx||new (window.AudioContext||window.webkitAudioContext)(); if(ctx.state==="suspended") ctx.resume();
-      [784,988,1319].forEach((fq,i)=>{ const t=ctx.currentTime+0.1+i*0.13, o=ctx.createOscillator(), g=ctx.createGain(); o.type="triangle"; o.frequency.value=fq;
-        g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.35,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+(i===2?0.45:0.16));
-        o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+0.5); }); }catch{}
+  window.somFechar=()=>{ if(!on) return; comCtx(c=>[784,988,1319].forEach((fq,i)=>tom(c,fq,0.1+i*0.13,i===2?0.45:0.16,0.35,"triangle")));
     try{ navigator.vibrate&&navigator.vibrate([40,60,40,60,80]); }catch{} };
+  // ao voltar para o app (tela apagou, trocou de app), joga fora o áudio "travado" para recriar no próximo toque
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&ctx&&ctx.state!=="running"){ try{ ctx.close(); }catch{} ctx=null; } });
   btn.addEventListener("click",()=>{ on=!on; try{ localStorage.setItem("balcaoSom",on?"1":"0"); }catch{} pinta(); if(on) bip(); });
   document.addEventListener("pointerdown",e=>{ if(e.target.closest("#somBtn")) return; if(e.target.closest("button,input,select,textarea,label,[data-p],[data-k]")) bip(); },true);
   document.addEventListener("keydown",e=>{ if(e.target.matches&&e.target.matches("input,textarea")) bip(); },true);
